@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yazının fotoğraf üzerinde okunmasını sağlayan, alta doğru koyulaşan perde. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#00050506"
+        android:centerColor="#66050506"
+        android:endColor="#E6050506"
+        android:type="linear" />
+</shape>

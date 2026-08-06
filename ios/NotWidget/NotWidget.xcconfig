@@ -1,0 +1,11 @@
+// Eklentinin sürüm numaralarını uygulamanınkiyle aynı kaynaktan alır.
+//
+// `FLUTTER_BUILD_NAME` ve `FLUTTER_BUILD_NUMBER` pubspec.yaml'daki `version`
+// alanından üretilir ve yalnızca Runner hedefine bağlı olan Generated.xcconfig
+// içinde tanımlıdır. Eklenti bunu okumazsa Info.plist'teki sürüm alanları boş
+// kalır ve iOS uygulamayı "Invalid placeholder attributes" hatasıyla kurmayı
+// reddeder.
+#include? "../Flutter/Generated.xcconfig"
+
+MARKETING_VERSION=$(FLUTTER_BUILD_NAME)
+CURRENT_PROJECT_VERSION=$(FLUTTER_BUILD_NUMBER)

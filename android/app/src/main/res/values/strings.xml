@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">En son çektiğin kareyi ve notunu gösterir.</string>
+    <string name="widget_empty_title">Dokun ve çek</string>
+    <string name="widget_empty_subtitle">İlk notun burada görünecek</string>
+    <string name="widget_photo_description">Son kaydın fotoğrafı</string>
+</resources>
