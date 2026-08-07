@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_palette.dart';
-import '../../../../l10n/l10n_context.dart';
-import '../../../../shared/widgets/pressable.dart';
-import '../../../../shared/widgets/pro_badge.dart';
+import '../../../../../core/theme/app_palette.dart';
+import '../../../../../l10n/l10n_context.dart';
+import '../../../../../core/theme/app_shape.dart';
+import '../../../../../shared/widgets/pressable.dart';
 
 /// "Beni kaç gün sonra hatırlat?"
 ///
@@ -159,7 +159,9 @@ class _ReminderFieldState extends State<ReminderField> {
         ),
         const SizedBox(width: 10),
         Text(
-          active ? context.l10n.reminderSuffixActive : context.l10n.reminderSuffixOff,
+          active
+              ? context.l10n.reminderSuffixActive
+              : context.l10n.reminderSuffixOff,
           style: palette.caption.copyWith(color: palette.inkFaint),
         ),
       ],
@@ -235,8 +237,39 @@ class _LockedField extends StatelessWidget {
             style: palette.label.copyWith(color: palette.inkSoft),
           ),
           const Spacer(),
-          const ProBadge(),
+          const _ProBadge(),
         ],
+      ),
+    );
+  }
+}
+
+class _ProBadge extends StatelessWidget {
+  const _ProBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: palette.emberGlow,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: AppShape.all(AppShape.chip),
+          side: BorderSide(color: palette.ember, width: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          context.l10n.proBadge,
+          style: palette.caption.copyWith(
+            color: palette.ember,
+            fontWeight: FontWeight.w700,
+            fontSize: 10,
+            letterSpacing: 0.8,
+          ),
+        ),
       ),
     );
   }
