@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_palette.dart';
-import '../../../../../core/utils/tr_format.dart';
+import '../../../../../core/theme/app_shape.dart';
 import '../../../../../shared/widgets/glass_surface.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
+import '../../../../../l10n/l10n_context.dart';
+import '../../../../../l10n/enum_labels.dart';
+import '../../../../../core/utils/app_format.dart';
 
 /// Fotoğrafın altında duran bilgi paneli: zaman, not metni ve saklama durumu.
 class DetailSheet extends StatelessWidget {
@@ -18,9 +21,12 @@ class DetailSheet extends StatelessWidget {
     final hasBody = note.body.isNotEmpty;
 
     return GlassSurface(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-      blur: 34,
-      tint: OnPhoto.canvasDeep.withValues(alpha: 0.52),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppShape.panel),
+      ),
+      tint: OnPhoto.canvasDeep.withValues(alpha: 0.96),
+      borderColor: OnPhoto.hairlineBright,
+      elevation: 24,
       padding: EdgeInsets.fromLTRB(
         22,
         20,
@@ -31,37 +37,43 @@ class DetailSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sürükleme tutamacı yoktu ve olmamalı: bu panel sürüklenmiyor.
+          // Hiçbir işi olmayan bir denetim, arayüzü kalabalıklaştırmaktan
+          // başka bir şey yapmıyordu.
           Row(
             children: [
               Expanded(
                 child: Text(
-                  TrFormat.upper(TrFormat.stamp(note.createdAt)),
+                  context.l10n.upper(context.l10n.stamp(note.createdAt)),
                   style: OnPhotoText.overline,
                 ),
               ),
+              // Çerçeveli hap yerine çıplak bir eylem.
+              //
+              // Tam yuvarlak kenarlıklı küçük rozet, uygulamanın geri kalanıyla
+              // (baskı köşeleri, ince çizgiler) aynı dili konuşmuyordu. Yazının
+              // kendisi zaten yeterli çağrı.
               Pressable(
                 onPressed: onEdit,
                 scale: 0.94,
-                semanticLabel: 'Notu düzenle',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: OnPhoto.hairlineBright),
-                  ),
+                semanticLabel: context.l10n.editNoteSemantic,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.edit_outlined,
-                        size: 13,
-                        color: OnPhoto.inkSoft,
+                        size: 14,
+                        color: OnPhoto.ember,
                       ),
                       const SizedBox(width: 6),
-                      Text('Düzenle', style: OnPhotoText.caption),
+                      Text(
+                        context.l10n.actionEdit,
+                        style: OnPhotoText.label.copyWith(
+                          color: OnPhoto.ember,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -119,8 +131,9 @@ class _RetentionLine extends StatelessWidget {
         Expanded(
           child: Text(
             timed
-                ? '${note.retention.label} · ${TrFormat.remainingLong(expiresAt)}'
-                : 'Otomatik silme kapalı — bu not kalıcı.',
+                ? '${note.retention.label(context.l10n)} · '
+                  '${context.l10n.remainingLong(expiresAt)}'
+                : context.l10n.retentionOffNotice,
             style: OnPhotoText.caption.copyWith(
               color: timed ? OnPhoto.inkSoft : OnPhoto.inkFaint,
             ),

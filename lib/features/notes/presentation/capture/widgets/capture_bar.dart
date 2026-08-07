@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../shared/widgets/aperture.dart';
 import '../../../../../shared/widgets/icon_orb.dart';
+import '../../../../../l10n/l10n_context.dart';
 
 /// Vizörün altındaki denetim çubuğu: objektif değiştir · deklanşör · flaş.
 class CaptureBar extends StatelessWidget {
@@ -41,7 +42,7 @@ class CaptureBar extends StatelessWidget {
         children: [
           IconOrb(
             icon: Icons.cameraswitch_outlined,
-            semanticLabel: 'Objektifi değiştir',
+            semanticLabel: context.l10n.switchLens,
             onPressed: canFlip && !busy ? onFlip : null,
             size: 46,
           ),
@@ -53,7 +54,7 @@ class CaptureBar extends StatelessWidget {
           ),
           IconOrb(
             icon: _flashIcon,
-            semanticLabel: 'Flaş: $_flashLabel',
+            semanticLabel: context.l10n.flashSemantic(_flashLabel(context)),
             onPressed: busy ? null : onCycleFlash,
             size: 46,
             active: flashMode != FlashMode.off,
@@ -69,10 +70,10 @@ class CaptureBar extends StatelessWidget {
     _ => Icons.flash_on_rounded,
   };
 
-  String get _flashLabel => switch (flashMode) {
-    FlashMode.off => 'kapalı',
-    FlashMode.auto => 'otomatik',
-    _ => 'açık',
+  String _flashLabel(BuildContext context) => switch (flashMode) {
+    FlashMode.off => context.l10n.flashOff,
+    FlashMode.auto => context.l10n.flashAuto,
+    _ => context.l10n.flashOn,
   };
 }
 

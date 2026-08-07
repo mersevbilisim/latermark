@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">최근 사진과 노트를 보여줍니다.</string>
+    <string name="widget_empty_title">눌러서 촬영</string>
+    <string name="widget_empty_subtitle">첫 노트가 여기에 표시됩니다</string>
+    <string name="widget_photo_description">최근 기록의 사진</string>
+    <string name="widget_note_without_body">메모 없음</string>
+    <string name="widget_remaining_now">지금</string>
+    <string name="widget_remaining_days">%1$d일</string>
+    <string name="widget_remaining_hours">%1$d시간</string>
+    <string name="widget_remaining_minutes">%1$d분</string>
+    <string name="widget_remaining_less_than_minute">1분 미만</string>
+</resources>

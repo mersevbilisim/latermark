@@ -7,6 +7,16 @@ parçayı yakalamanın en kısa yolu: uygulama açılır, ortada bir diyafram du
 dokunursun, kare çekilir, altında not alanı açılır. İstersen kayda bir ömür
 biçersin — 3 gün ya da 1 hafta sonra kendiliğinden silinir.
 
+Aynı akışa galerideki mevcut bir fotoğrafla da girilebilir. iOS ve Android'in
+sistem fotoğraf seçicileri kullanılır; Latermark orijinal galeri varlığını
+değiştirmez, kayıt anında kendi uygulama alanına bir kopya alır.
+
+Fotoğraflar/Galeri uygulamasındaki **Paylaş → Latermark** yolu da desteklenir.
+Android paylaşımı doğrudan Latermark'ın etiketleme ekranını açar. iOS'ta
+Apple'ın Share Extension akışı kullanılır: not paylaşım sayfasında yazılır,
+görsel App Group gelen kutusuna alınır ve Latermark ilk açıldığında otomatik
+olarak kayda dönüşür. İki platformda da galeri orijinali değiştirilmez.
+
 ## Yapı
 
 Katmanlar özellik bazlı ayrılmıştır; hiçbir ekran mantığı `main.dart` içinde
@@ -26,8 +36,11 @@ lib/
     presentation/capture/      vizör
     presentation/compose/      not yazma
     presentation/detail/       tek kayıt görünümü
+    presentation/import/       sistem seçicisi + dış paylaşım köprüsü
   features/home_widget/        ana ekran widget'ını besleyen köprü
 ios/NotWidget/                 WidgetKit eklentisi (SwiftUI)
+ios/ShareExtension/            Fotoğraflar paylaşım uzantısı
+ios/Shared/                    Runner/uzantı App Group gelen kutusu
 android/.../NotWidgetProvider.kt  Android ana ekran widget'ı
 ```
 
@@ -65,6 +78,16 @@ güncelle:
 
 Gerçek cihazda App Group yetkisinin Apple Developer hesabında da tanımlı olması
 gerekir; Xcode otomatik imzalama bunu genelde kendiliğinden halleder.
+
+Share Extension hedefi de projeye eklenmiştir. Yeniden oluşturulması gerekirse:
+
+```bash
+ruby ios/add_share_extension_target.rb
+```
+
+Gerçek cihaz için Runner, NotWidget ve ShareExtension hedeflerinde aynı Team'i
+seç; üç hedefin Signing & Capabilities ekranında
+`group.com.mersev.latermark` App Group'unun işaretli olduğunu doğrula.
 
 ### Android kurulumu
 

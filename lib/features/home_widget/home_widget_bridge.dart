@@ -5,7 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
-import '../../core/utils/tr_format.dart';
+import '../../core/utils/app_format.dart';
+import '../../l10n/app_localizations.dart';
 import '../notes/data/notes_database.dart';
 import '../notes/data/notes_repository.dart';
 import 'widget_keys.dart';
@@ -22,6 +23,29 @@ class HomeWidgetBridge {
 
   final NotesRepository _repository;
   StreamSubscription<List<Note>>? _subscription;
+
+  /// Widget metinleri de kullanıcının diliyle yazılır.
+  ///
+  /// Köprü widget ağacının dışında çalıştığı için [L10n]'i kendi bulamıyor;
+  /// [AppScope] dil değiştikçe buraya veriyor ve widget'ı tazeliyor.
+  L10n? _l10n;
+
+  /// Pro hakkı. [AppScope] değiştikçe veriyor.
+  bool _pro = false;
+
+  set pro(bool value) {
+    if (_pro == value) return;
+    _pro = value;
+    _lastSignature = null;
+  }
+
+  set l10n(L10n value) {
+    if (_l10n?.localeName == value.localeName) return;
+    _l10n = value;
+    // Dil değişti: imza da değiştiği için bir sonraki yayında widget tazelenir.
+    // Elde son liste yoksa beklemek yeterli; akış zaten sürekli yayın yapıyor.
+    _lastSignature = null;
+  }
 
   /// Widget'ta gösterilecek fotoğrafın en geniş kenarı.
   ///
@@ -61,9 +85,9 @@ class HomeWidgetBridge {
 
     // Fotoğraf yolu imzaya dahil: not aynı kalsa da kare değişmiş olabilir.
     final signature = latest == null
-        ? 'empty:${notes.length}'
+        ? 'empty:${notes.length}:${_l10n?.localeName}'
         : '${latest.id}|${latest.body}|${latest.imageName}|'
-              '${latest.expiresAt}|${notes.length}';
+              '${latest.expiresAt}|${notes.length}|${_l10n?.localeName}|$_pro';
     if (signature == _lastSignature) return;
     _lastSignature = signature;
 
@@ -71,19 +95,28 @@ class HomeWidgetBridge {
       await Future.wait([
         HomeWidget.saveWidgetData<bool>(WidgetKeys.hasNote, latest != null),
         HomeWidget.saveWidgetData<int>(WidgetKeys.count, notes.length),
+        HomeWidget.saveWidgetData<bool>(WidgetKeys.pro, _pro),
         HomeWidget.saveWidgetData<int>(WidgetKeys.noteId, latest?.id ?? 0),
         HomeWidget.saveWidgetData<String>(WidgetKeys.body, latest?.body ?? ''),
         HomeWidget.saveWidgetData<String>(
           WidgetKeys.time,
-          latest == null ? '' : TrFormat.time(latest.createdAt),
+          latest == null || _l10n == null
+              ? ''
+              : _l10n!.time(latest.createdAt),
         ),
         HomeWidget.saveWidgetData<String>(
           WidgetKeys.date,
-          latest == null ? '' : TrFormat.dayHeader(latest.createdAt),
+          latest == null || _l10n == null
+              ? ''
+              : _l10n!.dayHeader(latest.createdAt),
         ),
         HomeWidget.saveWidgetData<int>(
           WidgetKeys.expiresAt,
           (latest?.expiresAt?.millisecondsSinceEpoch ?? 0) ~/ 1000,
+        ),
+        HomeWidget.saveWidgetData<int>(
+          WidgetKeys.createdAt,
+          (latest?.createdAt.millisecondsSinceEpoch ?? 0) ~/ 1000,
         ),
       ]);
 

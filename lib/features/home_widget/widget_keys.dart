@@ -26,8 +26,20 @@ abstract final class WidgetKeys {
   /// birkaç saat tazelenmediğinde "3g" yazısının donup kalmasına yol açardı.
   static const expiresAt = 'not_expires_at';
 
+  /// Oluşturma anının epoch saniyesi.
+  ///
+  /// Ömür göstergesi için gerekli: yalnızca [expiresAt] gönderildiğinde widget
+  /// notun *toplam* süresini bilemiyor ve kalanı sabit bir haftaya oranlamak
+  /// zorunda kalıyordu — 3 günlük bir not doğduğu anda yarı tükenmiş
+  /// görünüyordu.
+  static const createdAt = 'not_created_at';
+
   /// Toplam kayıt sayısı.
   static const count = 'not_count';
+
+  /// Pro hakkı açık mı. Widget ücretsiz kullanıcıda kendi kilit durumunu
+  /// çizer — bozulmaz ve eski veri göstermez.
+  static const pro = 'not_pro';
 
   /// Paylaşılan kapsayıcıya yazılan küçültülmüş fotoğrafın yolu.
   ///

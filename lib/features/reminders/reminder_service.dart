@@ -1,23 +1,30 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../l10n/app_localizations.dart';
 import '../notes/data/notes_database.dart';
 import '../settings/domain/app_settings.dart';
 
-/// "Bu nota bir süredir bakmadın" hatırlatıcısı.
+/// Kullanıcının açıkça istediği hatırlatmaları kurar.
 ///
-/// Her notun kendi bildirimi vardır ve zamanı, nota **en son bakılan andan**
-/// itibaren sayılır. Kayda girildiğinde sayaç sıfırlanır, yani hatırlatma
-/// ileri atılır. Bu yüzden hatırlatıcı bir alarm değil, unutulmuşluk ölçüsü.
+/// Hatırlatma **not başına** ve **opt-in**: yalnızca kaydederken gün sayısı
+/// verilmiş notlar için bildirim planlanır, kaydın oluşturulma anından o kadar
+/// gün sonrasına, aynı saate.
+///
+/// Eskiden her nota otomatik kurulurdu ve zamanı "en son bakılan an"dan
+/// sayılırdı. Yüzlerce kaydı olan biri bakmadığı her kare için bildirim
+/// alıyordu — üstelik iOS aynı anda yalnızca **64** bekleyen bildirim tuttuğu
+/// için fazlası sessizce düşüyordu. İstemek artık kullanıcının kararı.
 class ReminderService {
   ReminderService();
 
   final _plugin = FlutterLocalNotificationsPlugin();
+  static const _settingsChannel = MethodChannel('latermark/app_settings');
 
   bool _ready = false;
 
@@ -55,9 +62,8 @@ class ReminderService {
 
   /// Kullanıcı hatırlatıcıyı açtığında çağrılır.
   ///
-  /// İzin verilirse `true` döner. Reddedilirse ayar açık kalır ama bildirim
-  /// gitmez; kullanıcı sistem ayarlarından izin verdiğinde kendiliğinden
-  /// çalışmaya başlar.
+  /// İzin verilirse `true` döner. Reddedildiğinde arayüz tercihi açık
+  /// kaydetmez; işletim sistemi ile uygulama durumu böylece tutarlı kalır.
   Future<bool> requestPermission() async {
     if (!_supported) return false;
     await initialize();
@@ -68,7 +74,7 @@ class ReminderService {
             .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin
             >()
-            ?.requestPermissions(alert: true, badge: true, sound: true);
+            ?.requestPermissions(alert: true, badge: false, sound: true);
         return granted ?? false;
       }
 
@@ -84,25 +90,69 @@ class ReminderService {
     }
   }
 
+  /// İşletim sisteminin uygulamaya şu anda bildirim gönderebilme hakkı verip
+  /// vermediğini okur. Kullanıcı izni daha sonra Ayarlar'dan kapatmış olabilir.
+  Future<bool> hasPermission() async {
+    if (!_supported) return false;
+    await initialize();
+
+    try {
+      if (Platform.isIOS) {
+        final options = await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.checkPermissions();
+        return options?.isEnabled ?? false;
+      }
+
+      final enabled = await _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.areNotificationsEnabled();
+      return enabled ?? false;
+    } on PlatformException catch (error) {
+      debugPrint('Bildirim izni okunamadı: $error');
+      return false;
+    }
+  }
+
+  /// Kullanıcı izni daha önce reddettiyse işletim sistemi istemi yeniden
+  /// gösterilmez. Bu durumda uygulamanın sistem ayarlarını açar.
+  Future<void> openSystemSettings() async {
+    if (!_supported) return;
+    try {
+      await _settingsChannel.invokeMethod<bool>('openNotificationSettings');
+    } on PlatformException catch (error) {
+      debugPrint('Bildirim ayarları açılamadı: $error');
+    }
+  }
+
   /// Tüm hatırlatmaları baştan kurar.
   ///
   /// Tek tek güncellemek yerine hepsini silip yeniden planlamak, notların
   /// silinmesi/süresinin dolması gibi durumlarda hayalet bildirim kalmasını
   /// imkânsız kılıyor. Bildirim sayısı not sayısı kadar, yani zaten küçük.
-  Future<void> sync(List<Note> notes, AppSettings settings) async {
+  Future<void> sync(List<Note> notes, AppSettings settings, L10n l10n) async {
     if (!_supported) return;
     await initialize();
 
     try {
       await _plugin.cancelAll();
       if (!settings.reminderEnabled) return;
+      if (!await hasPermission()) return;
 
       final now = tz.TZDateTime.now(tz.UTC);
-      final delay = settings.reminderDelay.duration;
 
       for (final note in notes) {
-        final seen = note.lastSeenAt ?? note.createdAt;
-        final at = tz.TZDateTime.from(seen.add(delay).toUtc(), tz.UTC);
+        // Süre verilmemiş kayıtlar sessiz kalır.
+        if (note.remindAfterDays <= 0) continue;
+
+        final at = tz.TZDateTime.from(
+          note.createdAt.add(Duration(days: note.remindAfterDays)).toUtc(),
+          tz.UTC,
+        );
 
         // Geçmişte kalanı planlamanın anlamı yok.
         if (!at.isAfter(now)) continue;
@@ -112,20 +162,19 @@ class ReminderService {
         await _plugin.zonedSchedule(
           id: note.id,
           scheduledDate: at,
-          title: _title(note),
-          body: _body(note),
+          title: _title(note, l10n),
+          body: _body(note, l10n),
           payload: 'note/${note.id}',
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          notificationDetails: const NotificationDetails(
+          notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               _channelId,
-              'Hatırlatmalar',
-              channelDescription:
-                  'Bir süredir bakmadığın kayıtları hatırlatır.',
+              l10n.notificationChannelName,
+              channelDescription: l10n.notificationChannelDescription,
               importance: Importance.defaultImportance,
               priority: Priority.defaultPriority,
             ),
-            iOS: DarwinNotificationDetails(),
+            iOS: const DarwinNotificationDetails(),
           ),
         );
       }
@@ -144,10 +193,10 @@ class ReminderService {
     }
   }
 
-  static String _title(Note note) =>
-      note.body.isEmpty ? 'Bir kare bekliyor' : 'Hatırlatma';
+  static String _title(Note note, L10n l10n) => note.body.isEmpty
+      ? l10n.notificationTitleNoBody
+      : l10n.notificationTitle;
 
-  static String _body(Note note) => note.body.isEmpty
-      ? 'Bu kareye bir süredir bakmadın.'
-      : note.body;
+  static String _body(Note note, L10n l10n) =>
+      note.body.isEmpty ? l10n.notificationBodyNoBody : note.body;
 }

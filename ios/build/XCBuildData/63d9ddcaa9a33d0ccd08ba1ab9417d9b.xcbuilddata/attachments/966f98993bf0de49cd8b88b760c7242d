@@ -1,0 +1,29 @@
+{
+  "" : {
+    "diagnostics" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareExtension-primary.dia",
+    "emit-module-dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareExtension-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareExtension-primary-emit-module.dia",
+    "pch" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareExtension-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareExtension-primary.swiftdeps"
+  },
+  "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/ShareExtension/ShareViewController.swift" : {
+    "const-values" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.swiftconstvalues",
+    "dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.d",
+    "diagnostics" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.o",
+    "llvm-bc" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.bc",
+    "object" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.o",
+    "swift-dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController.swiftdeps",
+    "swiftmodule" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/ShareViewController~partial.swiftmodule"
+  },
+  "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/Shared/SharedImportStore.swift" : {
+    "const-values" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.swiftconstvalues",
+    "dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.d",
+    "diagnostics" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.o",
+    "llvm-bc" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.bc",
+    "object" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.o",
+    "swift-dependencies" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore.swiftdeps",
+    "swiftmodule" : "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/build/Runner.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/arm64/SharedImportStore~partial.swiftmodule"
+  }
+}

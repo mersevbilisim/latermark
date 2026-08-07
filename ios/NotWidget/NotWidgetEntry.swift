@@ -2,6 +2,17 @@ import Foundation
 import SwiftUI
 import WidgetKit
 
+/// Widget uzantısının kendi paketindeki yerelleştirilmiş metinler.
+enum NotText {
+    static func value(_ key: String) -> String {
+        NSLocalizedString(key, tableName: "Localizable", bundle: .main, comment: "")
+    }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(format: value(key), locale: Locale.current, arguments: arguments)
+    }
+}
+
 /// Flutter tarafındaki `WidgetKeys` ile birebir aynı olmalı.
 enum NotKeys {
     static let appGroup = "group.com.mersev.latermark"
@@ -12,7 +23,9 @@ enum NotKeys {
     static let time = "not_time"
     static let date = "not_date"
     static let expiresAt = "not_expires_at"
+    static let createdAt = "not_created_at"
     static let count = "not_count"
+    static let pro = "not_pro"
     static let photo = "not_photo"
 }
 
@@ -25,18 +38,22 @@ struct NotEntry: TimelineEntry {
     let time: String
     let day: String
     let expiresAt: Date?
+    let createdAt: Date?
     let count: Int
+    let pro: Bool
     let image: UIImage?
 
     static let placeholder = NotEntry(
         date: Date(),
         hasNote: true,
         noteId: 0,
-        body: "Muhasebeye göndereceğim",
+        body: NotText.value("widget.preview.note"),
         time: "14:32",
-        day: "BUGÜN",
+        day: NotText.value("widget.preview.day"),
         expiresAt: Date().addingTimeInterval(60 * 60 * 52),
+        createdAt: Date().addingTimeInterval(-60 * 60 * 20),
         count: 12,
+        pro: true,
         image: nil
     )
 
@@ -48,30 +65,61 @@ struct NotEntry: TimelineEntry {
         time: "",
         day: "",
         expiresAt: nil,
+        createdAt: nil,
         count: 0,
+        pro: false,
         image: nil
     )
 
-    /// Kalan süreyi kısa Türkçe biçimde verir: `2g`, `5sa`, `9dk`.
+    /// Kalan süreyi widget'ın yürürlükteki dilinde kısa biçimde verir.
     ///
     /// Metin burada üretilir ki widget saatler sonra tazelendiğinde bile
     /// doğru olsun.
     var remaining: String? {
         guard let expiresAt else { return nil }
         let left = expiresAt.timeIntervalSince(date)
-        if left <= 0 { return "şimdi" }
-        if left >= 86_400 { return "\(Int(left / 86_400))g" }
-        if left >= 3_600 { return "\(Int(left / 3_600))sa" }
-        if left >= 60 { return "\(Int(left / 60))dk" }
-        return "<1dk"
+        if left <= 0 { return NotText.value("remaining.now") }
+        if left >= 86_400 {
+            return NotText.format("remaining.days.short", Int(left / 86_400))
+        }
+        if left >= 3_600 {
+            return NotText.format("remaining.hours.short", Int(left / 3_600))
+        }
+        if left >= 60 {
+            return NotText.format("remaining.minutes.short", Int(left / 60))
+        }
+        return NotText.value("remaining.less_than_minute.short")
     }
 
-    /// Notun ömründen ne kadarının kaldığı (halka göstergesi için).
+    /// Tek satırlık kilit ekranı alanına sığan kısa özet.
+    var inlineSummary: String {
+        let note = body.isEmpty ? NotText.value("widget.note.untitled") : body
+        if let remaining { return "\(note) · \(remaining)" }
+        return "\(note) · \(time)"
+    }
+
+    /// Kaydın süresi dolmuş mu.
+    ///
+    /// Silme işini uygulama yapıyor ve yalnızca çalışırken yapabiliyor.
+    /// Kullanıcı uygulamayı günlerce açmazsa widget bayat bir kaydı
+    /// göstermeye devam ederdi; karar burada widget'ın kendisinde.
+    var expired: Bool {
+        guard let expiresAt else { return false }
+        return expiresAt <= date
+    }
+
+    /// Ekranda kayıt gösterilecek mi.
+    var showsNote: Bool { hasNote && !expired }
+
+    /// Notun ömründen ne kadarının kaldığı: 1 = yeni, 0 = süresi doldu.
+    ///
+    /// Oran notun **kendi** toplam süresine göre hesaplanır. Sabit bir haftaya
+    /// oranlamak, 3 günlük bir notu doğduğu anda yarı tükenmiş gösteriyordu.
     var lifeFraction: Double {
-        guard let expiresAt else { return 0 }
-        let left = expiresAt.timeIntervalSince(date)
-        // Toplam süreyi bilmiyoruz; en uzun seçenek olan bir haftaya oranlarız.
-        return max(0, min(1, left / (7 * 86_400)))
+        guard let expiresAt, let createdAt else { return 0 }
+        let total = expiresAt.timeIntervalSince(createdAt)
+        guard total > 0 else { return 0 }
+        return max(0, min(1, expiresAt.timeIntervalSince(date) / total))
     }
 }
 
@@ -86,8 +134,15 @@ struct NotProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<NotEntry>) -> Void) {
         // Uygulama her değişiklikte widget'ı zaten tazeliyor. Buradaki saatlik
         // yenileme yalnızca "kalan süre" rozetinin taze kalması için.
-        let refresh = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
-        completion(Timeline(entries: [load()], policy: .after(refresh)))
+        let entry = load()
+        var refresh = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
+
+        // Süre dolduğu anda tazele: widget kaydı kendiliğinden bıraksın,
+        // bir sonraki saatlik yenilemeyi beklemesin.
+        if let expiresAt = entry.expiresAt, expiresAt > entry.date, expiresAt < refresh {
+            refresh = expiresAt
+        }
+        completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
 
     private func load() -> NotEntry {
@@ -98,6 +153,7 @@ struct NotProvider: TimelineProvider {
         }
 
         let epoch = store.integer(forKey: NotKeys.expiresAt)
+        let born = store.integer(forKey: NotKeys.createdAt)
 
         return NotEntry(
             date: Date(),
@@ -107,7 +163,9 @@ struct NotProvider: TimelineProvider {
             time: store.string(forKey: NotKeys.time) ?? "",
             day: store.string(forKey: NotKeys.date) ?? "",
             expiresAt: epoch > 0 ? Date(timeIntervalSince1970: TimeInterval(epoch)) : nil,
+            createdAt: born > 0 ? Date(timeIntervalSince1970: TimeInterval(born)) : nil,
             count: store.integer(forKey: NotKeys.count),
+            pro: store.bool(forKey: NotKeys.pro),
             image: loadImage(from: store)
         )
     }

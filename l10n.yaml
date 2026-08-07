@@ -1,0 +1,8 @@
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: L10n
+nullable-getter: false
+# Şablonda olup çevirisi henüz yapılmamış anahtarlar derlemeyi kesmesin;
+# eksikler şablondaki değere düşer.
+untranslated-messages-file: l10n_missing.txt

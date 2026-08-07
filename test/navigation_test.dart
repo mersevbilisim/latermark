@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:not_app/app/app.dart';
@@ -12,9 +13,12 @@ import 'package:not_app/features/notes/data/notes_repository.dart';
 import 'package:not_app/features/notes/data/photo_store.dart';
 import 'package:not_app/features/settings/data/settings_repository.dart';
 import 'package:not_app/features/notes/domain/retention.dart';
+import 'package:not_app/features/notes/presentation/compose/compose_page.dart';
 import 'package:not_app/features/notes/presentation/detail/note_detail_page.dart';
 import 'package:not_app/features/notes/presentation/home/widgets/note_card.dart';
 import 'package:not_app/features/notes/presentation/home/widgets/shutter_dock.dart';
+import 'package:not_app/features/settings/domain/app_settings.dart';
+import 'package:not_app/features/settings/domain/app_locale.dart';
 
 /// 1×1 saydam PNG — çözülebilir gerçek bir görsel olması yeterli.
 final _pixel = base64Decode(
@@ -36,6 +40,10 @@ void main() {
       database: database,
       photos: await PhotoStore.openIn(sandbox),
     );
+    // Doğrulanan metinler Türkçe. Test ortamının sistem dili İngilizce'ye
+    // düşüyor, o yüzden dil burada bir kez sabitleniyor — tercih veritabanında
+    // durduğu için sonraki her `LatermarkApp` örneği onu okuyor.
+    await SettingsRepository(database).setLocale(AppLocale.turkish);
   });
 
   tearDown(() async {
@@ -86,18 +94,105 @@ void main() {
       await repository.create(
         capture: XFile(file.path),
         body: body,
-        retention: Retention.threeDays,
+        retention: RetentionChoice(Retention.threeDays),
       );
     });
   }
 
   testWidgets('kayıt yokken davet gösterilir', (tester) async {
     usePhoneSurface(tester);
-    await tester.pumpWidget(LatermarkApp(notes: repository, settings: SettingsRepository(database)));
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
     await settle(tester);
 
     expect(find.text('Dokun ve çek'), findsOneWidget);
+    expect(find.text('Galeriden seç'), findsOneWidget);
+    // Manifesto küçük kapitel çiziliyor; Türkçe büyük harf kuralı geçerli.
+    expect(find.text('SADE'), findsOneWidget);
+    expect(find.text('CİHAZINDA'), findsOneWidget);
+    expect(find.text('GÜVENDE'), findsOneWidget);
     expect(find.byType(NoteCard), findsNothing);
+
+    await disposeTree(tester);
+  });
+
+  testWidgets('galeriden gelen fotoğraf mevcut etiketleme akışını açar', (
+    tester,
+  ) async {
+    usePhoneSurface(tester);
+    final galleryFile = File('${sandbox.path}/gallery.png');
+    await tester.runAsync(() => galleryFile.writeAsBytes(_pixel));
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
+    await settle(tester);
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ComposePage(
+          capture: XFile(galleryFile.path),
+          source: ComposeSource.gallery,
+        ),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.text('GALERİ'), findsOneWidget);
+    expect(find.text('Başka fotoğraf'), findsOneWidget);
+    expect(find.text('Kaydet'), findsOneWidget);
+    expect(galleryFile.existsSync(), isTrue);
+
+    await disposeTree(tester);
+    // Compose ekranı kapanırken galeri kaynağına dokunmamalı.
+    expect(galleryFile.existsSync(), isTrue);
+  });
+
+  testWidgets('Android paylaşımından gelen fotoğraf etiketleme akışını açar', (
+    tester,
+  ) async {
+    usePhoneSurface(tester);
+    final sharedFile = File('${sandbox.path}/shared.png');
+    await tester.runAsync(() => sharedFile.writeAsBytes(_pixel));
+    var delivered = false;
+    var completed = false;
+
+    const channel = MethodChannel('latermark/shared_import');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'takePendingSharedImport' && !delivered) {
+            delivered = true;
+            return <String, Object?>{
+              'id': '03f17aca-a2f8-4f42-a50f-3c52935c7340',
+              'path': sharedFile.path,
+              'initialText': 'Galeriden paylaşılan etiket',
+              'createdAtMilliseconds': DateTime.now().millisecondsSinceEpoch,
+              'saveImmediately': false,
+            };
+          }
+          if (call.method == 'completeSharedImport') completed = true;
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
+    await settle(tester);
+
+    expect(find.text('PAYLAŞIM'), findsOneWidget);
+    expect(find.text('Galeriden paylaşılan etiket'), findsOneWidget);
+    expect(find.text('Başka fotoğraf'), findsOneWidget);
+    expect(find.text('Kaydet'), findsOneWidget);
+
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await settle(tester);
+    expect(completed, isTrue);
 
     await disposeTree(tester);
   });
@@ -107,7 +202,12 @@ void main() {
   ) async {
     usePhoneSurface(tester);
     await addNote(tester, 'Muhasebeye göndereceğim');
-    await tester.pumpWidget(LatermarkApp(notes: repository, settings: SettingsRepository(database)));
+    final settings = SettingsRepository(database);
+    // Gün ayıraçları yalnızca tek sütun görünümünde var; varsayılan ızgara.
+    await settings.setDensity(FeedDensity.single);
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
     await settle(tester);
 
     expect(find.text('Notlar'), findsOneWidget);
@@ -127,7 +227,9 @@ void main() {
     // ve assert ile patlar.
     usePhoneSurface(tester);
     await addNote(tester, 'Araba burada — P10');
-    await tester.pumpWidget(LatermarkApp(notes: repository, settings: SettingsRepository(database)));
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
     await settle(tester);
 
     await tester.tap(find.byType(NoteCard));
@@ -141,12 +243,39 @@ void main() {
     await disposeTree(tester);
   });
 
+  testWidgets(
+    'widgettaki eski bir kimlik boş detay bırakmadan ana ekrana döner',
+    (tester) async {
+      usePhoneSurface(tester);
+      await tester.pumpWidget(
+        LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+      );
+      await settle(tester);
+
+      tester
+          .state<NavigatorState>(find.byType(Navigator))
+          .push(
+            MaterialPageRoute<void>(
+              builder: (_) => const NoteDetailPage(noteId: 404),
+            ),
+          );
+      await settle(tester);
+
+      expect(find.byType(NoteDetailPage), findsNothing);
+      expect(find.text('Dokun ve çek'), findsOneWidget);
+
+      await disposeTree(tester);
+    },
+  );
+
   testWidgets('otomatik silme durumu detayda okunur biçimde görünür', (
     tester,
   ) async {
     usePhoneSurface(tester);
     await addNote(tester, 'Fiş');
-    await tester.pumpWidget(LatermarkApp(notes: repository, settings: SettingsRepository(database)));
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
     await settle(tester);
 
     await tester.tap(find.byType(NoteCard));

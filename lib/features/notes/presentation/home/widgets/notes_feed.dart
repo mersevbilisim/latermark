@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../settings/domain/app_settings.dart';
 import '../../../data/notes_database.dart';
+import '../../../data/photo_aspect.dart';
 import '../../../data/notes_repository.dart';
 import 'home_header.dart';
 import 'note_card.dart';
@@ -19,9 +21,13 @@ class NotesFeed extends StatelessWidget {
     required this.density,
     required this.onOpen,
     required this.onDelete,
-    required this.onToggleDensity,
     required this.onOpenSettings,
     required this.bottomInset,
+    required this.searching,
+    required this.searchController,
+    required this.searchFocus,
+    required this.onSearchChanged,
+    required this.onToggleSearch,
   });
 
   final List<Note> notes;
@@ -29,11 +35,16 @@ class NotesFeed extends StatelessWidget {
   final FeedDensity density;
   final ValueChanged<Note> onOpen;
   final ValueChanged<Note> onDelete;
-  final VoidCallback onToggleDensity;
   final VoidCallback onOpenSettings;
 
   /// Deklanşörün altta kapladığı alan; son kartın arkasında kalmaması için.
   final double bottomInset;
+
+  final bool searching;
+  final TextEditingController searchController;
+  final FocusNode searchFocus;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onToggleSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +61,13 @@ class NotesFeed extends StatelessWidget {
             palette: context.palette,
             topPadding: MediaQuery.paddingOf(context).top,
             noteCount: notes.length,
-            gridded: gridded,
-            onToggleDensity: onToggleDensity,
             onOpenSettings: onOpenSettings,
+            searching: searching,
+            resultCount: notes.length,
+            searchController: searchController,
+            searchFocus: searchFocus,
+            onSearchChanged: onSearchChanged,
+            onToggleSearch: onToggleSearch,
           ),
         ),
         // Izgarada gün ayraçları yok.
@@ -61,7 +76,7 @@ class NotesFeed extends StatelessWidget {
         // tek kartla kalıyordu — sıkışık görünmesi gereken bir düzen seyrek
         // duruyordu. Yoğun görünüm zamanı değil, çokluğu göstermek için var;
         // tarih zaten karta dokununca görünüyor.
-        if (gridded)
+        if (gridded || searching)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             sliver: _Grid(notes: notes, feed: this),
@@ -79,10 +94,11 @@ class NotesFeed extends StatelessWidget {
     );
   }
 
-  Widget _card(Note note, CardScale scale) => NoteCard(
+  Widget _card(Note note, CardScale scale, {double? aspect}) => NoteCard(
     note: note,
     repository: repository,
     scale: scale,
+    aspect: aspect,
     onTap: () => onOpen(note),
     onLongPress: () => onDelete(note),
   );
@@ -139,25 +155,64 @@ class _ColumnSection extends StatelessWidget {
   }
 }
 
-/// İki sütun: kareler, daha çok kayıt tek bakışta.
-class _Grid extends StatelessWidget {
+/// İki sütun, eşit yükseklikte olmayan kutular.
+///
+/// Kutular hizalı bir ızgara yerine kendi boylarında dizilir. Yükseklik iki
+/// şeyden gelir: karenin gerçek oranı ve notun uzunluğu. Böylece düzen katalog
+/// değil, pano gibi okunur — ve hiçbir kare kutuya sığsın diye kırpılmaz.
+///
+/// Oranlar [PhotoAspect] ile dosya başlıklarından okunur; çözülene kadar
+/// telefon karesinin olağan oranı varsayılır, böylece ilk kare de yakın durur.
+class _Grid extends StatefulWidget {
   const _Grid({required this.notes, required this.feed});
 
   final List<Note> notes;
   final NotesFeed feed;
 
   @override
+  State<_Grid> createState() => _GridState();
+}
+
+class _GridState extends State<_Grid> {
+  /// Telefon kamerası dikey karesi; oran okunana kadarki tahmin.
+  static const _assumed = 3 / 4;
+
+  @override
+  void initState() {
+    super.initState();
+    _warm();
+  }
+
+  @override
+  void didUpdateWidget(_Grid old) {
+    super.didUpdateWidget(old);
+    if (old.notes.length != widget.notes.length) _warm();
+  }
+
+  Future<void> _warm() async {
+    final files = {
+      for (final note in widget.notes)
+        note.imageName: widget.feed.repository.imageOf(note),
+    };
+    await PhotoAspect.warm(files);
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SliverGrid.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1,
-      ),
-      itemCount: notes.length,
-      itemBuilder: (context, index) =>
-          feed._card(notes[index], CardScale.compact),
+    return SliverMasonryGrid.count(
+      crossAxisCount: 2,
+      mainAxisSpacing: 18,
+      crossAxisSpacing: 12,
+      childCount: widget.notes.length,
+      itemBuilder: (context, index) {
+        final note = widget.notes[index];
+        return widget.feed._card(
+          note,
+          CardScale.compact,
+          aspect: PhotoAspect.peek(note.imageName) ?? _assumed,
+        );
+      },
     );
   }
 }

@@ -1,7 +1,7 @@
 name: not_app
 description: "Fotoğraf çek, iki kelime yaz, unut."
 publish_to: "none"
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.12.2
@@ -22,7 +22,10 @@ dependencies:
   path_provider: ^2.1.6
   timezone: ^0.11.1
   package_info_plus: ^10.2.1
-
+  image_picker: ^1.2.3
+  flutter_staggered_grid_view: ^0.7.0
+  in_app_purchase: ^3.3.0
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -32,3 +35,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true

@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_palette.dart';
-import '../../../../core/utils/tr_format.dart';
+import '../../../../l10n/l10n_context.dart';
+import '../../../../core/utils/app_format.dart';
 
 /// Ayarların bölüm başlığı: küçük kapiteller ve peşinden giden ince çizgi.
 ///
@@ -30,7 +31,7 @@ class SettingsSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(4, 34, 4, 16),
           child: Row(
             children: [
-              Text(TrFormat.upper(title), style: palette.overline),
+              Text(context.l10n.upper(title), style: palette.overline),
               const SizedBox(width: 12),
               Expanded(
                 child: ColoredBox(
@@ -41,7 +42,38 @@ class SettingsSection extends StatelessWidget {
             ],
           ),
         ),
-        ...children,
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.lerp(
+                  palette.canvasLift,
+                  Colors.white,
+                  palette.isDark ? 0.045 : 0.28,
+                )!,
+                palette.canvasLift,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: palette.hairlineBright, width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: palette.isDark ? 0.16 : 0.06,
+                ),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
       ],
     );
   }
@@ -145,10 +177,10 @@ class InkSwitch extends StatelessWidget {
           width: _width,
           height: _height,
           decoration: BoxDecoration(
-            color: value ? palette.ember : palette.glassStrong,
+            color: value ? palette.ember : palette.canvasSunk,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: value ? Colors.transparent : palette.hairline,
+              color: value ? Colors.transparent : palette.hairlineBright,
               width: 0.5,
             ),
           ),
@@ -162,8 +194,20 @@ class InkSwitch extends StatelessWidget {
                 width: _knob,
                 height: _knob,
                 decoration: BoxDecoration(
-                  color: value ? Colors.white : palette.inkSoft,
+                  color: value ? Colors.white : palette.canvasLift,
                   shape: BoxShape.circle,
+                  border: value
+                      ? null
+                      : Border.all(color: palette.hairlineBright, width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: palette.isDark ? 0.22 : 0.10,
+                      ),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -212,9 +256,9 @@ class ChoiceRail<T> extends StatelessWidget {
             return Container(
               height: 46,
               decoration: BoxDecoration(
-                color: palette.glass,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: palette.hairline, width: 0.5),
+                color: palette.canvasSunk,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: palette.hairlineBright, width: 0.5),
               ),
               child: Stack(
                 children: [
@@ -229,8 +273,32 @@ class ChoiceRail<T> extends StatelessWidget {
                       padding: const EdgeInsets.all(4),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: palette.ink,
-                          borderRadius: BorderRadius.circular(11),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color.lerp(
+                                palette.canvasLift,
+                                Colors.white,
+                                palette.isDark ? 0.08 : 0.35,
+                              )!,
+                              palette.canvasLift,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: palette.ember.withValues(alpha: 0.28),
+                            width: 0.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: palette.isDark ? 0.24 : 0.08,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -252,7 +320,7 @@ class ChoiceRail<T> extends StatelessWidget {
                                 curve: AppMotion.ease,
                                 style: palette.label.copyWith(
                                   color: option == value
-                                      ? palette.canvas
+                                      ? palette.ink
                                       : palette.inkSoft,
                                   fontWeight: option == value
                                       ? FontWeight.w600

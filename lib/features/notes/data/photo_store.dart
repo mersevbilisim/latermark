@@ -5,14 +5,18 @@ import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'image_compressor.dart';
+
 /// Çekilen kareleri uygulama belge klasöründe tutar.
 ///
 /// Veritabanı yalnızca dosya *adını* bilir; mutlak yola çeviren tek yer
 /// burasıdır. Böylece iOS'ta konteyner yolu değişse bile kayıtlar bozulmaz.
 class PhotoStore {
-  PhotoStore._(this._directory);
+  PhotoStore._(this._directory, {ImageCompressor? compressor})
+    : _compressor = compressor ?? ImageCompressor();
 
   final Directory _directory;
+  final ImageCompressor _compressor;
   static final _random = Random();
 
   static const _folderName = 'captures';
@@ -38,9 +42,14 @@ class PhotoStore {
   File fileFor(String name) => File(p.join(_directory.path, name));
 
   /// Kamera çıktısını kalıcı klasöre taşır ve saklanacak dosya adını döner.
+  ///
+  /// Kare **önce** kaydediliyor, sonra küçültülüyor. Sıra böyle: sıkıştırma
+  /// başarısız olsa bile kullanıcının fotoğrafı yerinde duruyor.
   Future<String> persist(XFile capture) async {
     final name = _uniqueName(p.extension(capture.path));
-    await capture.saveTo(p.join(_directory.path, name));
+    final destination = p.join(_directory.path, name);
+    await capture.saveTo(destination);
+    await _compressor.compress(File(destination));
     return name;
   }
 

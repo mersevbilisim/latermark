@@ -57,7 +57,12 @@ class NotWidgetProvider : HomeWidgetProvider() {
         appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) {
-        val hasNote = widgetData.getBoolean(Keys.HAS_NOTE, false)
+        // Silme işini uygulama yapıyor ve yalnızca çalışırken yapabiliyor.
+        // Kullanıcı uygulamayı günlerce açmazsa widget bayat bir kaydı
+        // göstermeye devam ederdi; süre kontrolü bu yüzden burada da var.
+        val expiresAt = widgetData.number(Keys.EXPIRES_AT)
+        val expired = expiresAt > 0L && expiresAt <= System.currentTimeMillis() / 1000
+        val hasNote = widgetData.getBoolean(Keys.HAS_NOTE, false) && !expired
         val noteId = widgetData.number(Keys.NOTE_ID)
 
         appWidgetIds.forEach { id ->
@@ -73,14 +78,22 @@ class NotWidgetProvider : HomeWidgetProvider() {
                 )
             }
 
-            if (hasNote) renderNote(views, widgetData) else renderEmpty(context, views)
+            if (hasNote) {
+                renderNote(context, views, widgetData)
+            } else {
+                renderEmpty(context, views)
+            }
 
             views.setOnClickPendingIntent(
                 R.id.widget_root,
                 HomeWidgetLaunchIntent.getActivity(
                     context,
                     MainActivity::class.java,
-                    if (hasNote && noteId > 0) Uri.parse("notapp://note/$noteId") else null,
+                    if (hasNote && noteId > 0) {
+                        Uri.parse("latermark://note/$noteId?homeWidget")
+                    } else {
+                        null
+                    },
                 ),
             )
 
@@ -88,7 +101,7 @@ class NotWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    private fun renderNote(views: RemoteViews, data: SharedPreferences) {
+    private fun renderNote(context: Context, views: RemoteViews, data: SharedPreferences) {
         views.setViewVisibility(R.id.widget_empty, View.GONE)
         views.setViewVisibility(R.id.widget_content, View.VISIBLE)
         views.setViewVisibility(R.id.widget_scrim, View.VISIBLE)
@@ -102,7 +115,10 @@ class NotWidgetProvider : HomeWidgetProvider() {
         }
 
         val body = data.getString(Keys.BODY, "").orEmpty()
-        views.setTextViewText(R.id.widget_body, body.ifEmpty { "Notsuz kayıt" })
+        views.setTextViewText(
+            R.id.widget_body,
+            body.ifEmpty { context.getString(R.string.widget_note_without_body) },
+        )
         views.setTextColor(
             R.id.widget_body,
             if (body.isEmpty()) Palette.INK_FAINT else Palette.INK,
@@ -111,7 +127,7 @@ class NotWidgetProvider : HomeWidgetProvider() {
         views.setTextViewText(R.id.widget_date, data.getString(Keys.DATE, "").orEmpty())
         views.setTextViewText(R.id.widget_time, data.getString(Keys.TIME, "").orEmpty())
 
-        val remaining = remainingLabel(data.number(Keys.EXPIRES_AT))
+        val remaining = remainingLabel(context, data.number(Keys.EXPIRES_AT))
         if (remaining == null) {
             views.setViewVisibility(R.id.widget_expiry, View.GONE)
         } else {
@@ -145,16 +161,25 @@ class NotWidgetProvider : HomeWidgetProvider() {
         getInt(key, 0).toLong()
     }
 
-    /** Kalan süreyi kısa Türkçe biçimde verir: `2g`, `5sa`, `9dk`. */
-    private fun remainingLabel(epochSeconds: Long): String? {
+    /** Kalan süreyi widget'ın yürürlükteki dilinde kısa biçimde verir. */
+    private fun remainingLabel(context: Context, epochSeconds: Long): String? {
         if (epochSeconds <= 0L) return null
         val left = epochSeconds - System.currentTimeMillis() / 1000
         return when {
-            left <= 0 -> "şimdi"
-            left >= 86_400 -> "${left / 86_400}g"
-            left >= 3_600 -> "${left / 3_600}sa"
-            left >= 60 -> "${left / 60}dk"
-            else -> "<1dk"
+            left <= 0 -> context.getString(R.string.widget_remaining_now)
+            left >= 86_400 -> context.getString(
+                R.string.widget_remaining_days,
+                left / 86_400,
+            )
+            left >= 3_600 -> context.getString(
+                R.string.widget_remaining_hours,
+                left / 3_600,
+            )
+            left >= 60 -> context.getString(
+                R.string.widget_remaining_minutes,
+                left / 60,
+            )
+            else -> context.getString(R.string.widget_remaining_less_than_minute)
         }
     }
 

@@ -39,7 +39,7 @@ void main() {
     final id = await repository.create(
       capture: await fakeCapture(),
       body: '  Muhasebeye göndereceğim  ',
-      retention: Retention.off,
+      retention: RetentionChoice(Retention.off),
     );
 
     final notes = await repository.watchNotes().first;
@@ -59,7 +59,7 @@ void main() {
     await repository.create(
       capture: await fakeCapture(),
       body: 'Araba P10',
-      retention: Retention.threeDays,
+      retention: RetentionChoice(Retention.threeDays),
       createdAt: created,
     );
 
@@ -75,21 +75,21 @@ void main() {
     await repository.create(
       capture: await fakeCapture(),
       body: 'eski',
-      retention: Retention.threeDays,
+      retention: RetentionChoice(Retention.threeDays),
       createdAt: now.subtract(const Duration(days: 4)),
     );
     // Hâlâ yaşıyor.
     await repository.create(
       capture: await fakeCapture(),
       body: 'taze',
-      retention: Retention.oneWeek,
+      retention: RetentionChoice(Retention.oneWeek),
       createdAt: now.subtract(const Duration(days: 1)),
     );
     // Süresiz.
     await repository.create(
       capture: await fakeCapture(),
       body: 'kalıcı',
-      retention: Retention.off,
+      retention: RetentionChoice(Retention.off),
       createdAt: now.subtract(const Duration(days: 400)),
     );
 
@@ -111,12 +111,12 @@ void main() {
     await repository.create(
       capture: await fakeCapture(),
       body: 'ilk',
-      retention: Retention.threeDays,
+      retention: RetentionChoice(Retention.threeDays),
       createdAt: created,
     );
 
     final note = (await repository.watchNotes().first).single;
-    await repository.update(note, body: 'ikinci', retention: Retention.oneWeek);
+    await repository.update(note, body: 'ikinci', retention: RetentionChoice(Retention.oneWeek));
 
     final updated = (await repository.watchNotes().first).single;
     expect(updated.body, 'ikinci');
@@ -128,7 +128,7 @@ void main() {
     await repository.create(
       capture: await fakeCapture(),
       body: 'gidecek',
-      retention: Retention.off,
+      retention: RetentionChoice(Retention.off),
     );
 
     final note = (await repository.watchNotes().first).single;
@@ -145,7 +145,7 @@ void main() {
     await repository.create(
       capture: await fakeCapture(),
       body: 'kalan',
-      retention: Retention.off,
+      retention: RetentionChoice(Retention.off),
     );
 
     final orphan = File('${sandbox.path}/captures/yetim.jpg');

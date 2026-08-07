@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_motion.dart';
+import '../../l10n/l10n_context.dart';
 
 /// Uygulamanın imzası: gerçek bir objektif diyaframı gibi davranan, tamamen
 /// el ile çizilmiş iris.
@@ -206,7 +207,7 @@ class ApertureButton extends StatefulWidget {
     this.locked = false,
     this.bladeBase,
     this.edgeTint,
-    this.semanticLabel = 'Fotoğraf çek',
+    this.semanticLabel,
   });
 
   final VoidCallback onPressed;
@@ -226,7 +227,7 @@ class ApertureButton extends StatefulWidget {
   /// Kenar ve gölge rengi; boşsa beyaz. Aydınlık temada mürekkep verilir.
   final Color? edgeTint;
 
-  final String semanticLabel;
+  final String? semanticLabel;
 
   @override
   State<ApertureButton> createState() => _ApertureButtonState();
@@ -293,7 +294,7 @@ class _ApertureButtonState extends State<ApertureButton>
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: widget.semanticLabel,
+      label: widget.semanticLabel ?? context.l10n.shutterSemantic,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: _handleTapDown,

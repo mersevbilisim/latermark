@@ -36,13 +36,20 @@ class IconOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveFill = active
+        ? const Color(0xE62D1711)
+        : fill ?? OnPhoto.canvasDeep.withValues(alpha: 0.78);
+
     return Pressable(
       onPressed: onPressed,
       scale: 0.9,
       semanticLabel: semanticLabel,
       child: GlassSurface.circle(
-        tint: active ? OnPhoto.emberGlow : (fill ?? OnPhoto.glass),
-        borderColor: fill == null ? OnPhoto.hairline : null,
+        tint: effectiveFill,
+        borderColor: active
+            ? OnPhoto.ember.withValues(alpha: 0.60)
+            : (fill == null ? OnPhoto.hairlineBright : null),
+        elevation: fill == null ? 10 : 0,
         child: SizedBox.square(
           dimension: size,
           child: Icon(

@@ -1,6 +1,28 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- `camera` eklentisi video desteği için mikrofon izni beyan ediyor ve bu
+         izin birleşmiş manifeste sızıyor. Uygulama ses kaydetmiyor
+         (`CameraController` `enableAudio: false` ile açılıyor), oysa izin Play
+         sayfasında "Mikrofon" olarak görünüp mahremiyet iddiasını zedeliyor.
+         Tehlikeli izin sınıfında olduğu için etkisi INTERNET'ten çok daha
+         büyük. Birleştirmeden çıkarılıyor. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"
+        tools:node="remove"/>
+
+    <!-- API 29'dan beri işe yaramıyor; uygulama zaten paylaşılan depolamaya
+         hiç yazmıyor, kareler kendi kapsayıcısında duruyor. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove"/>
+    <!-- En az bir kamera gerekir; yalnızca arka kamerası olmayan cihazları
+         gereksiz yere dışlamamak için yön bağımsız özellik kullanılır. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="true"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <!-- Google Play üzerinden tek seferlik Pro satın alımı. BillingClient da
+         bu izni ekler; burada ürün gereksinimi olarak açıkça tutulur. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <!-- Android 13+ bildirim izni; hatırlatıcı açıldığında istenir. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -33,6 +55,12 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Galeri/Fotoğraflar: Paylaş > Latermark -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
         </activity>
         <!-- Ana ekran widget'ı: en son kaydı gösterir. -->
         <receiver
@@ -62,6 +90,13 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Gizlilik ve koşullar bağlantılarını tarayıcıda açmak için.
+             Android 11'den itibaren bu bildirim olmadan url_launcher hedefi
+             göremiyor ve bağlantı sessizce açılmıyor. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>

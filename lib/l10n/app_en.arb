@@ -1,0 +1,376 @@
+{
+  "@@locale": "en",
+  "appTitle": "Latermark",
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionClose": "Close",
+  "actionBack": "Back",
+  "actionDelete": "Delete",
+  "actionEdit": "Edit",
+  "actionRetry": "Try Again",
+  "actionGoBack": "Go Back",
+  "actionOpen": "Open",
+  "settingsAction": "Settings",
+  "shutterSemantic": "Take a photo",
+  "searchHint": "Ara",
+  "searchResults": "{count, plural, other{{count} sonuç}}",
+  "@searchResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "searchEmpty": "Eşleşen kayıt yok",
+  "searchCancel": "Vazgeç",
+  "searchInPhoto": "karede",
+  "notesTitle": "Notes",
+  "noteCount": "{count, plural, =0{No notes} one{1 note} other{{count} notes}}",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWithoutBody": "Untitled note",
+  "inviteTitle": "Tap to capture",
+  "inviteBody": "A receipt, a parking spot, a detail…\nTake a photo, add a few words, move on.",
+  "pickFromGallery": "Choose from Photos",
+  "pickFromGallerySemantic": "Choose a photo from your library",
+  "galleryPickerOpening": "Opening photo picker",
+  "manifestoFirst": "Simple",
+  "@manifestoFirst": {
+    "description": "First word of the empty-state brand signature."
+  },
+  "manifestoSecond": "Private",
+  "@manifestoSecond": {
+    "description": "Second word of the empty-state brand signature."
+  },
+  "manifestoThird": "Yours",
+  "@manifestoThird": {
+    "description": "Third word of the empty-state brand signature."
+  },
+  "switchToLargeView": "Switch to large view",
+  "switchToGridView": "Switch to grid view",
+  "toastPhotoPickFailed": "That photo couldn’t be selected. Try again.",
+  "toastPendingPickFailed": "The interrupted photo selection couldn’t be recovered.",
+  "toastSharedPhotoAdded": "Shared photo added.",
+  "toastSharedPhotoFailed": "The shared photo couldn’t be added. We’ll try again.",
+  "toastDeleteFailed": "Couldn’t delete it. Try again.",
+  "toastSaveFailed": "Couldn’t save it. Try again.",
+  "toastEditFailed": "Your changes couldn’t be saved.",
+  "toastPermissionDenied": "Notifications are off, so reminders will stay silent.",
+  "deleteConfirmTitle": "Delete this frame?",
+  "deleteConfirmCaption": "The photo and note will be deleted together.",
+  "holdToDelete": "Press and hold to delete",
+  "holdStageAlmost": "Almost there",
+  "holdStageRelease": "Keep holding…",
+  "holdStageGone": "Gone",
+  "cameraNotFoundTitle": "Camera unavailable",
+  "cameraNotFoundBody": "No camera is available on this device.",
+  "cameraDeniedTitle": "Camera access is off",
+  "cameraDeniedBody": "Allow camera access in Settings › Latermark to take photos here.",
+  "cameraFailedTitle": "Couldn’t open the camera",
+  "cameraFailedBody": "Something unexpected happened.",
+  "switchLens": "Switch camera",
+  "flashSemantic": "Flash: {state}",
+  "@flashSemantic": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "flashOff": "off",
+  "flashAuto": "auto",
+  "flashOn": "on",
+  "composeHint": "Why did you capture this?",
+  "composeAnotherPhoto": "Choose another photo",
+  "composeRetake": "Retake",
+  "sourceGallery": "PHOTOS",
+  "sourceShared": "SHARED",
+  "reminderLabel": "Remind me",
+  "reminderSuffixActive": "days from now",
+  "reminderSuffixOff": "days — off",
+  "reminderBlocked": "Notifications are off. This frame will still be saved; its reminder will begin working once you allow notifications.",
+  "editNoteSemantic": "Edit note",
+  "editSheetHeader": "EDIT NOTE",
+  "retentionSelectorTitle": "Auto-Delete",
+  "retentionOffNotice": "Auto-delete is off — this frame stays until you remove it.",
+  "retentionCustom": "Custom",
+  "retentionCustomTitle": "Custom duration",
+  "retentionCustomHours": "{count, plural, one{1 hour} other{{count} hours}}",
+  "@retentionCustomHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomDays": "{count, plural, one{1 day} other{{count} days}}",
+  "@retentionCustomDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomWeeks": "{count, plural, one{1 week} other{{count} weeks}}",
+  "@retentionCustomWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionUnitHours": "Hours",
+  "retentionUnitDays": "Days",
+  "retentionUnitWeeks": "Weeks",
+  "retentionCustomDescription": "This frame will delete itself when the time is up.",
+  "retentionOff": "Off",
+  "retentionThreeDays": "3 Days",
+  "retentionOneWeek": "1 Week",
+  "retentionOffDescription": "Off",
+  "retentionThreeDaysDescription": "Deletes after 3 days",
+  "retentionOneWeekDescription": "Deletes after 1 week",
+  "legalPrivacy": "Privacy",
+  "legalTerms": "Terms of Use",
+  "legalOpenFailed": "Couldn’t open the link.",
+  "settingsTitle": "Settings",
+  "sectionAppearance": "Appearance",
+  "sectionReminder": "Reminders",
+  "themeTitle": "Theme",
+  "themeDescription": "Follow your system appearance or choose one to keep.",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "retentionTitle": "Auto-Delete",
+  "retentionDescription": "New frames start with this duration. You can change it for any frame from its detail view.",
+  "feedTitle": "Feed",
+  "feedDescription": "Show larger frames or fit more into a grid.",
+  "densityLarge": "Large",
+  "densityGrid": "Grid",
+  "languageTitle": "Language",
+  "languageDescription": "Latermark follows your device language, or you can choose another.",
+  "languageSystem": "System",
+  "remindersTitle": "Reminders",
+  "remindersDescription": "Only frames you schedule while saving will notify you. Everything else stays quiet.",
+  "remindersBlockedDescription": "Notifications are disabled in system settings. Reminders will resume once you allow them.",
+  "openSystemSettings": "Open System Settings",
+  "openSettingsShort": "Open Settings",
+  "versionMark": "Version {version} ({build})",
+  "@versionMark": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "dayToday": "Today",
+  "dayYesterday": "Yesterday",
+  "relativeJustNow": "just now",
+  "relativeMinutes": "{count, plural, one{1 min} other{{count} min}}",
+  "@relativeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHours": "{count, plural, one{1 hr} other{{count} hr}}",
+  "@relativeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeYesterday": "yesterday",
+  "relativeDays": "{count, plural, one{1 day} other{{count} days}}",
+  "@relativeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingNow": "now",
+  "remainingShortDays": "{count}d",
+  "@remainingShortDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortHours": "{count}h",
+  "@remainingShortHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortMinutes": "{count}m",
+  "@remainingShortMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortLessThanMinute": "<1m",
+  "remainingSoon": "Deleting shortly",
+  "remainingLongDays": "{days, plural, one{Deletes in 1 day} other{Deletes in {days} days}}",
+  "@remainingLongDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongDaysHours": "{days, plural, one{1 day} other{{days} days}} {hours, plural, one{1 hour} other{{hours} hours}} until deletion",
+  "@remainingLongDaysHours": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHours": "{hours, plural, one{Deletes in 1 hour} other{Deletes in {hours} hours}}",
+  "@remainingLongHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHoursMinutes": "{hours, plural, one{1 hour} other{{hours} hours}} {minutes, plural, one{1 minute} other{{minutes} minutes}} until deletion",
+  "@remainingLongHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongMinutes": "{minutes, plural, one{Deletes in 1 minute} other{Deletes in {minutes} minutes}}",
+  "@remainingLongMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitTitle": "Your 10 frames are full",
+  "paywallLimitBody": "The free tier keeps up to {limit} frames at a time. Pro removes the limit — or delete one frame to continue.",
+  "@paywallLimitBody": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitDelete": "Delete a frame",
+  "paywallCounter": "{count}/{limit}",
+  "@paywallCounter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "proBadge": "PRO",
+  "paywallHeadline": "Some frames should stay.",
+  "paywallSubtitle": "Latermark is made for letting go. Pro is for what you want to keep.",
+  "paywallOwnedCount": "{count, plural, one{You have 1 frame right now.} other{You have {count} frames right now.}}",
+  "@paywallOwnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureUnlimited": "Unlimited frames",
+  "paywallFeatureUnlimitedDetail": "Free keeps up to {limit} frames.",
+  "@paywallFeatureUnlimitedDetail": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureCustomRetention": "Choose any duration",
+  "paywallFeatureCustomRetentionDetail": "Go beyond 3 days and 1 week.",
+  "paywallFeatureReminders": "Reminders",
+  "paywallFeatureRemindersDetail": "A quiet nudge for what matters.",
+  "paywallFeatureWidget": "Home & Lock Screen widgets",
+  "paywallFeatureWidgetDetail": "Your latest frame, always a glance away.",
+  "@paywallPerMonth": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paywallSaveBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPrice": "{price}",
+  "@paywallPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallOneTime": "One-time purchase",
+  "paywallNoSubscription": "No subscription. Pay once, keep Pro.",
+  "paywallFeatureNoSubscription": "No subscription",
+  "paywallFeatureNoSubscriptionDetail": "Most apps charge monthly. Latermark doesn’t.",
+  "paywallCta": "Unlock Pro",
+  "@paywallCtaTrial": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallRestore": "Restore Purchases",
+  "paywallClose": "Close",
+  "paywallLifeFree": "Free",
+  "paywallLifePro": "Pro",
+  "notificationTitle": "Reminder",
+  "notificationTitleNoBody": "A frame is waiting",
+  "notificationBodyNoBody": "You asked Latermark to remind you about this frame.",
+  "notificationChannelName": "Reminders",
+  "notificationChannelDescription": "Reminds you about frames you’ve scheduled.",
+  "actionOK": "OK",
+  "widgetDescription": "Shows your latest frame and note.",
+  "widgetEmptySubtitle": "Your first note will appear here",
+  "widgetPhotoDescription": "Photo from your latest frame",
+  "widgetLeaveTrace": "Leave a new trace",
+  "widgetOpenApp": "Open Latermark",
+  "widgetCreateNote": "Create a new note",
+  "widgetLeaveFirstTrace": "Leave your first trace",
+  "widgetProRequired": "Widgets are available with Latermark Pro.",
+  "widgetPreviewNote": "Send this to Accounting",
+  "widgetPreviewDay": "TODAY",
+  "shareComposeHint": "Why are you keeping this photo?",
+  "shareErrorTitle": "Couldn’t add the photo",
+  "shareErrorBody": "The photo couldn’t be sent to Latermark. Please try again.",
+  "cameraUsageDescription": "Camera access lets you capture photos for your notes.",
+  "photoLibraryUsageDescription": "Photo access lets you add images from your library to your notes."
+}

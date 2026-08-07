@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">Affiche votre dernière capture et sa note.</string>
+    <string name="widget_empty_title">Touchez pour capturer</string>
+    <string name="widget_empty_subtitle">Votre première note apparaîtra ici</string>
+    <string name="widget_photo_description">Photo de votre dernière capture</string>
+    <string name="widget_note_without_body">Sans note</string>
+    <string name="widget_remaining_now">maintenant</string>
+    <string name="widget_remaining_days">%1$d j</string>
+    <string name="widget_remaining_hours">%1$d h</string>
+    <string name="widget_remaining_minutes">%1$d min</string>
+    <string name="widget_remaining_less_than_minute">&lt;1 min</string>
+</resources>

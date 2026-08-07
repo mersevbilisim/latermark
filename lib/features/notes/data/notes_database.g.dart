@@ -63,6 +63,29 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       ).withConverter<Retention>($NotesTable.$converterretention);
+  static const VerificationMeta _ocrTextMeta = const VerificationMeta(
+    'ocrText',
+  );
+  @override
+  late final GeneratedColumn<String> ocrText = GeneratedColumn<String>(
+    'ocr_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _customMinutesMeta = const VerificationMeta(
+    'customMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> customMinutes = GeneratedColumn<int>(
+    'custom_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _expiresAtMeta = const VerificationMeta(
     'expiresAt',
   );
@@ -85,6 +108,18 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _remindAfterDaysMeta = const VerificationMeta(
+    'remindAfterDays',
+  );
+  @override
+  late final GeneratedColumn<int> remindAfterDays = GeneratedColumn<int>(
+    'remind_after_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -92,8 +127,11 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     body,
     createdAt,
     retention,
+    ocrText,
+    customMinutes,
     expiresAt,
     lastSeenAt,
+    remindAfterDays,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -132,6 +170,21 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('ocr_text')) {
+      context.handle(
+        _ocrTextMeta,
+        ocrText.isAcceptableOrUnknown(data['ocr_text']!, _ocrTextMeta),
+      );
+    }
+    if (data.containsKey('custom_minutes')) {
+      context.handle(
+        _customMinutesMeta,
+        customMinutes.isAcceptableOrUnknown(
+          data['custom_minutes']!,
+          _customMinutesMeta,
+        ),
+      );
+    }
     if (data.containsKey('expires_at')) {
       context.handle(
         _expiresAtMeta,
@@ -144,6 +197,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         lastSeenAt.isAcceptableOrUnknown(
           data['last_seen_at']!,
           _lastSeenAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remind_after_days')) {
+      context.handle(
+        _remindAfterDaysMeta,
+        remindAfterDays.isAcceptableOrUnknown(
+          data['remind_after_days']!,
+          _remindAfterDaysMeta,
         ),
       );
     }
@@ -178,6 +240,14 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
           data['${effectivePrefix}retention'],
         )!,
       ),
+      ocrText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ocr_text'],
+      ),
+      customMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}custom_minutes'],
+      )!,
       expiresAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}expires_at'],
@@ -186,6 +256,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_seen_at'],
       ),
+      remindAfterDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remind_after_days'],
+      )!,
     );
   }
 
@@ -211,22 +285,46 @@ class Note extends DataClass implements Insertable<Note> {
   final DateTime createdAt;
   final Retention retention;
 
+  /// Karedeki yazının makine okuması. **Arayüzde hiç gösterilmez.**
+  ///
+  /// Tek işi aramayı beslemek: kullanıcı "4521" ya da "kombi" yazınca fişin
+  /// kendisi bulunsun. Görünmediği için OCR hataları da görünmez — %80
+  /// isabetle bile arama işe yarar, oysa aynı metni nota yazsaydık her hata
+  /// kullanıcının düzeltmesi gereken bir kir olurdu.
+  ///
+  /// `null` = henüz taranmadı. Boş metin = tarandı, yazı bulunamadı.
+  final String? ocrText;
+
+  /// Özel saklama süresi (dakika). Yalnızca [Retention.custom] için anlamlı.
+  ///
+  /// Ayrı sütun gerekiyor: enum indeksi sabit bir değer taşır, kullanıcının
+  /// seçtiği süre ise her kayıtta farklı olabilir.
+  final int customMinutes;
+
   /// Süreli notlar için hesaplanmış silinme anı; süresizse `null`.
   final DateTime? expiresAt;
 
-  /// Nota en son ne zaman bakıldığı.
-  ///
-  /// Hatırlatıcı bunun üzerine kurulur: "şu kadar gün bakmazsan hatırlat".
-  /// Kayıt açıldığında tazelenir, böylece hatırlatma ileri atılır.
+  /// Nota en son ne zaman bakıldığı. Detay ekranında tazelenir.
   final DateTime? lastSeenAt;
+
+  /// "Beni bu kadar gün sonra hatırlat." `0` ise hatırlatma yok.
+  ///
+  /// Hatırlatma isteğe bağlıdır ve **not başına** verilir. Eskiden her kayda
+  /// otomatik kurulurdu; yüzlerce notu olan biri bakmadığı her kare için
+  /// bildirim alıyordu. Üstelik iOS aynı anda yalnızca 64 bekleyen bildirim
+  /// tutar — otomatik kurulum o sınırı sessizce aşıyordu.
+  final int remindAfterDays;
   const Note({
     required this.id,
     required this.imageName,
     required this.body,
     required this.createdAt,
     required this.retention,
+    this.ocrText,
+    required this.customMinutes,
     this.expiresAt,
     this.lastSeenAt,
+    required this.remindAfterDays,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -240,12 +338,17 @@ class Note extends DataClass implements Insertable<Note> {
         $NotesTable.$converterretention.toSql(retention),
       );
     }
+    if (!nullToAbsent || ocrText != null) {
+      map['ocr_text'] = Variable<String>(ocrText);
+    }
+    map['custom_minutes'] = Variable<int>(customMinutes);
     if (!nullToAbsent || expiresAt != null) {
       map['expires_at'] = Variable<DateTime>(expiresAt);
     }
     if (!nullToAbsent || lastSeenAt != null) {
       map['last_seen_at'] = Variable<DateTime>(lastSeenAt);
     }
+    map['remind_after_days'] = Variable<int>(remindAfterDays);
     return map;
   }
 
@@ -256,12 +359,17 @@ class Note extends DataClass implements Insertable<Note> {
       body: Value(body),
       createdAt: Value(createdAt),
       retention: Value(retention),
+      ocrText: ocrText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ocrText),
+      customMinutes: Value(customMinutes),
       expiresAt: expiresAt == null && nullToAbsent
           ? const Value.absent()
           : Value(expiresAt),
       lastSeenAt: lastSeenAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSeenAt),
+      remindAfterDays: Value(remindAfterDays),
     );
   }
 
@@ -278,8 +386,11 @@ class Note extends DataClass implements Insertable<Note> {
       retention: $NotesTable.$converterretention.fromJson(
         serializer.fromJson<int>(json['retention']),
       ),
+      ocrText: serializer.fromJson<String?>(json['ocrText']),
+      customMinutes: serializer.fromJson<int>(json['customMinutes']),
       expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
       lastSeenAt: serializer.fromJson<DateTime?>(json['lastSeenAt']),
+      remindAfterDays: serializer.fromJson<int>(json['remindAfterDays']),
     );
   }
   @override
@@ -293,8 +404,11 @@ class Note extends DataClass implements Insertable<Note> {
       'retention': serializer.toJson<int>(
         $NotesTable.$converterretention.toJson(retention),
       ),
+      'ocrText': serializer.toJson<String?>(ocrText),
+      'customMinutes': serializer.toJson<int>(customMinutes),
       'expiresAt': serializer.toJson<DateTime?>(expiresAt),
       'lastSeenAt': serializer.toJson<DateTime?>(lastSeenAt),
+      'remindAfterDays': serializer.toJson<int>(remindAfterDays),
     };
   }
 
@@ -304,16 +418,22 @@ class Note extends DataClass implements Insertable<Note> {
     String? body,
     DateTime? createdAt,
     Retention? retention,
+    Value<String?> ocrText = const Value.absent(),
+    int? customMinutes,
     Value<DateTime?> expiresAt = const Value.absent(),
     Value<DateTime?> lastSeenAt = const Value.absent(),
+    int? remindAfterDays,
   }) => Note(
     id: id ?? this.id,
     imageName: imageName ?? this.imageName,
     body: body ?? this.body,
     createdAt: createdAt ?? this.createdAt,
     retention: retention ?? this.retention,
+    ocrText: ocrText.present ? ocrText.value : this.ocrText,
+    customMinutes: customMinutes ?? this.customMinutes,
     expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
     lastSeenAt: lastSeenAt.present ? lastSeenAt.value : this.lastSeenAt,
+    remindAfterDays: remindAfterDays ?? this.remindAfterDays,
   );
   Note copyWithCompanion(NotesCompanion data) {
     return Note(
@@ -322,10 +442,17 @@ class Note extends DataClass implements Insertable<Note> {
       body: data.body.present ? data.body.value : this.body,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       retention: data.retention.present ? data.retention.value : this.retention,
+      ocrText: data.ocrText.present ? data.ocrText.value : this.ocrText,
+      customMinutes: data.customMinutes.present
+          ? data.customMinutes.value
+          : this.customMinutes,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
       lastSeenAt: data.lastSeenAt.present
           ? data.lastSeenAt.value
           : this.lastSeenAt,
+      remindAfterDays: data.remindAfterDays.present
+          ? data.remindAfterDays.value
+          : this.remindAfterDays,
     );
   }
 
@@ -337,8 +464,11 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
+          ..write('ocrText: $ocrText, ')
+          ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
-          ..write('lastSeenAt: $lastSeenAt')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('remindAfterDays: $remindAfterDays')
           ..write(')'))
         .toString();
   }
@@ -350,8 +480,11 @@ class Note extends DataClass implements Insertable<Note> {
     body,
     createdAt,
     retention,
+    ocrText,
+    customMinutes,
     expiresAt,
     lastSeenAt,
+    remindAfterDays,
   );
   @override
   bool operator ==(Object other) =>
@@ -362,8 +495,11 @@ class Note extends DataClass implements Insertable<Note> {
           other.body == this.body &&
           other.createdAt == this.createdAt &&
           other.retention == this.retention &&
+          other.ocrText == this.ocrText &&
+          other.customMinutes == this.customMinutes &&
           other.expiresAt == this.expiresAt &&
-          other.lastSeenAt == this.lastSeenAt);
+          other.lastSeenAt == this.lastSeenAt &&
+          other.remindAfterDays == this.remindAfterDays);
 }
 
 class NotesCompanion extends UpdateCompanion<Note> {
@@ -372,16 +508,22 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String> body;
   final Value<DateTime> createdAt;
   final Value<Retention> retention;
+  final Value<String?> ocrText;
+  final Value<int> customMinutes;
   final Value<DateTime?> expiresAt;
   final Value<DateTime?> lastSeenAt;
+  final Value<int> remindAfterDays;
   const NotesCompanion({
     this.id = const Value.absent(),
     this.imageName = const Value.absent(),
     this.body = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.retention = const Value.absent(),
+    this.ocrText = const Value.absent(),
+    this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
+    this.remindAfterDays = const Value.absent(),
   });
   NotesCompanion.insert({
     this.id = const Value.absent(),
@@ -389,8 +531,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.body = const Value.absent(),
     required DateTime createdAt,
     this.retention = const Value.absent(),
+    this.ocrText = const Value.absent(),
+    this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
+    this.remindAfterDays = const Value.absent(),
   }) : imageName = Value(imageName),
        createdAt = Value(createdAt);
   static Insertable<Note> custom({
@@ -399,8 +544,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? body,
     Expression<DateTime>? createdAt,
     Expression<int>? retention,
+    Expression<String>? ocrText,
+    Expression<int>? customMinutes,
     Expression<DateTime>? expiresAt,
     Expression<DateTime>? lastSeenAt,
+    Expression<int>? remindAfterDays,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -408,8 +556,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (body != null) 'body': body,
       if (createdAt != null) 'created_at': createdAt,
       if (retention != null) 'retention': retention,
+      if (ocrText != null) 'ocr_text': ocrText,
+      if (customMinutes != null) 'custom_minutes': customMinutes,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+      if (remindAfterDays != null) 'remind_after_days': remindAfterDays,
     });
   }
 
@@ -419,8 +570,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<String>? body,
     Value<DateTime>? createdAt,
     Value<Retention>? retention,
+    Value<String?>? ocrText,
+    Value<int>? customMinutes,
     Value<DateTime?>? expiresAt,
     Value<DateTime?>? lastSeenAt,
+    Value<int>? remindAfterDays,
   }) {
     return NotesCompanion(
       id: id ?? this.id,
@@ -428,8 +582,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
       body: body ?? this.body,
       createdAt: createdAt ?? this.createdAt,
       retention: retention ?? this.retention,
+      ocrText: ocrText ?? this.ocrText,
+      customMinutes: customMinutes ?? this.customMinutes,
       expiresAt: expiresAt ?? this.expiresAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      remindAfterDays: remindAfterDays ?? this.remindAfterDays,
     );
   }
 
@@ -453,11 +610,20 @@ class NotesCompanion extends UpdateCompanion<Note> {
         $NotesTable.$converterretention.toSql(retention.value),
       );
     }
+    if (ocrText.present) {
+      map['ocr_text'] = Variable<String>(ocrText.value);
+    }
+    if (customMinutes.present) {
+      map['custom_minutes'] = Variable<int>(customMinutes.value);
+    }
     if (expiresAt.present) {
       map['expires_at'] = Variable<DateTime>(expiresAt.value);
     }
     if (lastSeenAt.present) {
       map['last_seen_at'] = Variable<DateTime>(lastSeenAt.value);
+    }
+    if (remindAfterDays.present) {
+      map['remind_after_days'] = Variable<int>(remindAfterDays.value);
     }
     return map;
   }
@@ -470,8 +636,11 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
+          ..write('ocrText: $ocrText, ')
+          ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
-          ..write('lastSeenAt: $lastSeenAt')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('remindAfterDays: $remindAfterDays')
           ..write(')'))
         .toString();
   }
@@ -501,7 +670,7 @@ class $SettingsTableTable extends SettingsTable
         false,
         type: DriftSqlType.int,
         requiredDuringInsert: false,
-        defaultValue: const Constant(0),
+        defaultValue: const Constant(2),
       ).withConverter<AppThemeMode>($SettingsTableTable.$converterthemeMode);
   @override
   late final GeneratedColumnWithTypeConverter<FeedDensity, int> density =
@@ -511,7 +680,7 @@ class $SettingsTableTable extends SettingsTable
         false,
         type: DriftSqlType.int,
         requiredDuringInsert: false,
-        defaultValue: const Constant(0),
+        defaultValue: const Constant(1),
       ).withConverter<FeedDensity>($SettingsTableTable.$converterdensity);
   static const VerificationMeta _reminderEnabledMeta = const VerificationMeta(
     'reminderEnabled',
@@ -529,22 +698,63 @@ class $SettingsTableTable extends SettingsTable
     defaultValue: const Constant(false),
   );
   @override
-  late final GeneratedColumnWithTypeConverter<ReminderDelay, int>
-  reminderDelay = GeneratedColumn<int>(
-    'reminder_delay',
+  late final GeneratedColumnWithTypeConverter<Retention, int> defaultRetention =
+      GeneratedColumn<int>(
+        'default_retention',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      ).withConverter<Retention>(
+        $SettingsTableTable.$converterdefaultRetention,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<AppLocale, int> locale =
+      GeneratedColumn<int>(
+        'locale',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      ).withConverter<AppLocale>($SettingsTableTable.$converterlocale);
+  static const VerificationMeta _defaultCustomMinutesMeta =
+      const VerificationMeta('defaultCustomMinutes');
+  @override
+  late final GeneratedColumn<int> defaultCustomMinutes = GeneratedColumn<int>(
+    'default_custom_minutes',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  ).withConverter<ReminderDelay>($SettingsTableTable.$converterreminderDelay);
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _proUnlockedMeta = const VerificationMeta(
+    'proUnlocked',
+  );
+  @override
+  late final GeneratedColumn<bool> proUnlocked = GeneratedColumn<bool>(
+    'pro_unlocked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("pro_unlocked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     themeMode,
     density,
     reminderEnabled,
-    reminderDelay,
+    defaultRetention,
+    locale,
+    defaultCustomMinutes,
+    proUnlocked,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -567,6 +777,24 @@ class $SettingsTableTable extends SettingsTable
         reminderEnabled.isAcceptableOrUnknown(
           data['reminder_enabled']!,
           _reminderEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('default_custom_minutes')) {
+      context.handle(
+        _defaultCustomMinutesMeta,
+        defaultCustomMinutes.isAcceptableOrUnknown(
+          data['default_custom_minutes']!,
+          _defaultCustomMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pro_unlocked')) {
+      context.handle(
+        _proUnlockedMeta,
+        proUnlocked.isAcceptableOrUnknown(
+          data['pro_unlocked']!,
+          _proUnlockedMeta,
         ),
       );
     }
@@ -599,12 +827,26 @@ class $SettingsTableTable extends SettingsTable
         DriftSqlType.bool,
         data['${effectivePrefix}reminder_enabled'],
       )!,
-      reminderDelay: $SettingsTableTable.$converterreminderDelay.fromSql(
+      defaultRetention: $SettingsTableTable.$converterdefaultRetention.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
-          data['${effectivePrefix}reminder_delay'],
+          data['${effectivePrefix}default_retention'],
         )!,
       ),
+      locale: $SettingsTableTable.$converterlocale.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}locale'],
+        )!,
+      ),
+      defaultCustomMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}default_custom_minutes'],
+      )!,
+      proUnlocked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}pro_unlocked'],
+      )!,
     );
   }
 
@@ -617,23 +859,51 @@ class $SettingsTableTable extends SettingsTable
       const EnumIndexConverter<AppThemeMode>(AppThemeMode.values);
   static JsonTypeConverter2<FeedDensity, int, int> $converterdensity =
       const EnumIndexConverter<FeedDensity>(FeedDensity.values);
-  static JsonTypeConverter2<ReminderDelay, int, int> $converterreminderDelay =
-      const EnumIndexConverter<ReminderDelay>(ReminderDelay.values);
+  static JsonTypeConverter2<Retention, int, int> $converterdefaultRetention =
+      const EnumIndexConverter<Retention>(Retention.values);
+  static JsonTypeConverter2<AppLocale, int, int> $converterlocale =
+      const EnumIndexConverter<AppLocale>(AppLocale.values);
 }
 
 class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Her zaman 1. Tabloda tek satır bulunur.
   final int id;
+
+  /// Varsayılan koyu (index 2): uygulama fotoğrafın önde durduğu bir arayüz
+  /// ve karanlık zemin kareyi öne çıkarıyor.
   final AppThemeMode themeMode;
+
+  /// Varsayılan ızgara (index 1): uygulama ilk açıldığında daha çok kayıt
+  /// tek bakışta görünsün.
   final FeedDensity density;
   final bool reminderEnabled;
-  final ReminderDelay reminderDelay;
+
+  /// Yeni kayıtların varsayılan saklama süresi.
+  ///
+  /// Otomatik silme artık her çekimde sorulmaz; buradan bir kez seçilir ve
+  /// kayıtlar onunla açılır. Böylece çekim akışında tek bir karar kalır.
+  final Retention defaultRetention;
+
+  /// Dil tercihi. Varsayılan sistem dili.
+  final AppLocale locale;
+
+  /// Yeni kayıtların varsayılan özel süresi (dakika).
+  final int defaultCustomMinutes;
+
+  /// Pro hakkının son bilinen durumu.
+  ///
+  /// Doğruluk kaynağı **mağaza**; bu yalnızca önbellek. Soğuk açılışta mağaza
+  /// cevabı gelene kadar ödemiş bir kullanıcıya paywall göstermemek için var.
+  final bool proUnlocked;
   const SettingsRow({
     required this.id,
     required this.themeMode,
     required this.density,
     required this.reminderEnabled,
-    required this.reminderDelay,
+    required this.defaultRetention,
+    required this.locale,
+    required this.defaultCustomMinutes,
+    required this.proUnlocked,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -651,10 +921,17 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     }
     map['reminder_enabled'] = Variable<bool>(reminderEnabled);
     {
-      map['reminder_delay'] = Variable<int>(
-        $SettingsTableTable.$converterreminderDelay.toSql(reminderDelay),
+      map['default_retention'] = Variable<int>(
+        $SettingsTableTable.$converterdefaultRetention.toSql(defaultRetention),
       );
     }
+    {
+      map['locale'] = Variable<int>(
+        $SettingsTableTable.$converterlocale.toSql(locale),
+      );
+    }
+    map['default_custom_minutes'] = Variable<int>(defaultCustomMinutes);
+    map['pro_unlocked'] = Variable<bool>(proUnlocked);
     return map;
   }
 
@@ -664,7 +941,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       themeMode: Value(themeMode),
       density: Value(density),
       reminderEnabled: Value(reminderEnabled),
-      reminderDelay: Value(reminderDelay),
+      defaultRetention: Value(defaultRetention),
+      locale: Value(locale),
+      defaultCustomMinutes: Value(defaultCustomMinutes),
+      proUnlocked: Value(proUnlocked),
     );
   }
 
@@ -682,9 +962,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         serializer.fromJson<int>(json['density']),
       ),
       reminderEnabled: serializer.fromJson<bool>(json['reminderEnabled']),
-      reminderDelay: $SettingsTableTable.$converterreminderDelay.fromJson(
-        serializer.fromJson<int>(json['reminderDelay']),
+      defaultRetention: $SettingsTableTable.$converterdefaultRetention.fromJson(
+        serializer.fromJson<int>(json['defaultRetention']),
       ),
+      locale: $SettingsTableTable.$converterlocale.fromJson(
+        serializer.fromJson<int>(json['locale']),
+      ),
+      defaultCustomMinutes: serializer.fromJson<int>(
+        json['defaultCustomMinutes'],
+      ),
+      proUnlocked: serializer.fromJson<bool>(json['proUnlocked']),
     );
   }
   @override
@@ -699,9 +986,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         $SettingsTableTable.$converterdensity.toJson(density),
       ),
       'reminderEnabled': serializer.toJson<bool>(reminderEnabled),
-      'reminderDelay': serializer.toJson<int>(
-        $SettingsTableTable.$converterreminderDelay.toJson(reminderDelay),
+      'defaultRetention': serializer.toJson<int>(
+        $SettingsTableTable.$converterdefaultRetention.toJson(defaultRetention),
       ),
+      'locale': serializer.toJson<int>(
+        $SettingsTableTable.$converterlocale.toJson(locale),
+      ),
+      'defaultCustomMinutes': serializer.toJson<int>(defaultCustomMinutes),
+      'proUnlocked': serializer.toJson<bool>(proUnlocked),
     };
   }
 
@@ -710,13 +1002,19 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     AppThemeMode? themeMode,
     FeedDensity? density,
     bool? reminderEnabled,
-    ReminderDelay? reminderDelay,
+    Retention? defaultRetention,
+    AppLocale? locale,
+    int? defaultCustomMinutes,
+    bool? proUnlocked,
   }) => SettingsRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
     density: density ?? this.density,
     reminderEnabled: reminderEnabled ?? this.reminderEnabled,
-    reminderDelay: reminderDelay ?? this.reminderDelay,
+    defaultRetention: defaultRetention ?? this.defaultRetention,
+    locale: locale ?? this.locale,
+    defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
+    proUnlocked: proUnlocked ?? this.proUnlocked,
   );
   SettingsRow copyWithCompanion(SettingsTableCompanion data) {
     return SettingsRow(
@@ -726,9 +1024,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       reminderEnabled: data.reminderEnabled.present
           ? data.reminderEnabled.value
           : this.reminderEnabled,
-      reminderDelay: data.reminderDelay.present
-          ? data.reminderDelay.value
-          : this.reminderDelay,
+      defaultRetention: data.defaultRetention.present
+          ? data.defaultRetention.value
+          : this.defaultRetention,
+      locale: data.locale.present ? data.locale.value : this.locale,
+      defaultCustomMinutes: data.defaultCustomMinutes.present
+          ? data.defaultCustomMinutes.value
+          : this.defaultCustomMinutes,
+      proUnlocked: data.proUnlocked.present
+          ? data.proUnlocked.value
+          : this.proUnlocked,
     );
   }
 
@@ -739,14 +1044,25 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('themeMode: $themeMode, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
-          ..write('reminderDelay: $reminderDelay')
+          ..write('defaultRetention: $defaultRetention, ')
+          ..write('locale: $locale, ')
+          ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
+          ..write('proUnlocked: $proUnlocked')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, themeMode, density, reminderEnabled, reminderDelay);
+  int get hashCode => Object.hash(
+    id,
+    themeMode,
+    density,
+    reminderEnabled,
+    defaultRetention,
+    locale,
+    defaultCustomMinutes,
+    proUnlocked,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -755,7 +1071,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.themeMode == this.themeMode &&
           other.density == this.density &&
           other.reminderEnabled == this.reminderEnabled &&
-          other.reminderDelay == this.reminderDelay);
+          other.defaultRetention == this.defaultRetention &&
+          other.locale == this.locale &&
+          other.defaultCustomMinutes == this.defaultCustomMinutes &&
+          other.proUnlocked == this.proUnlocked);
 }
 
 class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
@@ -763,34 +1082,50 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   final Value<AppThemeMode> themeMode;
   final Value<FeedDensity> density;
   final Value<bool> reminderEnabled;
-  final Value<ReminderDelay> reminderDelay;
+  final Value<Retention> defaultRetention;
+  final Value<AppLocale> locale;
+  final Value<int> defaultCustomMinutes;
+  final Value<bool> proUnlocked;
   const SettingsTableCompanion({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
-    this.reminderDelay = const Value.absent(),
+    this.defaultRetention = const Value.absent(),
+    this.locale = const Value.absent(),
+    this.defaultCustomMinutes = const Value.absent(),
+    this.proUnlocked = const Value.absent(),
   });
   SettingsTableCompanion.insert({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
-    this.reminderDelay = const Value.absent(),
+    this.defaultRetention = const Value.absent(),
+    this.locale = const Value.absent(),
+    this.defaultCustomMinutes = const Value.absent(),
+    this.proUnlocked = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<int>? themeMode,
     Expression<int>? density,
     Expression<bool>? reminderEnabled,
-    Expression<int>? reminderDelay,
+    Expression<int>? defaultRetention,
+    Expression<int>? locale,
+    Expression<int>? defaultCustomMinutes,
+    Expression<bool>? proUnlocked,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (themeMode != null) 'theme_mode': themeMode,
       if (density != null) 'density': density,
       if (reminderEnabled != null) 'reminder_enabled': reminderEnabled,
-      if (reminderDelay != null) 'reminder_delay': reminderDelay,
+      if (defaultRetention != null) 'default_retention': defaultRetention,
+      if (locale != null) 'locale': locale,
+      if (defaultCustomMinutes != null)
+        'default_custom_minutes': defaultCustomMinutes,
+      if (proUnlocked != null) 'pro_unlocked': proUnlocked,
     });
   }
 
@@ -799,14 +1134,20 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Value<AppThemeMode>? themeMode,
     Value<FeedDensity>? density,
     Value<bool>? reminderEnabled,
-    Value<ReminderDelay>? reminderDelay,
+    Value<Retention>? defaultRetention,
+    Value<AppLocale>? locale,
+    Value<int>? defaultCustomMinutes,
+    Value<bool>? proUnlocked,
   }) {
     return SettingsTableCompanion(
       id: id ?? this.id,
       themeMode: themeMode ?? this.themeMode,
       density: density ?? this.density,
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
-      reminderDelay: reminderDelay ?? this.reminderDelay,
+      defaultRetention: defaultRetention ?? this.defaultRetention,
+      locale: locale ?? this.locale,
+      defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
+      proUnlocked: proUnlocked ?? this.proUnlocked,
     );
   }
 
@@ -829,10 +1170,23 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     if (reminderEnabled.present) {
       map['reminder_enabled'] = Variable<bool>(reminderEnabled.value);
     }
-    if (reminderDelay.present) {
-      map['reminder_delay'] = Variable<int>(
-        $SettingsTableTable.$converterreminderDelay.toSql(reminderDelay.value),
+    if (defaultRetention.present) {
+      map['default_retention'] = Variable<int>(
+        $SettingsTableTable.$converterdefaultRetention.toSql(
+          defaultRetention.value,
+        ),
       );
+    }
+    if (locale.present) {
+      map['locale'] = Variable<int>(
+        $SettingsTableTable.$converterlocale.toSql(locale.value),
+      );
+    }
+    if (defaultCustomMinutes.present) {
+      map['default_custom_minutes'] = Variable<int>(defaultCustomMinutes.value);
+    }
+    if (proUnlocked.present) {
+      map['pro_unlocked'] = Variable<bool>(proUnlocked.value);
     }
     return map;
   }
@@ -844,7 +1198,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
           ..write('themeMode: $themeMode, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
-          ..write('reminderDelay: $reminderDelay')
+          ..write('defaultRetention: $defaultRetention, ')
+          ..write('locale: $locale, ')
+          ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
+          ..write('proUnlocked: $proUnlocked')
           ..write(')'))
         .toString();
   }
@@ -869,8 +1226,11 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<String> body,
       required DateTime createdAt,
       Value<Retention> retention,
+      Value<String?> ocrText,
+      Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
+      Value<int> remindAfterDays,
     });
 typedef $$NotesTableUpdateCompanionBuilder =
     NotesCompanion Function({
@@ -879,8 +1239,11 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String> body,
       Value<DateTime> createdAt,
       Value<Retention> retention,
+      Value<String?> ocrText,
+      Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
+      Value<int> remindAfterDays,
     });
 
 class $$NotesTableFilterComposer
@@ -918,6 +1281,16 @@ class $$NotesTableFilterComposer
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
+  ColumnFilters<String> get ocrText => $composableBuilder(
+    column: $table.ocrText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get customMinutes => $composableBuilder(
+    column: $table.customMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get expiresAt => $composableBuilder(
     column: $table.expiresAt,
     builder: (column) => ColumnFilters(column),
@@ -925,6 +1298,11 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<DateTime> get lastSeenAt => $composableBuilder(
     column: $table.lastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remindAfterDays => $composableBuilder(
+    column: $table.remindAfterDays,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -963,6 +1341,16 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get ocrText => $composableBuilder(
+    column: $table.ocrText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get customMinutes => $composableBuilder(
+    column: $table.customMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
     column: $table.expiresAt,
     builder: (column) => ColumnOrderings(column),
@@ -970,6 +1358,11 @@ class $$NotesTableOrderingComposer
 
   ColumnOrderings<DateTime> get lastSeenAt => $composableBuilder(
     column: $table.lastSeenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remindAfterDays => $composableBuilder(
+    column: $table.remindAfterDays,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -998,11 +1391,24 @@ class $$NotesTableAnnotationComposer
   GeneratedColumnWithTypeConverter<Retention, int> get retention =>
       $composableBuilder(column: $table.retention, builder: (column) => column);
 
+  GeneratedColumn<String> get ocrText =>
+      $composableBuilder(column: $table.ocrText, builder: (column) => column);
+
+  GeneratedColumn<int> get customMinutes => $composableBuilder(
+    column: $table.customMinutes,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get expiresAt =>
       $composableBuilder(column: $table.expiresAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastSeenAt => $composableBuilder(
     column: $table.lastSeenAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remindAfterDays => $composableBuilder(
+    column: $table.remindAfterDays,
     builder: (column) => column,
   );
 }
@@ -1040,16 +1446,22 @@ class $$NotesTableTableManager
                 Value<String> body = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<Retention> retention = const Value.absent(),
+                Value<String?> ocrText = const Value.absent(),
+                Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<int> remindAfterDays = const Value.absent(),
               }) => NotesCompanion(
                 id: id,
                 imageName: imageName,
                 body: body,
                 createdAt: createdAt,
                 retention: retention,
+                ocrText: ocrText,
+                customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
+                remindAfterDays: remindAfterDays,
               ),
           createCompanionCallback:
               ({
@@ -1058,16 +1470,22 @@ class $$NotesTableTableManager
                 Value<String> body = const Value.absent(),
                 required DateTime createdAt,
                 Value<Retention> retention = const Value.absent(),
+                Value<String?> ocrText = const Value.absent(),
+                Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<int> remindAfterDays = const Value.absent(),
               }) => NotesCompanion.insert(
                 id: id,
                 imageName: imageName,
                 body: body,
                 createdAt: createdAt,
                 retention: retention,
+                ocrText: ocrText,
+                customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
+                remindAfterDays: remindAfterDays,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -1097,7 +1515,10 @@ typedef $$SettingsTableTableCreateCompanionBuilder =
       Value<AppThemeMode> themeMode,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
-      Value<ReminderDelay> reminderDelay,
+      Value<Retention> defaultRetention,
+      Value<AppLocale> locale,
+      Value<int> defaultCustomMinutes,
+      Value<bool> proUnlocked,
     });
 typedef $$SettingsTableTableUpdateCompanionBuilder =
     SettingsTableCompanion Function({
@@ -1105,7 +1526,10 @@ typedef $$SettingsTableTableUpdateCompanionBuilder =
       Value<AppThemeMode> themeMode,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
-      Value<ReminderDelay> reminderDelay,
+      Value<Retention> defaultRetention,
+      Value<AppLocale> locale,
+      Value<int> defaultCustomMinutes,
+      Value<bool> proUnlocked,
     });
 
 class $$SettingsTableTableFilterComposer
@@ -1139,10 +1563,26 @@ class $$SettingsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnWithTypeConverterFilters<ReminderDelay, ReminderDelay, int>
-  get reminderDelay => $composableBuilder(
-    column: $table.reminderDelay,
+  ColumnWithTypeConverterFilters<Retention, Retention, int>
+  get defaultRetention => $composableBuilder(
+    column: $table.defaultRetention,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<AppLocale, AppLocale, int> get locale =>
+      $composableBuilder(
+        column: $table.locale,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get defaultCustomMinutes => $composableBuilder(
+    column: $table.defaultCustomMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get proUnlocked => $composableBuilder(
+    column: $table.proUnlocked,
+    builder: (column) => ColumnFilters(column),
   );
 }
 
@@ -1175,8 +1615,23 @@ class $$SettingsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get reminderDelay => $composableBuilder(
-    column: $table.reminderDelay,
+  ColumnOrderings<int> get defaultRetention => $composableBuilder(
+    column: $table.defaultRetention,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get locale => $composableBuilder(
+    column: $table.locale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get defaultCustomMinutes => $composableBuilder(
+    column: $table.defaultCustomMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get proUnlocked => $composableBuilder(
+    column: $table.proUnlocked,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1204,11 +1659,24 @@ class $$SettingsTableTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumnWithTypeConverter<ReminderDelay, int> get reminderDelay =>
+  GeneratedColumnWithTypeConverter<Retention, int> get defaultRetention =>
       $composableBuilder(
-        column: $table.reminderDelay,
+        column: $table.defaultRetention,
         builder: (column) => column,
       );
+
+  GeneratedColumnWithTypeConverter<AppLocale, int> get locale =>
+      $composableBuilder(column: $table.locale, builder: (column) => column);
+
+  GeneratedColumn<int> get defaultCustomMinutes => $composableBuilder(
+    column: $table.defaultCustomMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get proUnlocked => $composableBuilder(
+    column: $table.proUnlocked,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableTableManager
@@ -1248,13 +1716,19 @@ class $$SettingsTableTableTableManager
                 Value<AppThemeMode> themeMode = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
-                Value<ReminderDelay> reminderDelay = const Value.absent(),
+                Value<Retention> defaultRetention = const Value.absent(),
+                Value<AppLocale> locale = const Value.absent(),
+                Value<int> defaultCustomMinutes = const Value.absent(),
+                Value<bool> proUnlocked = const Value.absent(),
               }) => SettingsTableCompanion(
                 id: id,
                 themeMode: themeMode,
                 density: density,
                 reminderEnabled: reminderEnabled,
-                reminderDelay: reminderDelay,
+                defaultRetention: defaultRetention,
+                locale: locale,
+                defaultCustomMinutes: defaultCustomMinutes,
+                proUnlocked: proUnlocked,
               ),
           createCompanionCallback:
               ({
@@ -1262,13 +1736,19 @@ class $$SettingsTableTableTableManager
                 Value<AppThemeMode> themeMode = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
-                Value<ReminderDelay> reminderDelay = const Value.absent(),
+                Value<Retention> defaultRetention = const Value.absent(),
+                Value<AppLocale> locale = const Value.absent(),
+                Value<int> defaultCustomMinutes = const Value.absent(),
+                Value<bool> proUnlocked = const Value.absent(),
               }) => SettingsTableCompanion.insert(
                 id: id,
                 themeMode: themeMode,
                 density: density,
                 reminderEnabled: reminderEnabled,
-                reminderDelay: reminderDelay,
+                defaultRetention: defaultRetention,
+                locale: locale,
+                defaultCustomMinutes: defaultCustomMinutes,
+                proUnlocked: proUnlocked,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

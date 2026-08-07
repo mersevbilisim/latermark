@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">Zeigt deine neueste Aufnahme und Notiz.</string>
+    <string name="widget_empty_title">Tippen und aufnehmen</string>
+    <string name="widget_empty_subtitle">Deine erste Notiz erscheint hier</string>
+    <string name="widget_photo_description">Foto deiner neuesten Aufnahme</string>
+    <string name="widget_note_without_body">Ohne Notiz</string>
+    <string name="widget_remaining_now">jetzt</string>
+    <string name="widget_remaining_days">%1$d T</string>
+    <string name="widget_remaining_hours">%1$d Std.</string>
+    <string name="widget_remaining_minutes">%1$d Min.</string>
+    <string name="widget_remaining_less_than_minute">&lt;1 Min.</string>
+</resources>

@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_palette.dart';
-import '../../../../../core/utils/tr_format.dart';
-import '../../../domain/retention.dart';
-import '../../widgets/retention_selector.dart';
+import '../../../../../l10n/l10n_context.dart';
+import '../../../../../core/utils/app_format.dart';
 
-/// Yazı alanı + "Otomatik Sil" seçimi.
+/// Yazı alanı ve altındaki tek kontrol.
 ///
-/// Hem yeni kayıt ekranında hem de düzenleme panelinde aynı gövde kullanılır;
-/// aralarındaki tek fark [header] ve [action].
+/// Hem yeni kayıt ekranında hem de düzenleme panelinde aynı gövde kullanılır.
+/// Aradaki kontrol sabit değil, [extra] ile veriliyor: yeni kayıtta hatırlatma
+/// süresi, düzenlemede saklama süresi duruyor. Çekim akışında tek karar olsun
+/// diye ikisi aynı anda gösterilmiyor.
 class NoteComposer extends StatelessWidget {
   const NoteComposer({
     super.key,
     required this.controller,
-    required this.retention,
-    required this.onRetentionChanged,
     required this.action,
+    this.extra,
     this.focusNode,
     this.header,
     this.autofocus = false,
-    this.hintText = 'Bunu neden çektin?',
+    this.hintText,
     this.expand = true,
   });
 
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final Retention retention;
-  final ValueChanged<Retention> onRetentionChanged;
+
+  /// Yazı alanı ile eylem arasında duran kontrol.
+  final Widget? extra;
 
   /// Alt kısımdaki eylem(ler).
   final Widget action;
@@ -35,7 +36,7 @@ class NoteComposer extends StatelessWidget {
   final Widget? header;
 
   final bool autofocus;
-  final String hintText;
+  final String? hintText;
 
   /// `true` ise yazı alanı kalan tüm yüksekliği kaplar (tam ekran yazma),
   /// `false` ise içeriğe göre büyür (panel içinde).
@@ -61,7 +62,7 @@ class NoteComposer extends StatelessWidget {
       cursorWidth: 2,
       cursorRadius: const Radius.circular(2),
       decoration: InputDecoration.collapsed(
-        hintText: hintText,
+        hintText: hintText ?? context.l10n.composeHint,
         hintStyle: palette.body.copyWith(
           fontSize: 17,
           color: palette.inkGhost,
@@ -71,11 +72,16 @@ class NoteComposer extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Tam ekran yazarken kalan yüksekliği kaplar; panel içinde içeriği kadar
+      // yer tutar. Aksi hâlde alt panel ekranın tamamına yayılıyor.
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       children: [
         if (header != null) ...[header!, const SizedBox(height: 14)],
         if (expand) Expanded(child: field) else field,
-        const SizedBox(height: 20),
-        RetentionSelector(value: retention, onChanged: onRetentionChanged),
+        if (extra != null) ...[
+          const SizedBox(height: 20),
+          extra!,
+        ],
         const SizedBox(height: 18),
         action,
       ],
@@ -104,7 +110,7 @@ class ComposerStamp extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 9),
-        Expanded(child: Text(TrFormat.upper(at), style: palette.overline)),
+        Expanded(child: Text(context.l10n.upper(at), style: palette.overline)),
         ?trailing,
       ],
     );

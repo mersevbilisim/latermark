@@ -1,0 +1,367 @@
+{
+  "@@locale": "ko",
+  "appTitle": "Latermark",
+  "actionSave": "저장",
+  "actionCancel": "취소",
+  "actionClose": "닫기",
+  "actionBack": "뒤로",
+  "actionDelete": "삭제",
+  "actionEdit": "편집",
+  "actionRetry": "다시 시도",
+  "actionGoBack": "돌아가기",
+  "actionOpen": "열기",
+  "settingsAction": "설정",
+  "shutterSemantic": "사진 촬영",
+  "searchHint": "Ara",
+  "searchResults": "{count, plural, other{{count} sonuç}}",
+  "@searchResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "searchEmpty": "Eşleşen kayıt yok",
+  "searchCancel": "Vazgeç",
+  "searchInPhoto": "karede",
+  "notesTitle": "노트",
+  "noteCount": "노트 {count}개",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWithoutBody": "메모 없음",
+  "inviteTitle": "눌러서 촬영",
+  "inviteBody": "영수증, 주차 위치, 스쳐 간 장면…\n사진을 찍고, 몇 마디 남기고, 잊으세요.",
+  "pickFromGallery": "사진에서 선택",
+  "pickFromGallerySemantic": "사진 보관함에서 사진 선택",
+  "galleryPickerOpening": "사진 선택기를 여는 중",
+  "manifestoFirst": "간결하게",
+  "manifestoSecond": "기기 안에",
+  "manifestoThird": "안전하게",
+  "switchToLargeView": "큰 보기로 전환",
+  "switchToGridView": "격자 보기로 전환",
+  "toastPhotoPickFailed": "사진을 선택하지 못했습니다. 다시 시도해 주세요.",
+  "toastPendingPickFailed": "중단된 사진 선택을 복구하지 못했습니다.",
+  "toastSharedPhotoAdded": "공유한 사진을 추가했습니다.",
+  "toastSharedPhotoFailed": "공유한 사진을 추가하지 못했습니다. 다시 시도할게요.",
+  "toastDeleteFailed": "삭제하지 못했습니다. 다시 시도해 주세요.",
+  "toastSaveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "toastEditFailed": "변경 사항을 저장하지 못했습니다.",
+  "toastPermissionDenied": "알림이 꺼져 있어 리마인더도 울리지 않습니다.",
+  "deleteConfirmTitle": "이 기록을 삭제할까요?",
+  "deleteConfirmCaption": "사진과 노트가 함께 삭제됩니다.",
+  "holdToDelete": "길게 눌러 삭제",
+  "holdStageAlmost": "거의 다 됐어요",
+  "holdStageRelease": "조금만 더…",
+  "holdStageGone": "삭제됨",
+  "cameraNotFoundTitle": "카메라를 사용할 수 없음",
+  "cameraNotFoundBody": "이 기기에서 사용할 수 있는 카메라가 없습니다.",
+  "cameraDeniedTitle": "카메라 접근이 꺼져 있음",
+  "cameraDeniedBody": "설정 › Latermark에서 카메라 접근을 허용해 주세요.",
+  "cameraFailedTitle": "카메라를 열지 못했습니다",
+  "cameraFailedBody": "예기치 않은 문제가 발생했습니다.",
+  "switchLens": "카메라 전환",
+  "flashSemantic": "플래시: {state}",
+  "@flashSemantic": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "flashOff": "끔",
+  "flashAuto": "자동",
+  "flashOn": "켬",
+  "composeHint": "왜 이 사진을 찍었나요?",
+  "composeAnotherPhoto": "다른 사진 선택",
+  "composeRetake": "다시 촬영",
+  "sourceGallery": "사진",
+  "sourceShared": "공유",
+  "reminderLabel": "리마인드",
+  "reminderSuffixActive": "일 후",
+  "reminderSuffixOff": "일 — 끔",
+  "reminderBlocked": "알림이 꺼져 있습니다. 기록은 그대로 저장되며, 알림을 허용하면 리마인더가 작동합니다.",
+  "editNoteSemantic": "노트 편집",
+  "editSheetHeader": "노트 편집",
+  "retentionSelectorTitle": "자동 삭제",
+  "retentionOffNotice": "자동 삭제가 꺼져 있습니다. 직접 삭제하기 전까지 이 기록은 남아 있습니다.",
+  "retentionCustom": "직접 설정",
+  "retentionCustomTitle": "보관 기간 설정",
+  "retentionCustomHours": "{count}시간",
+  "@retentionCustomHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomDays": "{count}일",
+  "@retentionCustomDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomWeeks": "{count}주",
+  "@retentionCustomWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionUnitHours": "시간",
+  "retentionUnitDays": "일",
+  "retentionUnitWeeks": "주",
+  "retentionCustomDescription": "설정한 시간이 지나면 기록이 자동으로 삭제됩니다.",
+  "retentionOff": "끔",
+  "retentionThreeDays": "3일",
+  "retentionOneWeek": "1주",
+  "retentionOffDescription": "끔",
+  "retentionThreeDaysDescription": "3일 후 삭제",
+  "retentionOneWeekDescription": "1주 후 삭제",
+  "legalPrivacy": "개인정보 처리방침",
+  "legalTerms": "이용 약관",
+  "legalOpenFailed": "링크를 열지 못했습니다.",
+  "settingsTitle": "설정",
+  "sectionAppearance": "화면",
+  "sectionReminder": "리마인더",
+  "themeTitle": "테마",
+  "themeDescription": "시스템 설정을 따르거나 원하는 화면으로 고정하세요.",
+  "themeSystem": "시스템",
+  "themeLight": "라이트",
+  "themeDark": "다크",
+  "retentionTitle": "자동 삭제",
+  "retentionDescription": "새 기록에는 이 기간이 적용됩니다. 각 기록의 상세 화면에서 따로 바꿀 수 있습니다.",
+  "feedTitle": "보기 방식",
+  "feedDescription": "사진을 크게 보거나 격자에서 더 많이 확인하세요.",
+  "densityLarge": "크게",
+  "densityGrid": "격자",
+  "languageTitle": "언어",
+  "languageDescription": "기기 언어를 따르거나 다른 언어를 선택할 수 있습니다.",
+  "languageSystem": "시스템",
+  "remindersTitle": "리마인더",
+  "remindersDescription": "저장할 때 시간을 정한 기록만 알려드립니다. 나머지는 조용히 남아 있습니다.",
+  "remindersBlockedDescription": "시스템 설정에서 알림이 꺼져 있습니다. 허용하면 리마인더가 다시 작동합니다.",
+  "openSystemSettings": "시스템 설정 열기",
+  "openSettingsShort": "설정 열기",
+  "versionMark": "버전 {version} ({build})",
+  "@versionMark": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "dayToday": "오늘",
+  "dayYesterday": "어제",
+  "relativeJustNow": "방금",
+  "relativeMinutes": "{count}분",
+  "@relativeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHours": "{count}시간",
+  "@relativeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeYesterday": "어제",
+  "relativeDays": "{count}일 전",
+  "@relativeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingNow": "지금",
+  "remainingShortDays": "{count}일",
+  "@remainingShortDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortHours": "{count}시간",
+  "@remainingShortHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortMinutes": "{count}분",
+  "@remainingShortMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortLessThanMinute": "1분 미만",
+  "remainingSoon": "곧 삭제됨",
+  "remainingLongDays": "{days}일 후 삭제",
+  "@remainingLongDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongDaysHours": "{days}일 {hours}시간 후 삭제",
+  "@remainingLongDaysHours": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHours": "{hours}시간 후 삭제",
+  "@remainingLongHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHoursMinutes": "{hours}시간 {minutes}분 후 삭제",
+  "@remainingLongHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongMinutes": "{minutes}분 후 삭제",
+  "@remainingLongMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitTitle": "10개의 공간을 모두 사용 중",
+  "paywallLimitBody": "무료 버전은 한 번에 {limit}개의 기록을 보관합니다. Pro에서는 제한이 사라집니다. 기록 하나를 지우고 계속할 수도 있어요.",
+  "@paywallLimitBody": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitDelete": "기록 하나 삭제",
+  "paywallCounter": "{count}/{limit}",
+  "@paywallCounter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "proBadge": "PRO",
+  "paywallHeadline": "남겨야 할 장면도 있으니까.",
+  "paywallSubtitle": "Latermark는 잊기 위해 만들었습니다. Pro는 잊고 싶지 않은 장면을 위해.",
+  "paywallOwnedCount": "현재 기록이 {count}개 있습니다.",
+  "@paywallOwnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureUnlimited": "기록 무제한",
+  "paywallFeatureUnlimitedDetail": "무료 버전은 {limit}개까지 보관합니다.",
+  "@paywallFeatureUnlimitedDetail": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureCustomRetention": "보관 기간 자유 설정",
+  "paywallFeatureCustomRetentionDetail": "3일과 1주 외에도 원하는 기간으로.",
+  "paywallFeatureReminders": "리마인더",
+  "paywallFeatureRemindersDetail": "중요한 순간을 조용히 알려드려요.",
+  "paywallFeatureWidget": "홈 및 잠금 화면 위젯",
+  "paywallFeatureWidgetDetail": "최근 기록을 언제든 한눈에.",
+  "@paywallPerMonth": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paywallSaveBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPrice": "{price}",
+  "@paywallPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallOneTime": "한 번만 구매",
+  "paywallNoSubscription": "구독 없이 한 번 구매로 계속 Pro.",
+  "paywallFeatureNoSubscription": "구독 없음",
+  "paywallFeatureNoSubscriptionDetail": "매달 결제할 필요 없이 한 번이면 됩니다.",
+  "paywallCta": "Pro 잠금 해제",
+  "@paywallCtaTrial": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallRestore": "구매 복원",
+  "paywallClose": "닫기",
+  "paywallLifeFree": "무료",
+  "paywallLifePro": "Pro",
+  "notificationTitle": "리마인더",
+  "notificationTitleNoBody": "기록 하나가 기다리고 있어요",
+  "notificationBodyNoBody": "이 기록을 다시 알려 달라고 하셨어요.",
+  "notificationChannelName": "리마인더",
+  "notificationChannelDescription": "시간을 정한 기록을 알려드립니다.",
+  "actionOK": "확인",
+  "widgetDescription": "최근 사진과 노트를 보여줍니다.",
+  "widgetEmptySubtitle": "첫 노트가 여기에 표시됩니다",
+  "widgetPhotoDescription": "최근 기록의 사진",
+  "widgetLeaveTrace": "새로운 흔적 남기기",
+  "widgetOpenApp": "Latermark 열기",
+  "widgetCreateNote": "새 노트 만들기",
+  "widgetLeaveFirstTrace": "첫 흔적을 남겨보세요",
+  "widgetProRequired": "위젯은 Latermark Pro에서 사용할 수 있습니다.",
+  "widgetPreviewNote": "회계팀에 보내기",
+  "widgetPreviewDay": "오늘",
+  "shareComposeHint": "이 사진을 남기는 이유는 무엇인가요?",
+  "shareErrorTitle": "사진을 추가하지 못했습니다",
+  "shareErrorBody": "사진을 Latermark로 보내지 못했습니다. 다시 시도해 주세요.",
+  "cameraUsageDescription": "노트에 넣을 사진을 촬영하기 위해 카메라를 사용합니다.",
+  "photoLibraryUsageDescription": "사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다."
+}

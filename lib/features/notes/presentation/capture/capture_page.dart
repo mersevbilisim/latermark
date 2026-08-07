@@ -11,6 +11,7 @@ import 'widgets/camera_stage.dart';
 import 'widgets/capture_bar.dart';
 import 'widgets/focus_reticle.dart';
 import 'widgets/frame_guides.dart';
+import '../../../../l10n/l10n_context.dart';
 
 /// Vizör.
 ///
@@ -176,9 +177,9 @@ class _CapturePageState extends State<CapturePage>
       final shot = await controller.takePicture();
       if (!mounted) return;
       // Vizör yığından çıkar: kaydettikten sonra doğrudan ana ekrana dönülür.
-      Navigator.of(context).pushReplacement(
-        AppRoutes.lift(ComposePage(capture: shot)),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(AppRoutes.lift(ComposePage(capture: shot)));
     } on CameraException catch (error) {
       if (!mounted) return;
       setState(() => _capturing = false);
@@ -256,7 +257,7 @@ class _CapturePageState extends State<CapturePage>
             left: 20,
             child: IconOrb(
               icon: Icons.close_rounded,
-              semanticLabel: 'Kapat',
+              semanticLabel: context.l10n.actionClose,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
           ),
@@ -317,27 +318,23 @@ class _CapturePageState extends State<CapturePage>
       ),
       _Status.denied => CameraNotice(
         icon: Icons.no_photography_outlined,
-        title: 'Kamera izni kapalı',
-        message:
-            'Ayarlar › Not App yolundan kamera erişimine izin verdiğinde '
-            'buradan fotoğraf çekebilirsin.',
-        actionLabel: 'Geri dön',
+        title: context.l10n.cameraDeniedTitle,
+        message: context.l10n.cameraDeniedBody,
+        actionLabel: context.l10n.actionGoBack,
         onAction: () => Navigator.of(context).maybePop(),
       ),
       _Status.absent => CameraNotice(
         icon: Icons.videocam_off_outlined,
-        title: 'Kamera bulunamadı',
-        message:
-            'Bu cihazda kullanılabilir bir kamera yok. Gerçek bir telefonda '
-            'dene.',
-        actionLabel: 'Geri dön',
+        title: context.l10n.cameraNotFoundTitle,
+        message: context.l10n.cameraNotFoundBody,
+        actionLabel: context.l10n.actionGoBack,
         onAction: () => Navigator.of(context).maybePop(),
       ),
       _Status.failed => CameraNotice(
         icon: Icons.error_outline_rounded,
-        title: 'Kamera açılamadı',
-        message: _failure.isEmpty ? 'Beklenmedik bir hata oluştu.' : _failure,
-        actionLabel: 'Yeniden dene',
+        title: context.l10n.cameraFailedTitle,
+        message: _failure.isEmpty ? context.l10n.cameraFailedBody : _failure,
+        actionLabel: context.l10n.actionRetry,
         onAction: () {
           setState(() => _status = _Status.starting);
           _boot();

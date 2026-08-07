@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">最新の写真とノートを表示します。</string>
+    <string name="widget_empty_title">タップして撮影</string>
+    <string name="widget_empty_subtitle">最初のノートがここに表示されます</string>
+    <string name="widget_photo_description">最新の記録の写真</string>
+    <string name="widget_note_without_body">メモなし</string>
+    <string name="widget_remaining_now">今</string>
+    <string name="widget_remaining_days">%1$d日</string>
+    <string name="widget_remaining_hours">%1$d時間</string>
+    <string name="widget_remaining_minutes">%1$d分</string>
+    <string name="widget_remaining_less_than_minute">1分未満</string>
+</resources>

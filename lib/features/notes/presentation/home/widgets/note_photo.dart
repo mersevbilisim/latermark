@@ -32,9 +32,23 @@ class NotePhoto extends StatelessWidget {
       file,
       fit: fit,
       gaplessPlayback: true,
-      filterQuality: FilterQuality.medium,
+      // `medium` Impeller'da mipmap üretimini tetikler. Kare zaten hedef
+      // boyutuna yakın çözüldüğü için bunun görsel karşılığı yok, bedeli var.
+      filterQuality: FilterQuality.low,
       cacheWidth: decodeWidth == null ? null : (decodeWidth! * ratio).round(),
       errorBuilder: (context, _, _) => const _MissingPhoto(),
+      // Kare diskten geldiğinde sert bir sıçrayışla değil, kısa bir açılışla
+      // yerine oturur. Yalnızca ilk çözülmede çalışır; önbellekten gelen kare
+      // anında ve bedelsiz çizilir.
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: child,
+        );
+      },
     );
   }
 }

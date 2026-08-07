@@ -1,0 +1,367 @@
+{
+  "@@locale": "de",
+  "appTitle": "Latermark",
+  "actionSave": "Sichern",
+  "actionCancel": "Abbrechen",
+  "actionClose": "Schließen",
+  "actionBack": "Zurück",
+  "actionDelete": "Löschen",
+  "actionEdit": "Bearbeiten",
+  "actionRetry": "Erneut versuchen",
+  "actionGoBack": "Zurück",
+  "actionOpen": "Öffnen",
+  "settingsAction": "Einstellungen",
+  "shutterSemantic": "Foto aufnehmen",
+  "searchHint": "Ara",
+  "searchResults": "{count, plural, other{{count} sonuç}}",
+  "@searchResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "searchEmpty": "Eşleşen kayıt yok",
+  "searchCancel": "Vazgeç",
+  "searchInPhoto": "karede",
+  "notesTitle": "Notizen",
+  "noteCount": "{count, plural, =0{Keine Notizen} one{1 Notiz} other{{count} Notizen}}",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWithoutBody": "Ohne Notiz",
+  "inviteTitle": "Tippen und aufnehmen",
+  "inviteBody": "Ein Beleg, ein Parkplatz, ein Detail …\nFotografieren, ein paar Worte dazu, weiter.",
+  "pickFromGallery": "Aus Fotos wählen",
+  "pickFromGallerySemantic": "Foto aus der Mediathek wählen",
+  "galleryPickerOpening": "Fotoauswahl wird geöffnet",
+  "manifestoFirst": "Einfach",
+  "manifestoSecond": "Privat",
+  "manifestoThird": "Deins",
+  "switchToLargeView": "Zur großen Ansicht wechseln",
+  "switchToGridView": "Zur Rasteransicht wechseln",
+  "toastPhotoPickFailed": "Dieses Foto konnte nicht ausgewählt werden. Versuch es erneut.",
+  "toastPendingPickFailed": "Die unterbrochene Fotoauswahl konnte nicht fortgesetzt werden.",
+  "toastSharedPhotoAdded": "Geteiltes Foto hinzugefügt.",
+  "toastSharedPhotoFailed": "Das geteilte Foto konnte nicht hinzugefügt werden. Wir versuchen es erneut.",
+  "toastDeleteFailed": "Löschen fehlgeschlagen. Versuch es erneut.",
+  "toastSaveFailed": "Sichern fehlgeschlagen. Versuch es erneut.",
+  "toastEditFailed": "Die Änderungen konnten nicht gesichert werden.",
+  "toastPermissionDenied": "Mitteilungen sind deaktiviert. Erinnerungen bleiben stumm.",
+  "deleteConfirmTitle": "Diese Aufnahme löschen?",
+  "deleteConfirmCaption": "Foto und Notiz werden gemeinsam gelöscht.",
+  "holdToDelete": "Zum Löschen gedrückt halten",
+  "holdStageAlmost": "Fast geschafft",
+  "holdStageRelease": "Weiter halten …",
+  "holdStageGone": "Gelöscht",
+  "cameraNotFoundTitle": "Kamera nicht verfügbar",
+  "cameraNotFoundBody": "Auf diesem Gerät ist keine Kamera verfügbar.",
+  "cameraDeniedTitle": "Kamerazugriff deaktiviert",
+  "cameraDeniedBody": "Erlaube den Kamerazugriff unter Einstellungen › Latermark, um hier Fotos aufzunehmen.",
+  "cameraFailedTitle": "Kamera konnte nicht geöffnet werden",
+  "cameraFailedBody": "Ein unerwarteter Fehler ist aufgetreten.",
+  "switchLens": "Kamera wechseln",
+  "flashSemantic": "Blitz: {state}",
+  "@flashSemantic": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "flashOff": "aus",
+  "flashAuto": "automatisch",
+  "flashOn": "ein",
+  "composeHint": "Warum hast du das aufgenommen?",
+  "composeAnotherPhoto": "Anderes Foto wählen",
+  "composeRetake": "Neu aufnehmen",
+  "sourceGallery": "FOTOS",
+  "sourceShared": "GETEILT",
+  "reminderLabel": "Erinnern",
+  "reminderSuffixActive": "Tage später",
+  "reminderSuffixOff": "Tage — aus",
+  "reminderBlocked": "Mitteilungen sind deaktiviert. Die Aufnahme wird trotzdem gesichert; die Erinnerung wird aktiv, sobald du Mitteilungen erlaubst.",
+  "editNoteSemantic": "Notiz bearbeiten",
+  "editSheetHeader": "NOTIZ BEARBEITEN",
+  "retentionSelectorTitle": "Automatisch löschen",
+  "retentionOffNotice": "Automatisches Löschen ist aus — diese Aufnahme bleibt, bis du sie selbst löschst.",
+  "retentionCustom": "Eigene",
+  "retentionCustomTitle": "Eigene Dauer",
+  "retentionCustomHours": "{count, plural, one{1 Stunde} other{{count} Stunden}}",
+  "@retentionCustomHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomDays": "{count, plural, one{1 Tag} other{{count} Tage}}",
+  "@retentionCustomDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomWeeks": "{count, plural, one{1 Woche} other{{count} Wochen}}",
+  "@retentionCustomWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionUnitHours": "Stunden",
+  "retentionUnitDays": "Tage",
+  "retentionUnitWeeks": "Wochen",
+  "retentionCustomDescription": "Die Aufnahme wird nach dieser Dauer automatisch gelöscht.",
+  "retentionOff": "Aus",
+  "retentionThreeDays": "3 Tage",
+  "retentionOneWeek": "1 Woche",
+  "retentionOffDescription": "Aus",
+  "retentionThreeDaysDescription": "Wird nach 3 Tagen gelöscht",
+  "retentionOneWeekDescription": "Wird nach 1 Woche gelöscht",
+  "legalPrivacy": "Datenschutz",
+  "legalTerms": "Nutzungsbedingungen",
+  "legalOpenFailed": "Der Link konnte nicht geöffnet werden.",
+  "settingsTitle": "Einstellungen",
+  "sectionAppearance": "Darstellung",
+  "sectionReminder": "Erinnerungen",
+  "themeTitle": "Erscheinungsbild",
+  "themeDescription": "Systemdarstellung übernehmen oder eine feste Darstellung wählen.",
+  "themeSystem": "System",
+  "themeLight": "Hell",
+  "themeDark": "Dunkel",
+  "retentionTitle": "Automatisch löschen",
+  "retentionDescription": "Neue Aufnahmen starten mit dieser Dauer. Du kannst sie für jede Aufnahme in der Detailansicht ändern.",
+  "feedTitle": "Übersicht",
+  "feedDescription": "Aufnahmen groß anzeigen oder mehr davon im Raster sehen.",
+  "densityLarge": "Groß",
+  "densityGrid": "Raster",
+  "languageTitle": "Sprache",
+  "languageDescription": "Latermark folgt der Gerätesprache. Du kannst auch eine andere wählen.",
+  "languageSystem": "System",
+  "remindersTitle": "Erinnerungen",
+  "remindersDescription": "Nur Aufnahmen, für die du beim Sichern eine Zeit festlegst, senden eine Mitteilung. Alle anderen bleiben still.",
+  "remindersBlockedDescription": "Mitteilungen sind in den Systemeinstellungen deaktiviert. Erinnerungen laufen weiter, sobald du sie erlaubst.",
+  "openSystemSettings": "Systemeinstellungen öffnen",
+  "openSettingsShort": "Einstellungen öffnen",
+  "versionMark": "Version {version} ({build})",
+  "@versionMark": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "dayToday": "Heute",
+  "dayYesterday": "Gestern",
+  "relativeJustNow": "gerade eben",
+  "relativeMinutes": "{count, plural, one{1 Min.} other{{count} Min.}}",
+  "@relativeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHours": "{count, plural, one{1 Std.} other{{count} Std.}}",
+  "@relativeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeYesterday": "gestern",
+  "relativeDays": "{count, plural, one{1 Tag} other{{count} Tage}}",
+  "@relativeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingNow": "jetzt",
+  "remainingShortDays": "{count} T",
+  "@remainingShortDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortHours": "{count} Std.",
+  "@remainingShortHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortMinutes": "{count} Min.",
+  "@remainingShortMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortLessThanMinute": "<1 Min.",
+  "remainingSoon": "Wird gleich gelöscht",
+  "remainingLongDays": "{days, plural, one{Wird in 1 Tag gelöscht} other{Wird in {days} Tagen gelöscht}}",
+  "@remainingLongDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongDaysHours": "Wird in {days, plural, one{1 Tag} other{{days} Tagen}} und {hours, plural, one{1 Stunde} other{{hours} Stunden}} gelöscht",
+  "@remainingLongDaysHours": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHours": "{hours, plural, one{Wird in 1 Stunde gelöscht} other{Wird in {hours} Stunden gelöscht}}",
+  "@remainingLongHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHoursMinutes": "Wird in {hours, plural, one{1 Stunde} other{{hours} Stunden}} und {minutes, plural, one{1 Minute} other{{minutes} Minuten}} gelöscht",
+  "@remainingLongHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongMinutes": "{minutes, plural, one{Wird in 1 Minute gelöscht} other{Wird in {minutes} Minuten gelöscht}}",
+  "@remainingLongMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitTitle": "Deine 10 Plätze sind belegt",
+  "paywallLimitBody": "In der kostenlosen Version bleiben bis zu {limit} Aufnahmen gleichzeitig erhalten. Pro hebt das Limit auf — oder du löschst eine Aufnahme und machst weiter.",
+  "@paywallLimitBody": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitDelete": "Eine Aufnahme löschen",
+  "paywallCounter": "{count}/{limit}",
+  "@paywallCounter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "proBadge": "PRO",
+  "paywallHeadline": "Manche Aufnahmen sollten bleiben.",
+  "paywallSubtitle": "Latermark ist zum Loslassen gemacht. Pro ist für das, was bleiben soll.",
+  "paywallOwnedCount": "{count, plural, one{Du hast derzeit 1 Aufnahme.} other{Du hast derzeit {count} Aufnahmen.}}",
+  "@paywallOwnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureUnlimited": "Unbegrenzte Aufnahmen",
+  "paywallFeatureUnlimitedDetail": "Kostenlos bleiben bis zu {limit} Aufnahmen.",
+  "@paywallFeatureUnlimitedDetail": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureCustomRetention": "Dauer frei wählen",
+  "paywallFeatureCustomRetentionDetail": "Mehr als 3 Tage oder 1 Woche.",
+  "paywallFeatureReminders": "Erinnerungen",
+  "paywallFeatureRemindersDetail": "Ein leiser Hinweis für das, was zählt.",
+  "paywallFeatureWidget": "Widgets für Home- & Sperrbildschirm",
+  "paywallFeatureWidgetDetail": "Die neueste Aufnahme immer im Blick.",
+  "@paywallPerMonth": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paywallSaveBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPrice": "{price}",
+  "@paywallPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallOneTime": "Einmaliger Kauf",
+  "paywallNoSubscription": "Kein Abo. Einmal zahlen, Pro behalten.",
+  "paywallFeatureNoSubscription": "Kein Abonnement",
+  "paywallFeatureNoSubscriptionDetail": "Andere Apps verlangen monatlich Geld. Latermark nicht.",
+  "paywallCta": "Pro freischalten",
+  "@paywallCtaTrial": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallRestore": "Käufe wiederherstellen",
+  "paywallClose": "Schließen",
+  "paywallLifeFree": "Kostenlos",
+  "paywallLifePro": "Pro",
+  "notificationTitle": "Erinnerung",
+  "notificationTitleNoBody": "Eine Aufnahme wartet",
+  "notificationBodyNoBody": "Du wolltest an diese Aufnahme erinnert werden.",
+  "notificationChannelName": "Erinnerungen",
+  "notificationChannelDescription": "Erinnert dich an geplante Aufnahmen.",
+  "actionOK": "OK",
+  "widgetDescription": "Zeigt deine neueste Aufnahme und Notiz.",
+  "widgetEmptySubtitle": "Deine erste Notiz erscheint hier",
+  "widgetPhotoDescription": "Foto deiner neuesten Aufnahme",
+  "widgetLeaveTrace": "Neue Spur hinterlassen",
+  "widgetOpenApp": "Latermark öffnen",
+  "widgetCreateNote": "Neue Notiz erstellen",
+  "widgetLeaveFirstTrace": "Hinterlasse deine erste Spur",
+  "widgetProRequired": "Widgets sind mit Latermark Pro verfügbar.",
+  "widgetPreviewNote": "An die Buchhaltung senden",
+  "widgetPreviewDay": "HEUTE",
+  "shareComposeHint": "Warum möchtest du dieses Foto behalten?",
+  "shareErrorTitle": "Foto konnte nicht hinzugefügt werden",
+  "shareErrorBody": "Das Foto konnte nicht an Latermark übertragen werden. Versuch es erneut.",
+  "cameraUsageDescription": "Mit Kamerazugriff kannst du Fotos für deine Notizen aufnehmen.",
+  "photoLibraryUsageDescription": "Mit Fotozugriff kannst du Bilder aus deiner Mediathek zu Notizen hinzufügen."
+}

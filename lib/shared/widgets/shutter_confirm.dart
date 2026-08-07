@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_typography.dart';
 import 'aperture.dart';
+import '../../l10n/l10n_context.dart';
 
 /// Bir kaydı silmek için onay.
 ///
@@ -32,7 +32,7 @@ Future<bool?> showShutterConfirm(
       opaque: false,
       barrierDismissible: true,
       barrierColor: Colors.transparent,
-      barrierLabel: 'Kapat',
+      barrierLabel: context.l10n.actionClose,
       transitionDuration: const Duration(milliseconds: 380),
       reverseTransitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (_, _, _) =>
@@ -128,15 +128,13 @@ class _ShutterConfirmState extends State<_ShutterConfirm>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Arka plan bulanıklaşır ama kaybolmaz: nereden geldiğini görürsün.
+          // Düz perde geçiş animasyonu boyunca yeniden blur hesaplanmasını
+          // önler; alttaki ekran bağlam olarak yine seçilir.
           GestureDetector(
             onTap: () => Navigator.of(context).maybePop(),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: ColoredBox(
-                color: OnPhoto.canvasDeep.withValues(alpha: 0.72),
-                child: const SizedBox.expand(),
-              ),
+            child: ColoredBox(
+              color: OnPhoto.canvasDeep.withValues(alpha: 0.86),
+              child: const SizedBox.expand(),
             ),
           ),
 
@@ -174,7 +172,7 @@ class _ShutterConfirmState extends State<_ShutterConfirm>
 
                   // Vazgeçmek her zaman bir dokunuş; silmek bir karar.
                   _QuietAction(
-                    label: 'Vazgeç',
+                    label: context.l10n.actionCancel,
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                   SizedBox(height: safe.bottom > 0 ? 8 : 24),
@@ -204,6 +202,8 @@ class _HoldTarget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final decodeWidth = (_size * MediaQuery.devicePixelRatioOf(context)).ceil();
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) {
@@ -243,7 +243,8 @@ class _HoldTarget extends StatelessWidget {
                           child: Image.file(
                             photo,
                             fit: BoxFit.cover,
-                            filterQuality: FilterQuality.medium,
+                            cacheWidth: decodeWidth,
+                            filterQuality: FilterQuality.low,
                             errorBuilder: (context, _, _) =>
                                 const ColoredBox(color: OnPhoto.canvasDeep),
                           ),
@@ -264,11 +265,7 @@ class _HoldTarget extends StatelessWidget {
                   child: Aperture(
                     openness: 1 - eased,
                     twist: -(2 * math.pi / 7) * 0.85 * eased,
-                    edgeTint: Color.lerp(
-                      OnPhoto.ink,
-                      OnPhoto.danger,
-                      eased,
-                    ),
+                    edgeTint: Color.lerp(OnPhoto.ink, OnPhoto.danger, eased),
                   ),
                 ),
               ],
@@ -331,10 +328,10 @@ class _HoldLabel extends StatelessWidget {
       builder: (context, _) {
         final t = controller.value;
         final text = switch (t) {
-          0 => 'Silmek için basılı tut',
-          < 0.55 => 'Bırakma…',
-          < 0.99 => 'Neredeyse',
-          _ => 'Gitti',
+          0 => context.l10n.holdToDelete,
+          < 0.55 => context.l10n.holdStageRelease,
+          < 0.99 => context.l10n.holdStageAlmost,
+          _ => context.l10n.holdStageGone,
         };
 
         return AnimatedSwitcher(

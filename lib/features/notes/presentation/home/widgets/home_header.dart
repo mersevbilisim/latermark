@@ -3,30 +3,48 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_palette.dart';
-import '../../../../../core/utils/tr_format.dart';
-import '../../../../../shared/widgets/density_glyph.dart';
 import '../../../../../shared/widgets/icon_orb.dart';
+import '../../../../../l10n/l10n_context.dart';
+import '../../../../../core/utils/app_format.dart';
 
 /// Kaydırıldıkça büyük başlıktan ince bir çubuğa dönüşen üstlük.
 ///
 /// Yükseklik, yazı boyutu, sayaç ve arka bulanıklık aynı `t` değeriyle
 /// sürülür; böylece hepsi tek bir jestle birlikte hareket eder.
+///
+/// **Arama ayrı bir kutu değil, başlığın kendisi.** Büyütece dokununca
+/// "Notlar" yazısı aynı yerde, aynı puntoda bir girdiye dönüşüyor; sayaç
+/// satırı da sonuç sayısına. Ekrana kalıcı bir arama çubuğu çakmak, hem
+/// uygulamanın sade düzenini bozardı hem de nadiren kullanılan bir denetime
+/// sürekli yer ayırmak olurdu.
 class HomeHeader extends SliverPersistentHeaderDelegate {
   const HomeHeader({
     required this.palette,
     required this.topPadding,
     required this.noteCount,
-    required this.gridded,
-    required this.onToggleDensity,
     required this.onOpenSettings,
+    required this.searching,
+    required this.resultCount,
+    required this.searchController,
+    required this.searchFocus,
+    required this.onSearchChanged,
+    required this.onToggleSearch,
   });
 
   final AppPalette palette;
   final double topPadding;
   final int noteCount;
-  final bool gridded;
-  final VoidCallback onToggleDensity;
   final VoidCallback onOpenSettings;
+
+  /// Arama kipi. Denetimin durumu (metin, odak) üstlükte tutulamaz: bu bir
+  /// [SliverPersistentHeaderDelegate] ve kaydırmanın her karesinde yeniden
+  /// kuruluyor. Bu yüzden ana ekranda yaşıyor, buraya veriliyor.
+  final bool searching;
+  final int resultCount;
+  final TextEditingController searchController;
+  final FocusNode searchFocus;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onToggleSearch;
 
   static const _expandedHeight = 116.0;
   static const _collapsedHeight = 56.0;
@@ -68,39 +86,71 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
                             child: Padding(
                               padding: const EdgeInsets.only(bottom: 6),
                               child: Text(
-                                TrFormat.upper(TrFormat.noteCount(noteCount)),
-                                style: palette.overline,
+                                context.l10n.upper(
+                                  searching
+                                      ? context.l10n.searchResults(resultCount)
+                                      : context.l10n.noteCount(noteCount),
+                                ),
+                                // Aramada sayaç kor rengine döner: kullanıcı
+                                // filtrelenmiş bir listeye baktığını, sayının
+                                // toplam kayıt olmadığını görmeli.
+                                style: palette.overline.copyWith(
+                                  color: searching
+                                      ? palette.ember
+                                      : palette.inkFaint,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      Text(
-                        'Notlar',
-                        style: palette.display.copyWith(
-                          fontSize: lerpDouble(34, 19, eased),
-                          letterSpacing: lerpDouble(-0.9, -0.3, eased),
-                        ),
+                      // Başlık ve arama girdisi aynı tipografiyi paylaşıyor:
+                      // geçiş bir ekran değişimi değil, bir hâl değişimi gibi
+                      // okunuyor.
+                      _TitleOrField(
+                        searching: searching,
+                        palette: palette,
+                        controller: searchController,
+                        focus: searchFocus,
+                        onChanged: onSearchChanged,
+                        fontSize: lerpDouble(34, 19, eased)!,
+                        letterSpacing: lerpDouble(-0.9, -0.3, eased)!,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                DensityToggle(
-                  split: gridded,
-                  onPressed: onToggleDensity,
-                  size: 38,
-                ),
-                const SizedBox(width: 8),
-                IconOrb(
-                  icon: Icons.tune_rounded,
-                  semanticLabel: 'Ayarlar',
-                  onPressed: onOpenSettings,
-                  size: 38,
-                  iconSize: 18,
-                  tint: palette.ink,
-                  fill: palette.glass,
-                ),
+                if (searching)
+                  IconOrb(
+                    icon: Icons.close_rounded,
+                    semanticLabel: context.l10n.searchCancel,
+                    onPressed: onToggleSearch,
+                    size: 38,
+                    iconSize: 18,
+                    tint: palette.ink,
+                    fill: palette.glass,
+                  )
+                else ...[
+                  IconOrb(
+                    icon: Icons.search_rounded,
+                    semanticLabel: context.l10n.searchHint,
+                    onPressed: onToggleSearch,
+                    size: 38,
+                    iconSize: 18,
+                    tint: palette.ink,
+                    fill: palette.glass,
+                  ),
+                  const SizedBox(width: 8),
+                  IconOrb(
+                    icon: Icons.tune_rounded,
+                    semanticLabel: context.l10n.settingsAction,
+                    onPressed: onOpenSettings,
+                    size: 38,
+                    iconSize: 18,
+                    tint: palette.ink,
+                    fill: palette.canvasLift,
+                  ),
+                ],
               ],
             ),
           ),
@@ -120,20 +170,12 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
       ),
     );
 
-    // Bulanıklık yalnızca gerçekten kaydırıldığında devreye girer; boştayken
-    // her karede pahalı bir katman oluşturmanın anlamı yok.
-    if (t < 0.01) {
-      return ColoredBox(color: palette.canvas, child: header);
-    }
-
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20 * eased, sigmaY: 20 * eased),
-        child: ColoredBox(
-          color: palette.canvas.withValues(alpha: lerpDouble(1, 0.72, eased)!),
-          child: header,
-        ),
-      ),
+    // Kaydırma sırasında sigma değiştiren BackdropFilter her karede yeni
+    // bir ara katman oluşturuyordu. Tuvalin hafif saydamlaşması aynı ayrımı
+    // GPU blur geçişi olmadan verir.
+    return ColoredBox(
+      color: palette.canvas.withValues(alpha: lerpDouble(1, 0.94, eased)!),
+      child: header,
     );
   }
 
@@ -141,8 +183,58 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(HomeHeader old) =>
       old.topPadding != topPadding ||
       old.noteCount != noteCount ||
-      old.gridded != gridded ||
-      old.palette != palette;
+      old.palette != palette ||
+      old.searching != searching ||
+      old.resultCount != resultCount;
+}
+
+/// Başlık ile arama girdisi arasındaki geçiş.
+class _TitleOrField extends StatelessWidget {
+  const _TitleOrField({
+    required this.searching,
+    required this.palette,
+    required this.controller,
+    required this.focus,
+    required this.onChanged,
+    required this.fontSize,
+    required this.letterSpacing,
+  });
+
+  final bool searching;
+  final AppPalette palette;
+  final TextEditingController controller;
+  final FocusNode focus;
+  final ValueChanged<String> onChanged;
+  final double fontSize;
+  final double letterSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = palette.display.copyWith(
+      fontSize: fontSize,
+      letterSpacing: letterSpacing,
+    );
+
+    if (!searching) {
+      return Text(context.l10n.notesTitle, style: style);
+    }
+
+    return TextField(
+      controller: controller,
+      focusNode: focus,
+      onChanged: onChanged,
+      autofocus: true,
+      style: style,
+      cursorColor: palette.ember,
+      cursorWidth: 2,
+      textInputAction: TextInputAction.search,
+      keyboardAppearance: palette.isDark ? Brightness.dark : Brightness.light,
+      decoration: InputDecoration.collapsed(
+        hintText: context.l10n.searchHint,
+        hintStyle: style.copyWith(color: palette.inkGhost),
+      ),
+    );
+  }
 }
 
 /// Akıştaki gün ayıracı: küçük kapiteller ve peşinden giden ince bir çizgi.
@@ -159,7 +251,7 @@ class DaySeparator extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(22, 30, 22, 14),
       child: Row(
         children: [
-          Text(TrFormat.dayHeader(day), style: palette.overline),
+          Text(context.l10n.dayHeader(day), style: palette.overline),
           const SizedBox(width: 12),
           Expanded(
             child: ColoredBox(

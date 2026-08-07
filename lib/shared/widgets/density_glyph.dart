@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_palette.dart';
 import 'glass_surface.dart';
+import '../../l10n/l10n_context.dart';
 
 /// Görünüm yoğunluğunu değiştiren düğme.
 ///
@@ -31,7 +32,9 @@ class DensityToggle extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: split ? 'Büyük görünüme geç' : 'Izgara görünüme geç',
+      label: split
+          ? context.l10n.switchToLargeView
+          : context.l10n.switchToGridView,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -39,6 +42,7 @@ class DensityToggle extends StatelessWidget {
           onPressed();
         },
         child: GlassSurface.circle(
+          elevation: 8,
           child: SizedBox.square(
             dimension: size,
             child: Center(

@@ -1,0 +1,367 @@
+{
+  "@@locale": "ja",
+  "appTitle": "Latermark",
+  "actionSave": "保存",
+  "actionCancel": "キャンセル",
+  "actionClose": "閉じる",
+  "actionBack": "戻る",
+  "actionDelete": "削除",
+  "actionEdit": "編集",
+  "actionRetry": "もう一度試す",
+  "actionGoBack": "戻る",
+  "actionOpen": "開く",
+  "settingsAction": "設定",
+  "shutterSemantic": "写真を撮る",
+  "searchHint": "Ara",
+  "searchResults": "{count, plural, other{{count} sonuç}}",
+  "@searchResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "searchEmpty": "Eşleşen kayıt yok",
+  "searchCancel": "Vazgeç",
+  "searchInPhoto": "karede",
+  "notesTitle": "ノート",
+  "noteCount": "ノート {count}件",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWithoutBody": "メモなし",
+  "inviteTitle": "タップして撮影",
+  "inviteBody": "レシート、駐車場所、ふとしたもの…\n撮って、ひと言添えて、あとは忘れる。",
+  "pickFromGallery": "写真から選ぶ",
+  "pickFromGallerySemantic": "写真ライブラリから選ぶ",
+  "galleryPickerOpening": "写真選択を開いています",
+  "manifestoFirst": "シンプル",
+  "manifestoSecond": "端末内",
+  "manifestoThird": "安心",
+  "switchToLargeView": "大きく表示",
+  "switchToGridView": "グリッド表示",
+  "toastPhotoPickFailed": "写真を選択できませんでした。もう一度お試しください。",
+  "toastPendingPickFailed": "中断された写真選択を再開できませんでした。",
+  "toastSharedPhotoAdded": "共有された写真を追加しました。",
+  "toastSharedPhotoFailed": "共有された写真を追加できませんでした。後でもう一度試します。",
+  "toastDeleteFailed": "削除できませんでした。もう一度お試しください。",
+  "toastSaveFailed": "保存できませんでした。もう一度お試しください。",
+  "toastEditFailed": "変更を保存できませんでした。",
+  "toastPermissionDenied": "通知がオフのため、リマインダーは作動しません。",
+  "deleteConfirmTitle": "この記録を削除しますか？",
+  "deleteConfirmCaption": "写真とノートがまとめて削除されます。",
+  "holdToDelete": "長押しで削除",
+  "holdStageAlmost": "あと少し",
+  "holdStageRelease": "そのまま長押し…",
+  "holdStageGone": "削除しました",
+  "cameraNotFoundTitle": "カメラを利用できません",
+  "cameraNotFoundBody": "このデバイスで利用できるカメラがありません。",
+  "cameraDeniedTitle": "カメラアクセスがオフです",
+  "cameraDeniedBody": "設定 › Latermarkでカメラへのアクセスを許可してください。",
+  "cameraFailedTitle": "カメラを開けませんでした",
+  "cameraFailedBody": "予期しない問題が発生しました。",
+  "switchLens": "カメラを切り替える",
+  "flashSemantic": "フラッシュ：{state}",
+  "@flashSemantic": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "flashOff": "オフ",
+  "flashAuto": "自動",
+  "flashOn": "オン",
+  "composeHint": "なぜ撮りましたか？",
+  "composeAnotherPhoto": "別の写真を選ぶ",
+  "composeRetake": "撮り直す",
+  "sourceGallery": "写真",
+  "sourceShared": "共有",
+  "reminderLabel": "リマインド",
+  "reminderSuffixActive": "日後",
+  "reminderSuffixOff": "日 — オフ",
+  "reminderBlocked": "通知がオフです。記録は保存され、通知を許可するとリマインダーが作動します。",
+  "editNoteSemantic": "ノートを編集",
+  "editSheetHeader": "ノートを編集",
+  "retentionSelectorTitle": "自動削除",
+  "retentionOffNotice": "自動削除はオフです。この記録は自分で削除するまで残ります。",
+  "retentionCustom": "カスタム",
+  "retentionCustomTitle": "期間を指定",
+  "retentionCustomHours": "{count}時間",
+  "@retentionCustomHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomDays": "{count}日",
+  "@retentionCustomDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomWeeks": "{count}週間",
+  "@retentionCustomWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionUnitHours": "時間",
+  "retentionUnitDays": "日",
+  "retentionUnitWeeks": "週間",
+  "retentionCustomDescription": "指定した期間が過ぎると自動で削除されます。",
+  "retentionOff": "オフ",
+  "retentionThreeDays": "3日",
+  "retentionOneWeek": "1週間",
+  "retentionOffDescription": "オフ",
+  "retentionThreeDaysDescription": "3日後に削除",
+  "retentionOneWeekDescription": "1週間後に削除",
+  "legalPrivacy": "プライバシー",
+  "legalTerms": "利用規約",
+  "legalOpenFailed": "リンクを開けませんでした。",
+  "settingsTitle": "設定",
+  "sectionAppearance": "表示",
+  "sectionReminder": "リマインダー",
+  "themeTitle": "テーマ",
+  "themeDescription": "システムに合わせるか、表示を固定できます。",
+  "themeSystem": "システム",
+  "themeLight": "ライト",
+  "themeDark": "ダーク",
+  "retentionTitle": "自動削除",
+  "retentionDescription": "新しい記録にはこの期間が使われます。記録ごとに詳細画面で変更できます。",
+  "feedTitle": "表示方法",
+  "feedDescription": "写真を大きく見るか、グリッドで多く表示するかを選べます。",
+  "densityLarge": "大",
+  "densityGrid": "グリッド",
+  "languageTitle": "言語",
+  "languageDescription": "端末の言語に合わせるか、別の言語を選べます。",
+  "languageSystem": "システム",
+  "remindersTitle": "リマインダー",
+  "remindersDescription": "保存時に日時を設定した記録だけ通知します。それ以外は静かなままです。",
+  "remindersBlockedDescription": "システム設定で通知がオフです。許可するとリマインダーが再開します。",
+  "openSystemSettings": "システム設定を開く",
+  "openSettingsShort": "設定を開く",
+  "versionMark": "バージョン {version}（{build}）",
+  "@versionMark": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "dayToday": "今日",
+  "dayYesterday": "昨日",
+  "relativeJustNow": "たった今",
+  "relativeMinutes": "{count}分",
+  "@relativeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHours": "{count}時間",
+  "@relativeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeYesterday": "昨日",
+  "relativeDays": "{count}日前",
+  "@relativeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingNow": "今",
+  "remainingShortDays": "{count}日",
+  "@remainingShortDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortHours": "{count}時間",
+  "@remainingShortHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortMinutes": "{count}分",
+  "@remainingShortMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortLessThanMinute": "1分未満",
+  "remainingSoon": "まもなく削除",
+  "remainingLongDays": "{days}日後に削除",
+  "@remainingLongDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongDaysHours": "{days}日{hours}時間後に削除",
+  "@remainingLongDaysHours": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHours": "{hours}時間後に削除",
+  "@remainingLongHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHoursMinutes": "{hours}時間{minutes}分後に削除",
+  "@remainingLongHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongMinutes": "{minutes}分後に削除",
+  "@remainingLongMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitTitle": "10枚すべて使用中",
+  "paywallLimitBody": "無料版で保持できるのは同時に{limit}枚までです。Proなら上限なし。1枚削除して続けることもできます。",
+  "@paywallLimitBody": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitDelete": "1枚削除する",
+  "paywallCounter": "{count}/{limit}",
+  "@paywallCounter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "proBadge": "PRO",
+  "paywallHeadline": "残しておきたい一枚もある。",
+  "paywallSubtitle": "Latermarkは、忘れるためのアプリ。Proは、忘れたくない一枚のために。",
+  "paywallOwnedCount": "現在 {count}枚あります。",
+  "@paywallOwnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureUnlimited": "保存枚数が無制限",
+  "paywallFeatureUnlimitedDetail": "無料版は{limit}枚まで。",
+  "@paywallFeatureUnlimitedDetail": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureCustomRetention": "期間を自由に設定",
+  "paywallFeatureCustomRetentionDetail": "3日や1週間以外も選べます。",
+  "paywallFeatureReminders": "リマインダー",
+  "paywallFeatureRemindersDetail": "大切な一枚を、そっとお知らせ。",
+  "paywallFeatureWidget": "ホーム・ロック画面ウィジェット",
+  "paywallFeatureWidgetDetail": "最新の一枚を、いつでもひと目で。",
+  "@paywallPerMonth": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paywallSaveBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPrice": "{price}",
+  "@paywallPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallOneTime": "買い切り",
+  "paywallNoSubscription": "サブスクリプションなし。一度の購入でずっとPro。",
+  "paywallFeatureNoSubscription": "サブスクリプションなし",
+  "paywallFeatureNoSubscriptionDetail": "毎月の支払いはありません。購入は一度だけ。",
+  "paywallCta": "Proを購入",
+  "@paywallCtaTrial": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallRestore": "購入を復元",
+  "paywallClose": "閉じる",
+  "paywallLifeFree": "無料",
+  "paywallLifePro": "Pro",
+  "notificationTitle": "リマインダー",
+  "notificationTitleNoBody": "一枚の写真が待っています",
+  "notificationBodyNoBody": "この写真を思い出す時間です。",
+  "notificationChannelName": "リマインダー",
+  "notificationChannelDescription": "日時を設定した記録をお知らせします。",
+  "actionOK": "OK",
+  "widgetDescription": "最新の写真とノートを表示します。",
+  "widgetEmptySubtitle": "最初のノートがここに表示されます",
+  "widgetPhotoDescription": "最新の記録の写真",
+  "widgetLeaveTrace": "新しい記録を残す",
+  "widgetOpenApp": "Latermarkを開く",
+  "widgetCreateNote": "新しいノートを作成",
+  "widgetLeaveFirstTrace": "最初の記録を残す",
+  "widgetProRequired": "ウィジェットはLatermark Proで利用できます。",
+  "widgetPreviewNote": "経理に送る",
+  "widgetPreviewDay": "今日",
+  "shareComposeHint": "この写真を残す理由は？",
+  "shareErrorTitle": "写真を追加できませんでした",
+  "shareErrorBody": "写真をLatermarkに送信できませんでした。もう一度お試しください。",
+  "cameraUsageDescription": "ノート用の写真を撮るためにカメラを使用します。",
+  "photoLibraryUsageDescription": "写真ライブラリの画像をノートに追加するために使用します。"
+}

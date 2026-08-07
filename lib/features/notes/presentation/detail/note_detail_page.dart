@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -15,6 +13,7 @@ import '../../data/notes_repository.dart';
 import '../home/widgets/note_photo.dart';
 import 'widgets/detail_sheet.dart';
 import 'widgets/edit_note_sheet.dart';
+import '../../../../l10n/l10n_context.dart';
 
 /// Tek bir kaydın tam görünümü.
 ///
@@ -52,8 +51,8 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
     final confirmed = await showShutterConfirm(
       context,
       photo: _repository!.imageOf(note),
-      title: note.body.isEmpty ? 'Bu kare silinsin mi?' : note.body,
-      caption: 'Fotoğraf ve not birlikte kalkacak.',
+      title: note.body.isEmpty ? context.l10n.deleteConfirmTitle : note.body,
+      caption: context.l10n.deleteConfirmCaption,
     );
     if (confirmed != true || !mounted) return;
 
@@ -62,7 +61,7 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
       await _repository!.delete(note);
     } catch (_) {
       if (!mounted) return;
-      showToast(context, 'Silinemedi. Tekrar dene.', error: true);
+      showToast(context, context.l10n.toastDeleteFailed, error: true);
       return;
     }
     if (!mounted) return;
@@ -80,7 +79,8 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
 
           // Kayıt otomatik silme ile ortadan kalktıysa ekranda tutmanın anlamı
           // yok; ilk kareden sonra kapan.
-          if (snapshot.hasData && note == null) {
+          if (snapshot.connectionState == ConnectionState.active &&
+              note == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) Navigator.of(context).maybePop();
             });
@@ -91,9 +91,10 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Kare ekranı tam doldurmadığında kalan boşluğu düz siyah yerine
-              // fotoğrafın kendisinin bulanık, karartılmış hâli kapatır.
-              _BlurredBackdrop(file: _repository!.imageOf(note)),
+              // Fotoğrafın etrafında yeniden örneklenen bir blur yerine sabit,
+              // sıcak bir galeri karanlığı var. Fotoğraf daha keskin algılanır
+              // ve yakınlaştırma sırasında arka plan hiç yeniden çizilmez.
+              const _GalleryBackdrop(),
 
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -126,12 +127,12 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
                       children: [
                         IconOrb(
                           icon: Icons.arrow_back_rounded,
-                          semanticLabel: 'Geri',
+                          semanticLabel: context.l10n.actionBack,
                           onPressed: () => Navigator.of(context).maybePop(),
                         ),
                         IconOrb(
                           icon: Icons.delete_outline_rounded,
-                          semanticLabel: 'Sil',
+                          semanticLabel: context.l10n.actionDelete,
                           tint: OnPhoto.danger,
                           onPressed: () => _delete(note),
                         ),
@@ -163,25 +164,21 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
   }
 }
 
-class _BlurredBackdrop extends StatelessWidget {
-  const _BlurredBackdrop({required this.file});
-
-  final File file;
+class _GalleryBackdrop extends StatelessWidget {
+  const _GalleryBackdrop();
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Küçük çözünürlükte çözülür: hem bulanıklık ucuzlar hem de sonuç
-          // aynı görünür.
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 42, sigmaY: 42),
-            child: NotePhoto(file: file, decodeWidth: 96),
+    return const IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.22),
+            radius: 1.15,
+            colors: [Color(0xFF211A18), Color(0xFF0A090A), Color(0xFF050506)],
+            stops: [0, 0.52, 1],
           ),
-          const ColoredBox(color: Color(0xB3050506)),
-        ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../../../../core/theme/app_palette.dart';
 import '../../../../../shared/widgets/glass_surface.dart';
 import '../../../../../shared/widgets/icon_orb.dart';
 import '../../../../../shared/widgets/pressable.dart';
+import '../../../../../l10n/l10n_context.dart';
 
 /// Yeni çekilen karenin yazma ekranındaki başlığı.
 ///
@@ -19,26 +20,42 @@ class CapturePreview extends StatelessWidget {
     required this.height,
     required this.onDiscard,
     required this.onRetake,
+    this.replacementIcon = Icons.refresh_rounded,
+    this.replacementLabel,
   });
 
   final File file;
   final double height;
   final VoidCallback onDiscard;
   final VoidCallback onRetake;
+  final IconData replacementIcon;
+  final String? replacementLabel;
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top;
+    final decodeWidth =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .ceil();
 
     return SizedBox(
       height: height,
       width: double.infinity,
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.file(file, fit: BoxFit.cover, filterQuality: FilterQuality.medium),
+            Image.file(
+              file,
+              fit: BoxFit.cover,
+              // Kamera dosyası 24/48 MP olabilir. Ekranın gösterebildiği
+              // çözünürlüğe decode etmek raster belleğini ve ilk kare yükünü
+              // ciddi ölçüde azaltır; kaynak dosyaya dokunulmaz.
+              cacheWidth: decodeWidth,
+              filterQuality: FilterQuality.low,
+            ),
 
             // Üstteki düğmelerin parlak fotoğraflarda da okunması için.
             const Positioned(
@@ -64,7 +81,7 @@ class CapturePreview extends StatelessWidget {
               left: 20,
               child: IconOrb(
                 icon: Icons.close_rounded,
-                semanticLabel: 'Vazgeç',
+                semanticLabel: context.l10n.actionCancel,
                 onPressed: onDiscard,
               ),
             ),
@@ -74,21 +91,20 @@ class CapturePreview extends StatelessWidget {
               child: Pressable(
                 onPressed: onRetake,
                 scale: 0.94,
-                semanticLabel: 'Yeniden çek',
+                semanticLabel: replacementLabel ?? context.l10n.composeRetake,
                 child: GlassSurface(
                   borderRadius: const BorderRadius.all(Radius.circular(999)),
+                  tint: OnPhoto.canvasDeep.withValues(alpha: 0.78),
+                  borderColor: OnPhoto.hairlineBright,
+                  elevation: 10,
                   padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.refresh_rounded,
-                        size: 16,
-                        color: OnPhoto.ink,
-                      ),
+                      Icon(replacementIcon, size: 16, color: OnPhoto.ink),
                       const SizedBox(width: 7),
                       Text(
-                        'Yeniden',
+                        replacementLabel ?? context.l10n.composeRetake,
                         style: OnPhotoText.label.copyWith(color: OnPhoto.ink),
                       ),
                     ],

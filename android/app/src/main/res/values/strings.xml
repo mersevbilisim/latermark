@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_label">Latermark</string>
-    <string name="widget_description">En son çektiğin kareyi ve notunu gösterir.</string>
-    <string name="widget_empty_title">Dokun ve çek</string>
-    <string name="widget_empty_subtitle">İlk notun burada görünecek</string>
-    <string name="widget_photo_description">Son kaydın fotoğrafı</string>
+    <string name="widget_description">Shows your latest frame and note.</string>
+    <string name="widget_empty_title">Tap to capture</string>
+    <string name="widget_empty_subtitle">Your first note will appear here</string>
+    <string name="widget_photo_description">Photo from your latest frame</string>
+    <string name="widget_note_without_body">Untitled note</string>
+    <string name="widget_remaining_now">now</string>
+    <string name="widget_remaining_days">%1$dd</string>
+    <string name="widget_remaining_hours">%1$dh</string>
+    <string name="widget_remaining_minutes">%1$dm</string>
+    <string name="widget_remaining_less_than_minute">&lt;1m</string>
 </resources>

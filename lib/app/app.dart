@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-
 import '../core/theme/app_palette.dart';
+import '../l10n/app_localizations.dart';
 import '../core/theme/app_theme.dart';
 import '../features/notes/data/notes_repository.dart';
 import '../features/notes/presentation/home/home_page.dart';
 import '../features/settings/data/settings_repository.dart';
 import 'app_scope.dart';
+import '../l10n/l10n_context.dart';
 
 /// Uygulamanın kökü: tema, dil ve depo bağlaması. Ekranlara ait hiçbir mantık
 /// burada durmaz.
@@ -34,18 +34,17 @@ class LatermarkApp extends StatelessWidget {
           final preferences = AppScope.preferences(context);
 
           return MaterialApp(
-            title: 'Latermark',
+            onGenerateTitle: (context) => context.l10n.appTitle,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: preferences.themeMode.flutterMode,
-            locale: const Locale('tr', 'TR'),
-            supportedLocales: const [Locale('tr', 'TR')],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
+            // `null` ise Flutter telefonun dilini kullanır ve eşleşme yoksa
+            // aşağıdaki çözümleyici devreye girer.
+            locale: preferences.locale.locale,
+            supportedLocales: L10n.supportedLocales,
+            localizationsDelegates: L10n.localizationsDelegates,
+            localeResolutionCallback: _resolveLocale,
             builder: (context, child) {
               // Durum çubuğu ikonları temaya göre; ayrıca sistem yazı ölçeği
               // aşırı büyüdüğünde düzenin dağılmaması için makul bir tavan.
@@ -62,5 +61,28 @@ class LatermarkApp extends StatelessWidget {
         },
       ),
     );
+  }
+
+  /// Telefonun dili desteklenmiyorsa İngilizce'ye düşer.
+  ///
+  /// Flutter'ın varsayılanı, eşleşme bulamazsa `supportedLocales` listesinin
+  /// *ilk* öğesini seçer — bu, listeye hangi dilin önce yazıldığına bağlı
+  /// rastgele bir sonuç demek. Geri düşülecek dili burada açıkça söylüyoruz.
+  ///
+  /// Önce tam eşleşme (dil + ülke), sonra yalnızca dil denenir; böylece
+  /// `pt_PT` konuşan bir telefon `pt_BR` çevirisini alır.
+  static Locale? _resolveLocale(Locale? device, Iterable<Locale> supported) {
+    if (device == null) return const Locale('en');
+
+    for (final locale in supported) {
+      if (locale.languageCode == device.languageCode &&
+          locale.countryCode == device.countryCode) {
+        return locale;
+      }
+    }
+    for (final locale in supported) {
+      if (locale.languageCode == device.languageCode) return locale;
+    }
+    return const Locale('en');
   }
 }

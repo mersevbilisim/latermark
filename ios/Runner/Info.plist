@@ -16,6 +16,17 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Latermark</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mersev.latermark.widget</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>latermark</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,7 +38,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Notlarına fotoğraf eklemek için kameraya erişim gerekiyor.</string>
+	<string>Camera access lets you capture photos for your notes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo access lets you add images from your library to your notes.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

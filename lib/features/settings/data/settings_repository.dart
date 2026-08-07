@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 
 import '../../notes/data/notes_database.dart';
+import '../../notes/domain/retention.dart';
+import '../domain/app_locale.dart';
 import '../domain/app_settings.dart';
 
 /// Tercihlerin tek giriş kapısı.
@@ -27,8 +29,18 @@ class SettingsRepository {
   Future<void> setReminderEnabled(bool value) =>
       _write(SettingsTableCompanion(reminderEnabled: Value(value)));
 
-  Future<void> setReminderDelay(ReminderDelay value) =>
-      _write(SettingsTableCompanion(reminderDelay: Value(value)));
+  Future<void> setDefaultRetention(RetentionChoice value) => _write(
+    SettingsTableCompanion(
+      defaultRetention: Value(value.retention),
+      defaultCustomMinutes: Value(value.customMinutes),
+    ),
+  );
+
+  Future<void> setLocale(AppLocale value) =>
+      _write(SettingsTableCompanion(locale: Value(value)));
+
+  Future<void> setProUnlocked(bool value) =>
+      _write(SettingsTableCompanion(proUnlocked: Value(value)));
 
   Future<void> _write(SettingsTableCompanion changes) async {
     final query = _db.update(_db.settingsTable)..where((t) => t.id.equals(1));
@@ -47,6 +59,9 @@ class SettingsRepository {
           themeMode: row.themeMode,
           density: row.density,
           reminderEnabled: row.reminderEnabled,
-          reminderDelay: row.reminderDelay,
+          defaultRetention: row.defaultRetention,
+          defaultCustomMinutes: row.defaultCustomMinutes,
+          locale: row.locale,
+          proUnlocked: row.proUnlocked,
         );
 }

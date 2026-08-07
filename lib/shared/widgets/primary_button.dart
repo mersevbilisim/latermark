@@ -31,8 +31,27 @@ class PrimaryButton extends StatelessWidget {
       child: Container(
         height: 54,
         decoration: BoxDecoration(
-          color: palette.ink,
-          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(palette.ember, Colors.white, 0.10)!,
+              palette.ember,
+              Color.lerp(palette.ember, Colors.black, 0.16)!,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.18),
+            width: 0.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: palette.ember.withValues(alpha: 0.24),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
+            ),
+          ],
         ),
         alignment: Alignment.center,
         child: busy
@@ -40,20 +59,20 @@ class PrimaryButton extends StatelessWidget {
                 dimension: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: palette.canvas,
+                  color: Colors.white,
                 ),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 18, color: palette.canvas),
+                    Icon(icon, size: 18, color: Colors.white),
                     const SizedBox(width: 8),
                   ],
                   Text(
                     label,
                     style: palette.bodyStrong.copyWith(
-                      color: palette.canvas,
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -91,7 +110,7 @@ class GhostButton extends StatelessWidget {
       child: Container(
         height: 54,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: palette.hairline),
         ),
         alignment: Alignment.center,

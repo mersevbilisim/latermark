@@ -1,0 +1,367 @@
+{
+  "@@locale": "es",
+  "appTitle": "Latermark",
+  "actionSave": "Guardar",
+  "actionCancel": "Cancelar",
+  "actionClose": "Cerrar",
+  "actionBack": "Atrás",
+  "actionDelete": "Eliminar",
+  "actionEdit": "Editar",
+  "actionRetry": "Volver a intentar",
+  "actionGoBack": "Volver",
+  "actionOpen": "Abrir",
+  "settingsAction": "Ajustes",
+  "shutterSemantic": "Hacer una foto",
+  "searchHint": "Ara",
+  "searchResults": "{count, plural, other{{count} sonuç}}",
+  "@searchResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "searchEmpty": "Eşleşen kayıt yok",
+  "searchCancel": "Vazgeç",
+  "searchInPhoto": "karede",
+  "notesTitle": "Notas",
+  "noteCount": "{count, plural, =0{Sin notas} one{1 nota} other{{count} notas}}",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteWithoutBody": "Sin nota",
+  "inviteTitle": "Toca para capturar",
+  "inviteBody": "Un recibo, dónde aparcaste, un detalle…\nHaz una foto, añade unas palabras y sigue.",
+  "pickFromGallery": "Elegir de Fotos",
+  "pickFromGallerySemantic": "Elegir una foto de la fototeca",
+  "galleryPickerOpening": "Abriendo el selector de fotos",
+  "manifestoFirst": "Simple",
+  "manifestoSecond": "Privado",
+  "manifestoThird": "Tuyo",
+  "switchToLargeView": "Cambiar a vista grande",
+  "switchToGridView": "Cambiar a cuadrícula",
+  "toastPhotoPickFailed": "No se pudo seleccionar esa foto. Inténtalo de nuevo.",
+  "toastPendingPickFailed": "No se pudo recuperar la selección interrumpida.",
+  "toastSharedPhotoAdded": "Foto compartida añadida.",
+  "toastSharedPhotoFailed": "No se pudo añadir la foto compartida. Lo intentaremos de nuevo.",
+  "toastDeleteFailed": "No se pudo eliminar. Inténtalo de nuevo.",
+  "toastSaveFailed": "No se pudo guardar. Inténtalo de nuevo.",
+  "toastEditFailed": "No se pudieron guardar los cambios.",
+  "toastPermissionDenied": "Las notificaciones están desactivadas. Los recordatorios permanecerán en silencio.",
+  "deleteConfirmTitle": "¿Eliminar esta captura?",
+  "deleteConfirmCaption": "La foto y la nota se eliminarán juntas.",
+  "holdToDelete": "Mantén pulsado para eliminar",
+  "holdStageAlmost": "Ya casi",
+  "holdStageRelease": "Sigue pulsando…",
+  "holdStageGone": "Eliminada",
+  "cameraNotFoundTitle": "Cámara no disponible",
+  "cameraNotFoundBody": "Este dispositivo no tiene una cámara disponible.",
+  "cameraDeniedTitle": "Acceso a la cámara desactivado",
+  "cameraDeniedBody": "Permite el acceso en Ajustes › Latermark para hacer fotos aquí.",
+  "cameraFailedTitle": "No se pudo abrir la cámara",
+  "cameraFailedBody": "Ha ocurrido algo inesperado.",
+  "switchLens": "Cambiar de cámara",
+  "flashSemantic": "Flash: {state}",
+  "@flashSemantic": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "flashOff": "desactivado",
+  "flashAuto": "automático",
+  "flashOn": "activado",
+  "composeHint": "¿Por qué hiciste esta foto?",
+  "composeAnotherPhoto": "Elegir otra foto",
+  "composeRetake": "Repetir",
+  "sourceGallery": "FOTOS",
+  "sourceShared": "COMPARTIDA",
+  "reminderLabel": "Recordarme",
+  "reminderSuffixActive": "días después",
+  "reminderSuffixOff": "días — desactivado",
+  "reminderBlocked": "Las notificaciones están desactivadas. La captura se guardará igualmente; el recordatorio empezará a funcionar cuando las permitas.",
+  "editNoteSemantic": "Editar nota",
+  "editSheetHeader": "EDITAR NOTA",
+  "retentionSelectorTitle": "Eliminación automática",
+  "retentionOffNotice": "La eliminación automática está desactivada — esta captura seguirá aquí hasta que la elimines.",
+  "retentionCustom": "Personalizado",
+  "retentionCustomTitle": "Duración personalizada",
+  "retentionCustomHours": "{count, plural, one{1 hora} other{{count} horas}}",
+  "@retentionCustomHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomDays": "{count, plural, one{1 día} other{{count} días}}",
+  "@retentionCustomDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionCustomWeeks": "{count, plural, one{1 semana} other{{count} semanas}}",
+  "@retentionCustomWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retentionUnitHours": "Horas",
+  "retentionUnitDays": "Días",
+  "retentionUnitWeeks": "Semanas",
+  "retentionCustomDescription": "La captura se eliminará automáticamente al terminar este tiempo.",
+  "retentionOff": "Desactivado",
+  "retentionThreeDays": "3 días",
+  "retentionOneWeek": "1 semana",
+  "retentionOffDescription": "Desactivado",
+  "retentionThreeDaysDescription": "Se elimina a los 3 días",
+  "retentionOneWeekDescription": "Se elimina tras 1 semana",
+  "legalPrivacy": "Privacidad",
+  "legalTerms": "Términos de uso",
+  "legalOpenFailed": "No se pudo abrir el enlace.",
+  "settingsTitle": "Ajustes",
+  "sectionAppearance": "Apariencia",
+  "sectionReminder": "Recordatorios",
+  "themeTitle": "Tema",
+  "themeDescription": "Sigue la apariencia del sistema o elige una para mantener.",
+  "themeSystem": "Sistema",
+  "themeLight": "Claro",
+  "themeDark": "Oscuro",
+  "retentionTitle": "Eliminación automática",
+  "retentionDescription": "Las nuevas capturas usarán esta duración. Puedes cambiarla en los detalles de cada captura.",
+  "feedTitle": "Vista",
+  "feedDescription": "Muestra capturas grandes o encaja más en una cuadrícula.",
+  "densityLarge": "Grande",
+  "densityGrid": "Cuadrícula",
+  "languageTitle": "Idioma",
+  "languageDescription": "Latermark sigue el idioma del dispositivo, aunque puedes elegir otro.",
+  "languageSystem": "Sistema",
+  "remindersTitle": "Recordatorios",
+  "remindersDescription": "Solo recibirás avisos de las capturas para las que fijes un plazo al guardar. Las demás permanecerán en silencio.",
+  "remindersBlockedDescription": "Las notificaciones están desactivadas en los ajustes del sistema. Los recordatorios volverán cuando las permitas.",
+  "openSystemSettings": "Abrir ajustes del sistema",
+  "openSettingsShort": "Abrir Ajustes",
+  "versionMark": "Versión {version} ({build})",
+  "@versionMark": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "dayToday": "Hoy",
+  "dayYesterday": "Ayer",
+  "relativeJustNow": "ahora mismo",
+  "relativeMinutes": "{count, plural, one{1 min} other{{count} min}}",
+  "@relativeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHours": "{count, plural, one{1 h} other{{count} h}}",
+  "@relativeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeYesterday": "ayer",
+  "relativeDays": "{count, plural, one{1 día} other{{count} días}}",
+  "@relativeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingNow": "ahora",
+  "remainingShortDays": "{count} d",
+  "@remainingShortDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortHours": "{count} h",
+  "@remainingShortHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortMinutes": "{count} min",
+  "@remainingShortMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingShortLessThanMinute": "<1 min",
+  "remainingSoon": "Se eliminará en breve",
+  "remainingLongDays": "{days, plural, one{Se eliminará en 1 día} other{Se eliminará en {days} días}}",
+  "@remainingLongDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongDaysHours": "Se eliminará en {days, plural, one{1 día} other{{days} días}} y {hours, plural, one{1 hora} other{{hours} horas}}",
+  "@remainingLongDaysHours": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHours": "{hours, plural, one{Se eliminará en 1 hora} other{Se eliminará en {hours} horas}}",
+  "@remainingLongHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongHoursMinutes": "Se eliminará en {hours, plural, one{1 hora} other{{hours} horas}} y {minutes, plural, one{1 minuto} other{{minutes} minutos}}",
+  "@remainingLongHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingLongMinutes": "{minutes, plural, one{Se eliminará en 1 minuto} other{Se eliminará en {minutes} minutos}}",
+  "@remainingLongMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitTitle": "Tus 10 espacios están ocupados",
+  "paywallLimitBody": "La versión gratuita conserva hasta {limit} capturas a la vez. Pro elimina el límite — o puedes borrar una captura para continuar.",
+  "@paywallLimitBody": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLimitDelete": "Eliminar una captura",
+  "paywallCounter": "{count}/{limit}",
+  "@paywallCounter": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "proBadge": "PRO",
+  "paywallHeadline": "Hay capturas que merecen quedarse.",
+  "paywallSubtitle": "Latermark está hecho para dejar ir. Pro, para aquello que quieres conservar.",
+  "paywallOwnedCount": "{count, plural, one{Ahora tienes 1 captura.} other{Ahora tienes {count} capturas.}}",
+  "@paywallOwnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureUnlimited": "Capturas ilimitadas",
+  "paywallFeatureUnlimitedDetail": "La versión gratuita conserva hasta {limit}.",
+  "@paywallFeatureUnlimitedDetail": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallFeatureCustomRetention": "Elige cualquier duración",
+  "paywallFeatureCustomRetentionDetail": "Más allá de 3 días o 1 semana.",
+  "paywallFeatureReminders": "Recordatorios",
+  "paywallFeatureRemindersDetail": "Un aviso discreto para lo importante.",
+  "paywallFeatureWidget": "Widgets de inicio y pantalla bloqueada",
+  "paywallFeatureWidgetDetail": "Tu última captura, siempre a la vista.",
+  "@paywallPerMonth": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paywallSaveBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPrice": "{price}",
+  "@paywallPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallOneTime": "Compra única",
+  "paywallNoSubscription": "Sin suscripción. Paga una vez y conserva Pro.",
+  "paywallFeatureNoSubscription": "Sin suscripción",
+  "paywallFeatureNoSubscriptionDetail": "La mayoría de apps cobran cada mes. Latermark no.",
+  "paywallCta": "Desbloquear Pro",
+  "@paywallCtaTrial": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallRestore": "Restaurar compras",
+  "paywallClose": "Cerrar",
+  "paywallLifeFree": "Gratis",
+  "paywallLifePro": "Pro",
+  "notificationTitle": "Recordatorio",
+  "notificationTitleNoBody": "Hay una captura esperando",
+  "notificationBodyNoBody": "Pediste que te recordáramos esta captura.",
+  "notificationChannelName": "Recordatorios",
+  "notificationChannelDescription": "Te avisa de las capturas que hayas programado.",
+  "actionOK": "Aceptar",
+  "widgetDescription": "Muestra tu última captura y su nota.",
+  "widgetEmptySubtitle": "Tu primera nota aparecerá aquí",
+  "widgetPhotoDescription": "Foto de tu última captura",
+  "widgetLeaveTrace": "Deja una nueva huella",
+  "widgetOpenApp": "Abrir Latermark",
+  "widgetCreateNote": "Crear una nota",
+  "widgetLeaveFirstTrace": "Deja tu primera huella",
+  "widgetProRequired": "Los widgets están disponibles con Latermark Pro.",
+  "widgetPreviewNote": "Enviar a Contabilidad",
+  "widgetPreviewDay": "HOY",
+  "shareComposeHint": "¿Por qué quieres guardar esta foto?",
+  "shareErrorTitle": "No se pudo añadir la foto",
+  "shareErrorBody": "No se pudo enviar la foto a Latermark. Inténtalo de nuevo.",
+  "cameraUsageDescription": "El acceso a la cámara te permite hacer fotos para tus notas.",
+  "photoLibraryUsageDescription": "El acceso a Fotos te permite añadir imágenes de tu fototeca a las notas."
+}

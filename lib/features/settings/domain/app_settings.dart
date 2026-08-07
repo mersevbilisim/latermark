@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../../notes/domain/retention.dart';
+import 'app_locale.dart';
+
 /// Tema tercihi.
 ///
 /// UYARI: Veritabanında `index` olarak saklanır; sırayı değiştirmeyin.
 enum AppThemeMode {
-  system('Sistem'),
-  light('Aydınlık'),
-  dark('Karanlık');
-
-  const AppThemeMode(this.label);
-  final String label;
+  system,
+  light,
+  dark;
 
   ThemeMode get flutterMode => switch (this) {
     AppThemeMode.system => ThemeMode.system,
@@ -23,60 +23,65 @@ enum AppThemeMode {
 /// UYARI: Veritabanında `index` olarak saklanır; sırayı değiştirmeyin.
 enum FeedDensity {
   /// Kareler bütün genişliği alır, en yeni kayıt daha da uzundur.
-  single('Büyük'),
+  single,
 
   /// İki sütun; daha çok kayıt tek bakışta.
-  grid('Izgara');
-
-  const FeedDensity(this.label);
-  final String label;
+  grid;
 
   FeedDensity get other =>
       this == FeedDensity.single ? FeedDensity.grid : FeedDensity.single;
 }
 
-/// "Bu nota şu kadar gün bakmazsam hatırlat."
-///
-/// UYARI: Veritabanında `index` olarak saklanır; sırayı değiştirmeyin.
-enum ReminderDelay {
-  threeDays(Duration(days: 3), '3 Gün'),
-  oneWeek(Duration(days: 7), '1 Hafta'),
-  twoWeeks(Duration(days: 14), '2 Hafta');
-
-  const ReminderDelay(this.duration, this.label);
-
-  final Duration duration;
-  final String label;
-}
-
 /// Tüm tercihler tek bir değer nesnesinde.
 class AppSettings {
   const AppSettings({
-    this.themeMode = AppThemeMode.system,
-    this.density = FeedDensity.single,
+    this.themeMode = AppThemeMode.dark,
+    this.density = FeedDensity.grid,
     this.reminderEnabled = false,
-    this.reminderDelay = ReminderDelay.oneWeek,
+    this.defaultRetention = Retention.off,
+    this.defaultCustomMinutes = 0,
+    this.locale = AppLocale.system,
+    this.proUnlocked = false,
   });
 
   final AppThemeMode themeMode;
   final FeedDensity density;
 
+  /// Hatırlatmaların ana şalteri. Kapalıysa hiçbir not bildirim göndermez;
+  /// açıkken yalnızca kullanıcının açıkça süre verdiği notlar gönderir.
+  ///
   /// Bildirim izni verilmemişse bu yine `true` olabilir; izin ayrı bir konudur
   /// ve her planlamada yeniden denenir.
   final bool reminderEnabled;
 
-  final ReminderDelay reminderDelay;
+  /// Yeni kayıtların açılacağı saklama süresi.
+  final Retention defaultRetention;
+
+  /// [Retention.custom] seçiliyse varsayılan özel süre (dakika).
+  final int defaultCustomMinutes;
+
+  /// Arayüz dili. [AppLocale.system] ise telefonun dili izlenir.
+  final AppLocale locale;
+
+  /// Pro hakkının son bilinen durumu (önbellek; kaynağı mağaza).
+  final bool proUnlocked;
 
   AppSettings copyWith({
     AppThemeMode? themeMode,
     FeedDensity? density,
     bool? reminderEnabled,
-    ReminderDelay? reminderDelay,
+    Retention? defaultRetention,
+    int? defaultCustomMinutes,
+    AppLocale? locale,
+    bool? proUnlocked,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     density: density ?? this.density,
     reminderEnabled: reminderEnabled ?? this.reminderEnabled,
-    reminderDelay: reminderDelay ?? this.reminderDelay,
+    defaultRetention: defaultRetention ?? this.defaultRetention,
+    defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
+    locale: locale ?? this.locale,
+    proUnlocked: proUnlocked ?? this.proUnlocked,
   );
 
   @override
@@ -85,9 +90,20 @@ class AppSettings {
       other.themeMode == themeMode &&
       other.density == density &&
       other.reminderEnabled == reminderEnabled &&
-      other.reminderDelay == reminderDelay;
+      other.defaultRetention == defaultRetention &&
+      other.defaultCustomMinutes == defaultCustomMinutes &&
+      other.locale == locale &&
+      other.proUnlocked == proUnlocked;
 
   @override
   int get hashCode =>
-      Object.hash(themeMode, density, reminderEnabled, reminderDelay);
+      Object.hash(
+        themeMode,
+        density,
+        reminderEnabled,
+        defaultRetention,
+        defaultCustomMinutes,
+        locale,
+        proUnlocked,
+      );
 }

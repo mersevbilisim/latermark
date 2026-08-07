@@ -1,0 +1,56 @@
+{
+  "source": "/Users/mersevbilisim/Desktop/Projects/Flutter/latermark/ios/NotWidget/NotWidget.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Latermark",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latermark Pro",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 375
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latermark Pro",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 384
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latermark Pro",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 396
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latermark",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 478
+        }
+      }
+    ]
+  },
+  "version": 1
+}

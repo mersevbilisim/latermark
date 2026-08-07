@@ -17,8 +17,13 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Türkçe ay ve gün adları için tarih verisi.
-  await initializeDateFormatting('tr_TR');
+  // Tüm diller için tarih verisi.
+  //
+  // Tek yerel yüklemek yetmiyor: `flutter_localizations` yalnızca *arayüzün*
+  // yereline veri yüklüyor, oysa bildirim ve widget metinleri widget ağacının
+  // dışında, elle yüklenmiş bir [L10n] ile biçimleniyor. Orada veri
+  // bulunmayan bir yerel `LocaleDataException` atardı.
+  await initializeDateFormatting();
 
   final database = NotesDatabase();
   final notes = NotesRepository(
