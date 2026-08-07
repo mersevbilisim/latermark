@@ -63,17 +63,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       ).withConverter<Retention>($NotesTable.$converterretention);
-  static const VerificationMeta _ocrTextMeta = const VerificationMeta(
-    'ocrText',
-  );
-  @override
-  late final GeneratedColumn<String> ocrText = GeneratedColumn<String>(
-    'ocr_text',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _customMinutesMeta = const VerificationMeta(
     'customMinutes',
   );
@@ -127,7 +116,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     body,
     createdAt,
     retention,
-    ocrText,
     customMinutes,
     expiresAt,
     lastSeenAt,
@@ -169,12 +157,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('ocr_text')) {
-      context.handle(
-        _ocrTextMeta,
-        ocrText.isAcceptableOrUnknown(data['ocr_text']!, _ocrTextMeta),
-      );
     }
     if (data.containsKey('custom_minutes')) {
       context.handle(
@@ -240,10 +222,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
           data['${effectivePrefix}retention'],
         )!,
       ),
-      ocrText: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}ocr_text'],
-      ),
       customMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}custom_minutes'],
@@ -285,16 +263,6 @@ class Note extends DataClass implements Insertable<Note> {
   final DateTime createdAt;
   final Retention retention;
 
-  /// Karedeki yazının makine okuması. **Arayüzde hiç gösterilmez.**
-  ///
-  /// Tek işi aramayı beslemek: kullanıcı "4521" ya da "kombi" yazınca fişin
-  /// kendisi bulunsun. Görünmediği için OCR hataları da görünmez — %80
-  /// isabetle bile arama işe yarar, oysa aynı metni nota yazsaydık her hata
-  /// kullanıcının düzeltmesi gereken bir kir olurdu.
-  ///
-  /// `null` = henüz taranmadı. Boş metin = tarandı, yazı bulunamadı.
-  final String? ocrText;
-
   /// Özel saklama süresi (dakika). Yalnızca [Retention.custom] için anlamlı.
   ///
   /// Ayrı sütun gerekiyor: enum indeksi sabit bir değer taşır, kullanıcının
@@ -320,7 +288,6 @@ class Note extends DataClass implements Insertable<Note> {
     required this.body,
     required this.createdAt,
     required this.retention,
-    this.ocrText,
     required this.customMinutes,
     this.expiresAt,
     this.lastSeenAt,
@@ -337,9 +304,6 @@ class Note extends DataClass implements Insertable<Note> {
       map['retention'] = Variable<int>(
         $NotesTable.$converterretention.toSql(retention),
       );
-    }
-    if (!nullToAbsent || ocrText != null) {
-      map['ocr_text'] = Variable<String>(ocrText);
     }
     map['custom_minutes'] = Variable<int>(customMinutes);
     if (!nullToAbsent || expiresAt != null) {
@@ -359,9 +323,6 @@ class Note extends DataClass implements Insertable<Note> {
       body: Value(body),
       createdAt: Value(createdAt),
       retention: Value(retention),
-      ocrText: ocrText == null && nullToAbsent
-          ? const Value.absent()
-          : Value(ocrText),
       customMinutes: Value(customMinutes),
       expiresAt: expiresAt == null && nullToAbsent
           ? const Value.absent()
@@ -386,7 +347,6 @@ class Note extends DataClass implements Insertable<Note> {
       retention: $NotesTable.$converterretention.fromJson(
         serializer.fromJson<int>(json['retention']),
       ),
-      ocrText: serializer.fromJson<String?>(json['ocrText']),
       customMinutes: serializer.fromJson<int>(json['customMinutes']),
       expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
       lastSeenAt: serializer.fromJson<DateTime?>(json['lastSeenAt']),
@@ -404,7 +364,6 @@ class Note extends DataClass implements Insertable<Note> {
       'retention': serializer.toJson<int>(
         $NotesTable.$converterretention.toJson(retention),
       ),
-      'ocrText': serializer.toJson<String?>(ocrText),
       'customMinutes': serializer.toJson<int>(customMinutes),
       'expiresAt': serializer.toJson<DateTime?>(expiresAt),
       'lastSeenAt': serializer.toJson<DateTime?>(lastSeenAt),
@@ -418,7 +377,6 @@ class Note extends DataClass implements Insertable<Note> {
     String? body,
     DateTime? createdAt,
     Retention? retention,
-    Value<String?> ocrText = const Value.absent(),
     int? customMinutes,
     Value<DateTime?> expiresAt = const Value.absent(),
     Value<DateTime?> lastSeenAt = const Value.absent(),
@@ -429,7 +387,6 @@ class Note extends DataClass implements Insertable<Note> {
     body: body ?? this.body,
     createdAt: createdAt ?? this.createdAt,
     retention: retention ?? this.retention,
-    ocrText: ocrText.present ? ocrText.value : this.ocrText,
     customMinutes: customMinutes ?? this.customMinutes,
     expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
     lastSeenAt: lastSeenAt.present ? lastSeenAt.value : this.lastSeenAt,
@@ -442,7 +399,6 @@ class Note extends DataClass implements Insertable<Note> {
       body: data.body.present ? data.body.value : this.body,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       retention: data.retention.present ? data.retention.value : this.retention,
-      ocrText: data.ocrText.present ? data.ocrText.value : this.ocrText,
       customMinutes: data.customMinutes.present
           ? data.customMinutes.value
           : this.customMinutes,
@@ -464,7 +420,6 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
-          ..write('ocrText: $ocrText, ')
           ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('lastSeenAt: $lastSeenAt, ')
@@ -480,7 +435,6 @@ class Note extends DataClass implements Insertable<Note> {
     body,
     createdAt,
     retention,
-    ocrText,
     customMinutes,
     expiresAt,
     lastSeenAt,
@@ -495,7 +449,6 @@ class Note extends DataClass implements Insertable<Note> {
           other.body == this.body &&
           other.createdAt == this.createdAt &&
           other.retention == this.retention &&
-          other.ocrText == this.ocrText &&
           other.customMinutes == this.customMinutes &&
           other.expiresAt == this.expiresAt &&
           other.lastSeenAt == this.lastSeenAt &&
@@ -508,7 +461,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String> body;
   final Value<DateTime> createdAt;
   final Value<Retention> retention;
-  final Value<String?> ocrText;
   final Value<int> customMinutes;
   final Value<DateTime?> expiresAt;
   final Value<DateTime?> lastSeenAt;
@@ -519,7 +471,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.body = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.retention = const Value.absent(),
-    this.ocrText = const Value.absent(),
     this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
@@ -531,7 +482,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.body = const Value.absent(),
     required DateTime createdAt,
     this.retention = const Value.absent(),
-    this.ocrText = const Value.absent(),
     this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
@@ -544,7 +494,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? body,
     Expression<DateTime>? createdAt,
     Expression<int>? retention,
-    Expression<String>? ocrText,
     Expression<int>? customMinutes,
     Expression<DateTime>? expiresAt,
     Expression<DateTime>? lastSeenAt,
@@ -556,7 +505,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (body != null) 'body': body,
       if (createdAt != null) 'created_at': createdAt,
       if (retention != null) 'retention': retention,
-      if (ocrText != null) 'ocr_text': ocrText,
       if (customMinutes != null) 'custom_minutes': customMinutes,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
@@ -570,7 +518,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<String>? body,
     Value<DateTime>? createdAt,
     Value<Retention>? retention,
-    Value<String?>? ocrText,
     Value<int>? customMinutes,
     Value<DateTime?>? expiresAt,
     Value<DateTime?>? lastSeenAt,
@@ -582,7 +529,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
       body: body ?? this.body,
       createdAt: createdAt ?? this.createdAt,
       retention: retention ?? this.retention,
-      ocrText: ocrText ?? this.ocrText,
       customMinutes: customMinutes ?? this.customMinutes,
       expiresAt: expiresAt ?? this.expiresAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
@@ -610,9 +556,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
         $NotesTable.$converterretention.toSql(retention.value),
       );
     }
-    if (ocrText.present) {
-      map['ocr_text'] = Variable<String>(ocrText.value);
-    }
     if (customMinutes.present) {
       map['custom_minutes'] = Variable<int>(customMinutes.value);
     }
@@ -636,11 +579,345 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
-          ..write('ocrText: $ocrText, ')
           ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('lastSeenAt: $lastSeenAt, ')
           ..write('remindAfterDays: $remindAfterDays')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NoteSearchTable extends NoteSearch
+    with TableInfo<$NoteSearchTable, NoteSearchRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteSearchTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<int> noteId = GeneratedColumn<int>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES notes (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bodyFoldedMeta = const VerificationMeta(
+    'bodyFolded',
+  );
+  @override
+  late final GeneratedColumn<String> bodyFolded = GeneratedColumn<String>(
+    'body_folded',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _photoFoldedMeta = const VerificationMeta(
+    'photoFolded',
+  );
+  @override
+  late final GeneratedColumn<String> photoFolded = GeneratedColumn<String>(
+    'photo_folded',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _attemptsMeta = const VerificationMeta(
+    'attempts',
+  );
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+    'attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    noteId,
+    bodyFolded,
+    photoFolded,
+    attempts,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_search';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteSearchRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    }
+    if (data.containsKey('body_folded')) {
+      context.handle(
+        _bodyFoldedMeta,
+        bodyFolded.isAcceptableOrUnknown(data['body_folded']!, _bodyFoldedMeta),
+      );
+    }
+    if (data.containsKey('photo_folded')) {
+      context.handle(
+        _photoFoldedMeta,
+        photoFolded.isAcceptableOrUnknown(
+          data['photo_folded']!,
+          _photoFoldedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('attempts')) {
+      context.handle(
+        _attemptsMeta,
+        attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {noteId};
+  @override
+  NoteSearchRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteSearchRow(
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}note_id'],
+      )!,
+      bodyFolded: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body_folded'],
+      )!,
+      photoFolded: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_folded'],
+      ),
+      attempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempts'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteSearchTable createAlias(String alias) {
+    return $NoteSearchTable(attachedDatabase, alias);
+  }
+}
+
+class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
+  /// Notun kimliği. Not silinince satır de kendiliğinden gider — `beforeOpen`
+  /// zaten `foreign_keys` açıyor.
+  final int noteId;
+
+  /// Kullanıcının yazdığı notun katlanmış hâli.
+  ///
+  /// Katlama yazarken bir kez yapılıyor; arama anında yalnızca **sorgu**
+  /// katlanıyor. Eskiden her tuş vuruşunda her kaydın metni yeniden
+  /// katlanıyordu.
+  final String bodyFolded;
+
+  /// Karedeki yazının katlanmış hâli. **Arayüzde hiç gösterilmez.**
+  ///
+  /// Tek işi aramayı beslemek: kullanıcı "4521" ya da "kombi" yazınca fişin
+  /// kendisi bulunsun. Görünmediği için OCR hataları da görünmez — %80
+  /// isabetle bile arama işe yarar, oysa aynı metni nota yazsaydık her hata
+  /// kullanıcının düzeltmesi gereken bir kir olurdu.
+  ///
+  /// `null` = henüz okunamadı. Boş metin = tarandı, yazı bulunamadı.
+  final String? photoFolded;
+
+  /// Başarısız okuma sayısı.
+  ///
+  /// Sayaç olmadan bozuk ya da okunamayan tek bir kare, listedeki her
+  /// değişimde yeniden taranıyordu — A4 boyunda bir karede bu her seferinde
+  /// 1-2 saniye CPU ve boşa giden pil demek.
+  final int attempts;
+  const NoteSearchRow({
+    required this.noteId,
+    required this.bodyFolded,
+    this.photoFolded,
+    required this.attempts,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['note_id'] = Variable<int>(noteId);
+    map['body_folded'] = Variable<String>(bodyFolded);
+    if (!nullToAbsent || photoFolded != null) {
+      map['photo_folded'] = Variable<String>(photoFolded);
+    }
+    map['attempts'] = Variable<int>(attempts);
+    return map;
+  }
+
+  NoteSearchCompanion toCompanion(bool nullToAbsent) {
+    return NoteSearchCompanion(
+      noteId: Value(noteId),
+      bodyFolded: Value(bodyFolded),
+      photoFolded: photoFolded == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoFolded),
+      attempts: Value(attempts),
+    );
+  }
+
+  factory NoteSearchRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteSearchRow(
+      noteId: serializer.fromJson<int>(json['noteId']),
+      bodyFolded: serializer.fromJson<String>(json['bodyFolded']),
+      photoFolded: serializer.fromJson<String?>(json['photoFolded']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'noteId': serializer.toJson<int>(noteId),
+      'bodyFolded': serializer.toJson<String>(bodyFolded),
+      'photoFolded': serializer.toJson<String?>(photoFolded),
+      'attempts': serializer.toJson<int>(attempts),
+    };
+  }
+
+  NoteSearchRow copyWith({
+    int? noteId,
+    String? bodyFolded,
+    Value<String?> photoFolded = const Value.absent(),
+    int? attempts,
+  }) => NoteSearchRow(
+    noteId: noteId ?? this.noteId,
+    bodyFolded: bodyFolded ?? this.bodyFolded,
+    photoFolded: photoFolded.present ? photoFolded.value : this.photoFolded,
+    attempts: attempts ?? this.attempts,
+  );
+  NoteSearchRow copyWithCompanion(NoteSearchCompanion data) {
+    return NoteSearchRow(
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      bodyFolded: data.bodyFolded.present
+          ? data.bodyFolded.value
+          : this.bodyFolded,
+      photoFolded: data.photoFolded.present
+          ? data.photoFolded.value
+          : this.photoFolded,
+      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteSearchRow(')
+          ..write('noteId: $noteId, ')
+          ..write('bodyFolded: $bodyFolded, ')
+          ..write('photoFolded: $photoFolded, ')
+          ..write('attempts: $attempts')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(noteId, bodyFolded, photoFolded, attempts);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteSearchRow &&
+          other.noteId == this.noteId &&
+          other.bodyFolded == this.bodyFolded &&
+          other.photoFolded == this.photoFolded &&
+          other.attempts == this.attempts);
+}
+
+class NoteSearchCompanion extends UpdateCompanion<NoteSearchRow> {
+  final Value<int> noteId;
+  final Value<String> bodyFolded;
+  final Value<String?> photoFolded;
+  final Value<int> attempts;
+  const NoteSearchCompanion({
+    this.noteId = const Value.absent(),
+    this.bodyFolded = const Value.absent(),
+    this.photoFolded = const Value.absent(),
+    this.attempts = const Value.absent(),
+  });
+  NoteSearchCompanion.insert({
+    this.noteId = const Value.absent(),
+    this.bodyFolded = const Value.absent(),
+    this.photoFolded = const Value.absent(),
+    this.attempts = const Value.absent(),
+  });
+  static Insertable<NoteSearchRow> custom({
+    Expression<int>? noteId,
+    Expression<String>? bodyFolded,
+    Expression<String>? photoFolded,
+    Expression<int>? attempts,
+  }) {
+    return RawValuesInsertable({
+      if (noteId != null) 'note_id': noteId,
+      if (bodyFolded != null) 'body_folded': bodyFolded,
+      if (photoFolded != null) 'photo_folded': photoFolded,
+      if (attempts != null) 'attempts': attempts,
+    });
+  }
+
+  NoteSearchCompanion copyWith({
+    Value<int>? noteId,
+    Value<String>? bodyFolded,
+    Value<String?>? photoFolded,
+    Value<int>? attempts,
+  }) {
+    return NoteSearchCompanion(
+      noteId: noteId ?? this.noteId,
+      bodyFolded: bodyFolded ?? this.bodyFolded,
+      photoFolded: photoFolded ?? this.photoFolded,
+      attempts: attempts ?? this.attempts,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (noteId.present) {
+      map['note_id'] = Variable<int>(noteId.value);
+    }
+    if (bodyFolded.present) {
+      map['body_folded'] = Variable<String>(bodyFolded.value);
+    }
+    if (photoFolded.present) {
+      map['photo_folded'] = Variable<String>(photoFolded.value);
+    }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteSearchCompanion(')
+          ..write('noteId: $noteId, ')
+          ..write('bodyFolded: $bodyFolded, ')
+          ..write('photoFolded: $photoFolded, ')
+          ..write('attempts: $attempts')
           ..write(')'))
         .toString();
   }
@@ -1211,12 +1488,27 @@ abstract class _$NotesDatabase extends GeneratedDatabase {
   _$NotesDatabase(QueryExecutor e) : super(e);
   $NotesDatabaseManager get managers => $NotesDatabaseManager(this);
   late final $NotesTable notes = $NotesTable(this);
+  late final $NoteSearchTable noteSearch = $NoteSearchTable(this);
   late final $SettingsTableTable settingsTable = $SettingsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [notes, settingsTable];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    notes,
+    noteSearch,
+    settingsTable,
+  ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'notes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('note_search', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$NotesTableCreateCompanionBuilder =
@@ -1226,7 +1518,6 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<String> body,
       required DateTime createdAt,
       Value<Retention> retention,
-      Value<String?> ocrText,
       Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
@@ -1239,12 +1530,34 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String> body,
       Value<DateTime> createdAt,
       Value<Retention> retention,
-      Value<String?> ocrText,
       Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
       Value<int> remindAfterDays,
     });
+
+final class $$NotesTableReferences
+    extends BaseReferences<_$NotesDatabase, $NotesTable, Note> {
+  $$NotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$NoteSearchTable, List<NoteSearchRow>>
+  _noteSearchRefsTable(_$NotesDatabase db) => MultiTypedResultKey.fromTable(
+    db.noteSearch,
+    aliasName: 'notes__id__note_search__note_id',
+  );
+
+  $$NoteSearchTableProcessedTableManager get noteSearchRefs {
+    final manager = $$NoteSearchTableTableManager(
+      $_db,
+      $_db.noteSearch,
+    ).filter((f) => f.noteId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_noteSearchRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$NotesTableFilterComposer
     extends Composer<_$NotesDatabase, $NotesTable> {
@@ -1281,11 +1594,6 @@ class $$NotesTableFilterComposer
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
-  ColumnFilters<String> get ocrText => $composableBuilder(
-    column: $table.ocrText,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get customMinutes => $composableBuilder(
     column: $table.customMinutes,
     builder: (column) => ColumnFilters(column),
@@ -1305,6 +1613,31 @@ class $$NotesTableFilterComposer
     column: $table.remindAfterDays,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> noteSearchRefs(
+    Expression<bool> Function($$NoteSearchTableFilterComposer f) f,
+  ) {
+    final $$NoteSearchTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.noteSearch,
+      getReferencedColumn: (t) => t.noteId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoteSearchTableFilterComposer(
+            $db: $db,
+            $table: $db.noteSearch,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$NotesTableOrderingComposer
@@ -1338,11 +1671,6 @@ class $$NotesTableOrderingComposer
 
   ColumnOrderings<int> get retention => $composableBuilder(
     column: $table.retention,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get ocrText => $composableBuilder(
-    column: $table.ocrText,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1391,9 +1719,6 @@ class $$NotesTableAnnotationComposer
   GeneratedColumnWithTypeConverter<Retention, int> get retention =>
       $composableBuilder(column: $table.retention, builder: (column) => column);
 
-  GeneratedColumn<String> get ocrText =>
-      $composableBuilder(column: $table.ocrText, builder: (column) => column);
-
   GeneratedColumn<int> get customMinutes => $composableBuilder(
     column: $table.customMinutes,
     builder: (column) => column,
@@ -1411,6 +1736,31 @@ class $$NotesTableAnnotationComposer
     column: $table.remindAfterDays,
     builder: (column) => column,
   );
+
+  Expression<T> noteSearchRefs<T extends Object>(
+    Expression<T> Function($$NoteSearchTableAnnotationComposer a) f,
+  ) {
+    final $$NoteSearchTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.noteSearch,
+      getReferencedColumn: (t) => t.noteId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoteSearchTableAnnotationComposer(
+            $db: $db,
+            $table: $db.noteSearch,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$NotesTableTableManager
@@ -1424,9 +1774,9 @@ class $$NotesTableTableManager
           $$NotesTableAnnotationComposer,
           $$NotesTableCreateCompanionBuilder,
           $$NotesTableUpdateCompanionBuilder,
-          (Note, BaseReferences<_$NotesDatabase, $NotesTable, Note>),
+          (Note, $$NotesTableReferences),
           Note,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool noteSearchRefs})
         > {
   $$NotesTableTableManager(_$NotesDatabase db, $NotesTable table)
     : super(
@@ -1446,7 +1796,6 @@ class $$NotesTableTableManager
                 Value<String> body = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<Retention> retention = const Value.absent(),
-                Value<String?> ocrText = const Value.absent(),
                 Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
@@ -1457,7 +1806,6 @@ class $$NotesTableTableManager
                 body: body,
                 createdAt: createdAt,
                 retention: retention,
-                ocrText: ocrText,
                 customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
@@ -1470,7 +1818,6 @@ class $$NotesTableTableManager
                 Value<String> body = const Value.absent(),
                 required DateTime createdAt,
                 Value<Retention> retention = const Value.absent(),
-                Value<String?> ocrText = const Value.absent(),
                 Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
@@ -1481,16 +1828,39 @@ class $$NotesTableTableManager
                 body: body,
                 createdAt: createdAt,
                 retention: retention,
-                ocrText: ocrText,
                 customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
                 remindAfterDays: remindAfterDays,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) =>
+                    (e.readTable(table), $$NotesTableReferences(db, table, e)),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({noteSearchRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (noteSearchRefs) db.noteSearch],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (noteSearchRefs)
+                    await $_getPrefetchedData<Note, $NotesTable, NoteSearchRow>(
+                      currentTable: table,
+                      referencedTable: $$NotesTableReferences
+                          ._noteSearchRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$NotesTableReferences(db, table, p0).noteSearchRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.noteId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -1505,9 +1875,305 @@ typedef $$NotesTableProcessedTableManager =
       $$NotesTableAnnotationComposer,
       $$NotesTableCreateCompanionBuilder,
       $$NotesTableUpdateCompanionBuilder,
-      (Note, BaseReferences<_$NotesDatabase, $NotesTable, Note>),
+      (Note, $$NotesTableReferences),
       Note,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool noteSearchRefs})
+    >;
+typedef $$NoteSearchTableCreateCompanionBuilder =
+    NoteSearchCompanion Function({
+      Value<int> noteId,
+      Value<String> bodyFolded,
+      Value<String?> photoFolded,
+      Value<int> attempts,
+    });
+typedef $$NoteSearchTableUpdateCompanionBuilder =
+    NoteSearchCompanion Function({
+      Value<int> noteId,
+      Value<String> bodyFolded,
+      Value<String?> photoFolded,
+      Value<int> attempts,
+    });
+
+final class $$NoteSearchTableReferences
+    extends BaseReferences<_$NotesDatabase, $NoteSearchTable, NoteSearchRow> {
+  $$NoteSearchTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $NotesTable _noteIdTable(_$NotesDatabase db) =>
+      db.notes.createAlias('note_search__note_id__notes__id');
+
+  $$NotesTableProcessedTableManager get noteId {
+    final $_column = $_itemColumn<int>('note_id')!;
+
+    final manager = $$NotesTableTableManager(
+      $_db,
+      $_db.notes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_noteIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NoteSearchTableFilterComposer
+    extends Composer<_$NotesDatabase, $NoteSearchTable> {
+  $$NoteSearchTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get bodyFolded => $composableBuilder(
+    column: $table.bodyFolded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoFolded => $composableBuilder(
+    column: $table.photoFolded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$NotesTableFilterComposer get noteId {
+    final $$NotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableFilterComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteSearchTableOrderingComposer
+    extends Composer<_$NotesDatabase, $NoteSearchTable> {
+  $$NoteSearchTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get bodyFolded => $composableBuilder(
+    column: $table.bodyFolded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoFolded => $composableBuilder(
+    column: $table.photoFolded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$NotesTableOrderingComposer get noteId {
+    final $$NotesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableOrderingComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteSearchTableAnnotationComposer
+    extends Composer<_$NotesDatabase, $NoteSearchTable> {
+  $$NoteSearchTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get bodyFolded => $composableBuilder(
+    column: $table.bodyFolded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get photoFolded => $composableBuilder(
+    column: $table.photoFolded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get attempts =>
+      $composableBuilder(column: $table.attempts, builder: (column) => column);
+
+  $$NotesTableAnnotationComposer get noteId {
+    final $$NotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteSearchTableTableManager
+    extends
+        RootTableManager<
+          _$NotesDatabase,
+          $NoteSearchTable,
+          NoteSearchRow,
+          $$NoteSearchTableFilterComposer,
+          $$NoteSearchTableOrderingComposer,
+          $$NoteSearchTableAnnotationComposer,
+          $$NoteSearchTableCreateCompanionBuilder,
+          $$NoteSearchTableUpdateCompanionBuilder,
+          (NoteSearchRow, $$NoteSearchTableReferences),
+          NoteSearchRow,
+          PrefetchHooks Function({bool noteId})
+        > {
+  $$NoteSearchTableTableManager(_$NotesDatabase db, $NoteSearchTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteSearchTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteSearchTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteSearchTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> noteId = const Value.absent(),
+                Value<String> bodyFolded = const Value.absent(),
+                Value<String?> photoFolded = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+              }) => NoteSearchCompanion(
+                noteId: noteId,
+                bodyFolded: bodyFolded,
+                photoFolded: photoFolded,
+                attempts: attempts,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> noteId = const Value.absent(),
+                Value<String> bodyFolded = const Value.absent(),
+                Value<String?> photoFolded = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+              }) => NoteSearchCompanion.insert(
+                noteId: noteId,
+                bodyFolded: bodyFolded,
+                photoFolded: photoFolded,
+                attempts: attempts,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$NoteSearchTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({noteId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (noteId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.noteId,
+                                referencedTable: $$NoteSearchTableReferences
+                                    ._noteIdTable(db),
+                                referencedColumn: $$NoteSearchTableReferences
+                                    ._noteIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NoteSearchTableProcessedTableManager =
+    ProcessedTableManager<
+      _$NotesDatabase,
+      $NoteSearchTable,
+      NoteSearchRow,
+      $$NoteSearchTableFilterComposer,
+      $$NoteSearchTableOrderingComposer,
+      $$NoteSearchTableAnnotationComposer,
+      $$NoteSearchTableCreateCompanionBuilder,
+      $$NoteSearchTableUpdateCompanionBuilder,
+      (NoteSearchRow, $$NoteSearchTableReferences),
+      NoteSearchRow,
+      PrefetchHooks Function({bool noteId})
     >;
 typedef $$SettingsTableTableCreateCompanionBuilder =
     SettingsTableCompanion Function({
@@ -1781,6 +2447,8 @@ class $NotesDatabaseManager {
   $NotesDatabaseManager(this._db);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
+  $$NoteSearchTableTableManager get noteSearch =>
+      $$NoteSearchTableTableManager(_db, _db.noteSearch);
   $$SettingsTableTableTableManager get settingsTable =>
       $$SettingsTableTableTableManager(_db, _db.settingsTable);
 }

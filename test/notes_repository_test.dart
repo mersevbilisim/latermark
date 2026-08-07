@@ -106,7 +106,7 @@ void main() {
     }
   });
 
-  test('düzenleme notun ömrünü uzatmaz', () async {
+  test('düzenleme saklama süresine dokunmaz', () async {
     final created = DateTime(2026, 8, 6, 14, 32);
     await repository.create(
       capture: await fakeCapture(),
@@ -116,12 +116,30 @@ void main() {
     );
 
     final note = (await repository.watchNotes().first).single;
-    await repository.update(note, body: 'ikinci', retention: RetentionChoice(Retention.oneWeek));
+    await repository.update(note, body: 'ikinci', remindAfterDays: 4);
 
     final updated = (await repository.watchNotes().first).single;
     expect(updated.body, 'ikinci');
-    // Süre düzenleme anına değil, hâlâ oluşturma anına göre.
-    expect(updated.expiresAt, DateTime(2026, 8, 13, 14, 32));
+    expect(updated.remindAfterDays, 4);
+    // Saklama süresi artık kayıt başına düzenlenmiyor: kaydın ömrü
+    // oluşturulduğu andaki tercihe bağlı kalır, düzenleme onu ne uzatır ne
+    // kısaltır.
+    expect(updated.retention, Retention.threeDays);
+    expect(updated.expiresAt, DateTime(2026, 8, 9, 14, 32));
+  });
+
+  test('hatırlatma düzenlemeden kaldırılabilir', () async {
+    await repository.create(
+      capture: await fakeCapture(),
+      body: 'hatırlatmalı',
+      retention: RetentionChoice(Retention.off),
+      remindAfterDays: 7,
+    );
+
+    final note = (await repository.watchNotes().first).single;
+    await repository.update(note, body: note.body, remindAfterDays: 0);
+
+    expect((await repository.watchNotes().first).single.remindAfterDays, 0);
   });
 
   test('silme kaydı ve fotoğrafı birlikte kaldırır', () async {

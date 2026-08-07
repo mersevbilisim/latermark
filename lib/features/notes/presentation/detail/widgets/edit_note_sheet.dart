@@ -7,17 +7,18 @@ import '../../../../../shared/widgets/glass_surface.dart';
 import '../../../../../shared/widgets/primary_button.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
-import '../../../domain/retention.dart';
 import '../../compose/widgets/note_composer.dart';
-import '../../widgets/retention_selector.dart';
+import '../../widgets/reminder_control.dart';
 import '../../../../../l10n/l10n_context.dart';
-import '../../../../../app/app_scope.dart';
-import '../../../../paywall/presentation/paywall_host.dart';
 
-/// Kayıtlı bir notun yazısını ve saklama süresini değiştirme paneli.
+/// Kayıtlı bir notun yazısını ve hatırlatmasını değiştirme paneli.
 ///
-/// Yazı alanı yeni kayıt ekranıyla aynı gövdeyi kullanır ([NoteComposer]);
-/// kullanıcı iki yerde aynı şeyi görür.
+/// Yazı alanı yeni kayıt ekranıyla aynı gövdeyi kullanır ([NoteComposer]) ve
+/// altındaki alan da aynı: her iki ekranda da hatırlatma. Saklama süresi
+/// buradan kaldırıldı — artık Ayarlar'dan bir kez seçiliyor ve kayıt onunla
+/// açılıyor. İki ekranda iki farklı süre kontrolü, üstelik biri "sil" diğeri
+/// "hatırlat" diyen ikisi, kullanıcıya hangi sürenin ne yaptığını her
+/// seferinde yeniden düşündürüyordu.
 Future<void> showEditNoteSheet(
   BuildContext context, {
   required Note note,
@@ -46,10 +47,11 @@ class _EditNoteSheetState extends State<_EditNoteSheet> {
   late final TextEditingController _text = TextEditingController(
     text: widget.note.body,
   );
-  late RetentionChoice _retention = RetentionChoice(
-    widget.note.retention,
-    customMinutes: widget.note.customMinutes,
-  );
+
+  /// Notun yürürlükteki hatırlatması. Panel kaydın kendi değeriyle açılıyor;
+  /// sıfırdan başlasaydı kaydetmek sessizce kurulu hatırlatmayı silerdi.
+  late int _remindAfterDays = widget.note.remindAfterDays;
+
   bool _saving = false;
 
   @override
@@ -67,7 +69,7 @@ class _EditNoteSheetState extends State<_EditNoteSheet> {
       await widget.repository.update(
         widget.note,
         body: _text.text,
-        retention: _retention,
+        remindAfterDays: _remindAfterDays,
       );
     } catch (_) {
       if (!mounted) return;
@@ -117,14 +119,9 @@ class _EditNoteSheetState extends State<_EditNoteSheet> {
               controller: _text,
               autofocus: true,
               expand: false,
-              extra: RetentionSelector(
-                value: _retention,
-                isPro: AppScope.preferences(context).proUnlocked,
-                onLockedTap: () => showPaywall(
-                  context,
-                  reason: PaywallReason.customRetention,
-                ),
-                onChanged: (value) => setState(() => _retention = value),
+              extra: ReminderControl(
+                days: _remindAfterDays,
+                onChanged: (value) => setState(() => _remindAfterDays = value),
               ),
               header: Text(context.l10n.editSheetHeader, style: palette.overline),
               action: PrimaryButton(

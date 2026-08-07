@@ -37,10 +37,21 @@ void main() {
     );
   });
 
-  testWidgets('bölge kodu düşer: pt_BR için privacy-pt', (tester) async {
+  testWidgets('pt_PT ve pt_BR aynı privacy-pt sayfasını açar', (tester) async {
+    expect(
+      (await privacyFor(tester, const Locale('pt', 'PT'))).toString(),
+      'https://www.mersev.com/latermark-app/privacy-pt',
+    );
     expect(
       (await privacyFor(tester, const Locale('pt', 'BR'))).toString(),
       'https://www.mersev.com/latermark-app/privacy-pt',
+    );
+  });
+
+  testWidgets('İtalyanca doğrudan privacy-it sayfasını açar', (tester) async {
+    expect(
+      (await privacyFor(tester, const Locale('it'))).toString(),
+      'https://www.mersev.com/latermark-app/privacy-it',
     );
   });
 

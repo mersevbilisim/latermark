@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Latermark</string>
+    <string name="widget_description">Mostra il tuo ultimo scatto e la relativa nota.</string>
+    <string name="widget_empty_title">Tocca per scattare</string>
+    <string name="widget_empty_subtitle">La tua prima nota apparirà qui</string>
+    <string name="widget_photo_description">Foto del tuo ultimo scatto</string>
+    <string name="widget_note_without_body">Senza nota</string>
+    <string name="widget_remaining_now">ora</string>
+    <string name="widget_remaining_days">%1$d g</string>
+    <string name="widget_remaining_hours">%1$d h</string>
+    <string name="widget_remaining_minutes">%1$d min</string>
+    <string name="widget_remaining_less_than_minute">&lt;1 min</string>
+</resources>

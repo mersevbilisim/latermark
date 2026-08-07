@@ -18,7 +18,7 @@ abstract final class LegalLinks {
   /// Dil kodu [Localizations] üzerinden okunuyor — yani kullanıcının Ayarlar'da
   /// seçtiği dil değil, ekranda **gerçekten çizilen** dil. İkisi "Sistem"
   /// seçiliyken ayrışıyor ve doğru olan ikincisi. Bölge kodu düşürülüyor:
-  /// `pt_BR` için `privacy-pt` açılır.
+  /// hem `pt_PT` hem de `pt_BR` için `privacy-pt` açılır.
   static Uri privacy(BuildContext context) {
     final language = Localizations.localeOf(context).languageCode;
     return Uri.parse('$_privacyBase-$language');

@@ -14,10 +14,9 @@ import '../import/gallery_import.dart';
 import '../import/shared_import.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
-import 'widgets/reminder_field.dart';
+import '../widgets/reminder_control.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../../../core/utils/app_format.dart';
-import '../../../paywall/presentation/paywall_host.dart';
 import '../../domain/retention.dart';
 
 /// Çekilen kareye not düşme ekranı.
@@ -58,13 +57,6 @@ class _ComposePageState extends State<ComposePage> {
   /// Hatırlatma gün sayısı. Sıfır = kapalı, ve varsayılan bu.
   int _remindAfterDays = 0;
 
-  /// Bildirim izni yokken `true`; alanın altında uyarı gösterilir.
-  bool _reminderBlocked = false;
-
-  /// İzin bir kez istenir; kullanıcı reddettiyse her rakam değişiminde
-  /// sistem istemini tekrar tetiklemenin anlamı yok.
-  bool _permissionAsked = false;
-
   bool _saving = false;
   bool _tempCleared = false;
 
@@ -104,32 +96,6 @@ class _ComposePageState extends State<ComposePage> {
     } on FileSystemException {
       // Geçici klasörü işletim sistemi zaten temizleyecek.
     }
-  }
-
-  /// Kullanıcı ilk kez süre verdiğinde izin *o anda* istenir.
-  ///
-  /// Açılışta sormak yerine burada sormak, isteği kullanıcının niyetini
-  /// gösterdiği ana bağlıyor — sistem istemi de böylece anlamlı geliyor.
-  void _onReminderChanged(int value) {
-    setState(() => _remindAfterDays = value);
-    if (value > 0) unawaited(_ensureReminderPermission());
-  }
-
-  Future<void> _ensureReminderPermission() async {
-    final reminders = context.reminders;
-    final settings = AppScope.settingsOf(context);
-
-    var allowed = await reminders.hasPermission();
-    if (!allowed && !_permissionAsked) {
-      _permissionAsked = true;
-      allowed = await reminders.requestPermission();
-    }
-    // Hatırlatmaların ana şalteri kapalıysa, kullanıcı burada süre vererek
-    // zaten istediğini söylemiş oluyor.
-    if (allowed) await settings.setReminderEnabled(true);
-
-    if (!mounted) return;
-    setState(() => _reminderBlocked = !allowed);
   }
 
   Future<void> _save() async {
@@ -223,6 +189,10 @@ class _ComposePageState extends State<ComposePage> {
       // sıkıştırıp düzeni bozardı.
       resizeToAvoidBottomInset: false,
       body: PopScope(
+        // Kaydetme sürerken geri gitmek kareyi yarı yolda bırakırdı: geçici
+        // dosya silinirken kalıcı kopya henüz tamamlanmamış olabilir. Düğme
+        // zaten kilitli; sistem geri hareketi de aynı kilide uymalı.
+        canPop: !_saving,
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _clearTemp();
         },
@@ -246,15 +216,10 @@ class _ComposePageState extends State<ComposePage> {
                 child: NoteComposer(
                   controller: _text,
                   autofocus: true,
-                  extra: ReminderField(
+                  extra: ReminderControl(
                     days: _remindAfterDays,
-                    blocked: _reminderBlocked,
-                    locked: !AppScope.preferences(context).proUnlocked,
-                    onChanged: _onReminderChanged,
-                    onLockedTap: () =>
-                        showPaywall(context, reason: PaywallReason.reminder),
-                    onOpenSystemSettings: () =>
-                        context.reminders.openSystemSettings(),
+                    onChanged: (value) =>
+                        setState(() => _remindAfterDays = value),
                   ),
                   header: ComposerStamp(
                     at: context.l10n.stamp(_capturedAt),

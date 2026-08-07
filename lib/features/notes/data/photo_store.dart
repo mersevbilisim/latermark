@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -45,12 +46,36 @@ class PhotoStore {
   ///
   /// Kare **önce** kaydediliyor, sonra küçültülüyor. Sıra böyle: sıkıştırma
   /// başarısız olsa bile kullanıcının fotoğrafı yerinde duruyor.
+  ///
+  /// Küçültme **beklenmiyor**. Kullanıcının kaydettiği an bittiğinde kare
+  /// zaten diskte ve not yazılabilir durumda; sıkıştırma yalnızca dosyayı
+  /// küçülten bir iyileştirme ve sonucu ekranda hiçbir şeyi değiştirmiyor.
+  /// Beklemek, kullanıcıyı 12 MP bir kareyi çözüp yeniden kodlamanın süresi
+  /// kadar "Kaydet" ekranında tutmak demekti — görünürde hiçbir karşılığı
+  /// olmayan bir bekleme.
+  ///
+  /// Arka planda yürütmek yalnızca yazma atomik olduğu için güvenli: her iki
+  /// platform da yeni kareyi yan dosyaya yazıp yerine taşıyor, dolayısıyla
+  /// aynı anda okuyan akış hep bütün bir kare görüyor. Uygulama arada
+  /// kapanırsa kare sıkıştırılmamış kalır — yalnızca daha büyük, bozuk değil.
   Future<String> persist(XFile capture) async {
     final name = _uniqueName(p.extension(capture.path));
     final destination = p.join(_directory.path, name);
     await capture.saveTo(destination);
-    await _compressor.compress(File(destination));
+    unawaited(_compressInBackground(File(destination)));
     return name;
+  }
+
+  /// Sıkıştırmayı kaydetme yolundan ayırır ve hatalarını yutar.
+  ///
+  /// Kullanıcı kaydettiği notu hemen silerse sıkıştırma silinmiş bir dosyayı
+  /// geri yazabilir; [pruneOrphans] açılışta o yetimi zaten topluyor.
+  Future<void> _compressInBackground(File image) async {
+    try {
+      await _compressor.compress(image);
+    } catch (_) {
+      // Sıkıştırma bir iyileştirme; başarısızlığı kaydı etkilemez.
+    }
   }
 
   /// Notu silerken çağrılır. Dosya zaten yoksa sessizce geçer.

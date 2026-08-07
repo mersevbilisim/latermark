@@ -363,5 +363,7 @@
   "shareErrorTitle": "Impossible d’ajouter la photo",
   "shareErrorBody": "La photo n’a pas pu être envoyée à Latermark. Réessayez.",
   "cameraUsageDescription": "L’accès à la caméra permet de prendre des photos pour vos notes.",
-  "photoLibraryUsageDescription": "L’accès aux photos permet d’ajouter des images de votre photothèque à vos notes."
+  "photoLibraryUsageDescription": "L’accès aux photos permet d’ajouter des images de votre photothèque à vos notes.",
+  "actionShare": "Partager",
+"shareNoteSemantic": "Partager la photo et la note"
 }

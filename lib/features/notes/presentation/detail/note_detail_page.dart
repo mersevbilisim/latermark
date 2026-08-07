@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
+import 'package:share_plus/share_plus.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_motion.dart';
@@ -153,12 +153,24 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
                       note: note,
                       repository: _repository!,
                     ),
+                    onShare: () {
+                      _shareNote(note);
+                    },
                   ),
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _shareNote(Note note) async {
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(_repository!.imageOf(note).path)],
+        text: note.body.isNotEmpty ? note.body : null,
       ),
     );
   }

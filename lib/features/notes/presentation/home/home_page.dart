@@ -48,9 +48,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// Arama durumu burada yaşıyor: üstlük bir sliver delegesi ve kaydırmanın
   /// her karesinde yeniden kuruluyor, denetim durumunu orada tutamayız.
   bool _searching = false;
-  String _query = '';
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+
+  /// Yürürlükteki aramanın sonucu — metin değil, eşleşen kimlikler.
+  SearchHits _hits = SearchHits.none;
+  Timer? _searchDebounce;
+
+  /// Sorgu artık veritabanına gidiyor, yani cevap bir sonraki karede değil bir
+  /// süre sonra geliyor. Bu sayaç hangi cevabın güncel olduğunu söylüyor:
+  /// hızlı yazan bir kullanıcıda istekler sırayla bitmeyebilir ve geciken eski
+  /// bir cevap yeni sonucun üstüne yazarsa liste yanlış kalırdı.
+  int _searchTicket = 0;
 
   @override
   void initState() {
@@ -77,6 +86,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     _sharedImportSubscription?.cancel();
@@ -255,11 +265,45 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() {
       _searching = !_searching;
       if (!_searching) {
-        _query = '';
+        _searchDebounce?.cancel();
+        _searchTicket++;
+        _hits = SearchHits.none;
         _searchController.clear();
         _searchFocus.unfocus();
       }
     });
+  }
+
+  /// Her tuş vuruşu bir sorgu değil.
+  ///
+  /// Gecikme olmadan "fatura" yazmak altı ayrı tam tarama başlatırdı ve ilk
+  /// beşinin sonucu daha ekrana ulaşmadan geçersizleşirdi. 120 ms, yazmayı
+  /// bekletecek kadar uzun değil ama ardışık tuşları tek sorguda toplamaya
+  /// yetiyor.
+  void _onQueryChanged(String value) {
+    _searchDebounce?.cancel();
+    final trimmed = value.trim();
+
+    // Sorgu tümden silindiğinde bekletmenin anlamı yok: liste anında dolu
+    // hâline dönmeli.
+    if (trimmed.isEmpty) {
+      _searchTicket++;
+      if (_hits.filtering) setState(() => _hits = SearchHits.none);
+      return;
+    }
+
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 120),
+      () => _runSearch(trimmed),
+    );
+  }
+
+  Future<void> _runSearch(String query) async {
+    final ticket = ++_searchTicket;
+    final hits = await _repository!.search(query);
+    // Arada yeni bir tuşa basılmışsa bu cevap artık eski.
+    if (!mounted || ticket != _searchTicket) return;
+    setState(() => _hits = hits);
   }
 
   void _openSettings() {
@@ -301,10 +345,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           final all = snapshot.data!;
           // Süzme akışta değil burada: sorgu değiştikçe akışı yeniden kurmak
           // listeyi baştan yükletirdi ve her tuşta titreme yaratırdı.
-          final notes = _searching
-              ? all
-                    .where((note) => NotesRepository.matches(note, _query))
-                    .toList()
+          //
+          // Eşleşmenin kendisi veritabanında bulunuyor; burada kalan iş bir
+          // küme sorgusu. Liste akıştan yeni bir değer aldığında (yeni kayıt,
+          // süresi dolan not) süzme yeniden hesaplanmıyor, aynı kimlik kümesi
+          // uygulanıyor — arada eklenen bir kayıt aramaya girmiyorsa da doğru
+          // olan bu: kullanıcı yazdığı sorgunun sonucunu görüyor.
+          final notes = _searching && _hits.filtering
+              ? all.where((note) => _hits.contains(note.id)).toList()
               : all;
 
           return _Canvas(
@@ -329,8 +377,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       searching: _searching,
                       searchController: _searchController,
                       searchFocus: _searchFocus,
-                      onSearchChanged: (value) =>
-                          setState(() => _query = value),
+                      onSearchChanged: _onQueryChanged,
                       onToggleSearch: _toggleSearch,
                     ),
                   ),

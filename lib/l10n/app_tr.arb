@@ -280,5 +280,7 @@
   "shareErrorBody": "Latermark'a aktarım tamamlanamadı. Lütfen tekrar dene.",
 
   "cameraUsageDescription": "Fotoğraf çekip notlarına ekleyebilmek için kamera erişimi gerekir.",
-  "photoLibraryUsageDescription": "Galerinden seçtiğin fotoğrafları notlarına ekleyebilmek için fotoğraf erişimi gerekir."
+  "photoLibraryUsageDescription": "Galerinden seçtiğin fotoğrafları notlarına ekleyebilmek için fotoğraf erişimi gerekir.",
+  "actionShare": "Paylaş",
+"shareNoteSemantic": "Fotoğrafı ve notu paylaş"
 }

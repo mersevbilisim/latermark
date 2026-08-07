@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,7 +7,7 @@ import '../../core/theme/app_palette.dart';
 import 'pressable.dart';
 
 /// Ekrandaki tek baskın eylem: mürekkep renginde dolu bir hap.
-class PrimaryButton extends StatelessWidget {
+class PrimaryButton extends StatefulWidget {
   const PrimaryButton({
     super.key,
     required this.label,
@@ -17,14 +19,69 @@ class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+
+  /// İş sürüyor: düğme **anında** tıklanamaz olur, ama spinner hemen
+  /// görünmez — bkz. [_spinnerDelay].
   final bool busy;
+
+  /// Spinner'ın görünmesi için işin sürmesi gereken en kısa süre.
+  ///
+  /// Kaydetme çoğu zaman bundan hızlı bitiyor ve o durumda spinner'ı
+  /// göstermek yardım değil, göz kırpması gibi bir titreme olurdu — ekranda
+  /// belirip aynı karede kaybolan bir şey, işin uzun sürdüğünü değil arayüzün
+  /// tökezlediğini anlatır. Gecikme, geri bildirimi yalnızca gerçekten
+  /// beklenen durumlara saklıyor.
+  static const _spinnerDelay = Duration(milliseconds: 180);
+
+  @override
+  State<PrimaryButton> createState() => _PrimaryButtonState();
+}
+
+class _PrimaryButtonState extends State<PrimaryButton> {
+  Timer? _delay;
+  bool _spinning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.busy) _scheduleSpinner();
+  }
+
+  @override
+  void didUpdateWidget(PrimaryButton old) {
+    super.didUpdateWidget(old);
+    if (widget.busy == old.busy) return;
+
+    _delay?.cancel();
+    if (widget.busy) {
+      _scheduleSpinner();
+    } else if (_spinning) {
+      setState(() => _spinning = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _delay?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleSpinner() {
+    _delay = Timer(PrimaryButton._spinnerDelay, () {
+      if (mounted) setState(() => _spinning = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final label = widget.label;
+    final icon = widget.icon;
+    final busy = _spinning;
 
     return Pressable(
-      onPressed: busy ? null : onPressed,
+      // Tıklama koruması spinner'ı beklemiyor: gecikme yalnızca görsel.
+      onPressed: widget.busy ? null : widget.onPressed,
       scale: 0.98,
       haptic: HapticFeedback.mediumImpact,
       semanticLabel: label,
@@ -54,30 +111,37 @@ class PrimaryButton extends StatelessWidget {
           ],
         ),
         alignment: Alignment.center,
-        child: busy
-            ? SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    label,
-                    style: palette.bodyStrong.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+        // Etiketle spinner arasında geçiş yumuşatılıyor: sert takas, düğmenin
+        // içeriğinin yerinden oynadığı izlenimi veriyordu.
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 160),
+          child: busy
+              ? const SizedBox.square(
+                  key: ValueKey(true),
+                  dimension: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
                   ),
-                ],
-              ),
+                )
+              : Row(
+                  key: const ValueKey(false),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 18, color: Colors.white),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      label,
+                      style: palette.bodyStrong.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

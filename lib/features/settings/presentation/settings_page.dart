@@ -11,6 +11,7 @@ import '../../../l10n/l10n_context.dart';
 import '../domain/app_locale.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
+import 'widgets/pro_callout.dart';
 import 'widgets/settings_pieces.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../../core/theme/app_shape.dart';
@@ -99,25 +100,11 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             sliver: SliverList.list(
               children: [
-                SettingsSection(
-                  title:
-                      '${context.l10n.appTitle.toUpperCase()} ${context.l10n.proBadge}',
-                  children: [
-                    Pressable(
-                      onPressed: () => showPaywall(context),
-                      scale: 0.995,
-                      semanticLabel: context.l10n.paywallCta,
-                      child: SettingsRow(
-                        title: context.l10n.paywallHeadline,
-                        description: context.l10n.paywallSubtitle,
-                        trailing: Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: palette.inkFaint,
-                        ),
-                      ),
-                    ),
-                  ],
+                // Kendi başlık çizgisini taşıyor; üst boşluk bölümlerinkiyle
+                // aynı ritimde olsun diye burada veriliyor.
+                const Padding(
+                  padding: EdgeInsets.only(top: 34),
+                  child: ProCallout(),
                 ),
 
                 SettingsSection(

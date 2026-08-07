@@ -296,10 +296,26 @@ class MainActivity : FlutterActivity() {
             // yoksa fotoğraflar yan yatardı.
             val upright = applyExifRotation(file, scaled)
 
-            file.outputStream().use { stream ->
-                upright.compress(Bitmap.CompressFormat.JPEG, quality, stream)
+            // Yeni kare **yan dosyaya** yazılıp sonra yerine taşınıyor.
+            // Doğrudan `file.outputStream()` açmak dosyayı önce sıfırlıyordu:
+            // 12 MP bir kareyi kodlamak yüz milisaniyeler sürer ve uygulama o
+            // aralıkta öldürülürse kullanıcının fotoğrafı yarım kalırdı.
+            // `renameTo` aynı klasörde atomik; okuyan taraf ya eski ya yeni
+            // kareyi görür, ikisinin arasını asla görmez.
+            val staging = File(file.parentFile, "${file.name}.tmp")
+            try {
+                staging.outputStream().use { stream ->
+                    upright.compress(Bitmap.CompressFormat.JPEG, quality, stream)
+                }
+                if (!staging.renameTo(file)) {
+                    staging.delete()
+                    return false
+                }
+                return true
+            } catch (error: Exception) {
+                staging.delete()
+                return false
             }
-            return true
         } catch (error: Exception) {
             return false
         }

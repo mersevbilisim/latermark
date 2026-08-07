@@ -17,6 +17,8 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
   // Tüm diller için tarih verisi.
   //
   // Tek yerel yüklemek yetmiyor: `flutter_localizations` yalnızca *arayüzün*
@@ -35,7 +37,5 @@ Future<void> main() async {
   await notes.purgeExpired();
   unawaited(notes.sweepOrphanFiles());
 
-  runApp(
-    LatermarkApp(notes: notes, settings: SettingsRepository(database)),
-  );
+  runApp(LatermarkApp(notes: notes, settings: SettingsRepository(database)));
 }

@@ -363,5 +363,7 @@
   "shareErrorTitle": "Foto konnte nicht hinzugefügt werden",
   "shareErrorBody": "Das Foto konnte nicht an Latermark übertragen werden. Versuch es erneut.",
   "cameraUsageDescription": "Mit Kamerazugriff kannst du Fotos für deine Notizen aufnehmen.",
-  "photoLibraryUsageDescription": "Mit Fotozugriff kannst du Bilder aus deiner Mediathek zu Notizen hinzufügen."
+  "photoLibraryUsageDescription": "Mit Fotozugriff kannst du Bilder aus deiner Mediathek zu Notizen hinzufügen.",
+  "actionShare": "Teilen",
+"shareNoteSemantic": "Foto und Notiz teilen"
 }

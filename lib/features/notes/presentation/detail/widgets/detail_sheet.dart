@@ -11,10 +11,16 @@ import '../../../../../core/utils/app_format.dart';
 
 /// Fotoğrafın altında duran bilgi paneli: zaman, not metni ve saklama durumu.
 class DetailSheet extends StatelessWidget {
-  const DetailSheet({super.key, required this.note, required this.onEdit});
+  const DetailSheet({
+    super.key,
+    required this.note,
+    required this.onEdit,
+    required this.onShare,
+  });
 
   final Note note;
   final VoidCallback onEdit;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -41,24 +47,42 @@ class DetailSheet extends StatelessWidget {
           // Hiçbir işi olmayan bir denetim, arayüzü kalabalıklaştırmaktan
           // başka bir şey yapmıyordu.
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text(
-                  context.l10n.upper(context.l10n.stamp(note.createdAt)),
-                  style: OnPhotoText.overline,
+              Pressable(
+                onPressed: onShare,
+                scale: 0.94,
+                semanticLabel: context.l10n.shareNoteSemantic,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.ios_share_outlined,
+                        size: 14,
+                        color: OnPhoto.inkSoft,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        context.l10n.actionShare,
+                        style: OnPhotoText.label.copyWith(
+                          color: OnPhoto.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              // Çerçeveli hap yerine çıplak bir eylem.
-              //
-              // Tam yuvarlak kenarlıklı küçük rozet, uygulamanın geri kalanıyla
-              // (baskı köşeleri, ince çizgiler) aynı dili konuşmuyordu. Yazının
-              // kendisi zaten yeterli çağrı.
               Pressable(
                 onPressed: onEdit,
                 scale: 0.94,
                 semanticLabel: context.l10n.editNoteSemantic,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
+                  padding: const EdgeInsets.only(left: 10, top: 2, bottom: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -70,9 +94,7 @@ class DetailSheet extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         context.l10n.actionEdit,
-                        style: OnPhotoText.label.copyWith(
-                          color: OnPhoto.ember,
-                        ),
+                        style: OnPhotoText.label.copyWith(color: OnPhoto.ember),
                       ),
                     ],
                   ),
@@ -80,7 +102,6 @@ class DetailSheet extends StatelessWidget {
               ),
             ],
           ),
-
           if (hasBody) ...[
             const SizedBox(height: 14),
             // Uzun notlar paneli ekranın yarısından fazlasını kaplamasın.
@@ -132,7 +153,7 @@ class _RetentionLine extends StatelessWidget {
           child: Text(
             timed
                 ? '${note.retention.label(context.l10n)} · '
-                  '${context.l10n.remainingLong(expiresAt)}'
+                      '${context.l10n.remainingLong(expiresAt)}'
                 : context.l10n.retentionOffNotice,
             style: OnPhotoText.caption.copyWith(
               color: timed ? OnPhoto.inkSoft : OnPhoto.inkFaint,

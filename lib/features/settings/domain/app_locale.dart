@@ -17,7 +17,8 @@ enum AppLocale {
   spanish(Locale('es'), 'Español'),
   portugueseBrazil(Locale('pt', 'BR'), 'Português (Brasil)'),
   japanese(Locale('ja'), '日本語'),
-  korean(Locale('ko'), '한국어');
+  korean(Locale('ko'), '한국어'),
+  italian(Locale('it'), 'Italiano');
 
   const AppLocale(this.locale, this.nativeName);
 

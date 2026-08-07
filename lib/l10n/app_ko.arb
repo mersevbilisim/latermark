@@ -363,5 +363,7 @@
   "shareErrorTitle": "사진을 추가하지 못했습니다",
   "shareErrorBody": "사진을 Latermark로 보내지 못했습니다. 다시 시도해 주세요.",
   "cameraUsageDescription": "노트에 넣을 사진을 촬영하기 위해 카메라를 사용합니다.",
-  "photoLibraryUsageDescription": "사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다."
+  "photoLibraryUsageDescription": "사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다.",
+  "actionShare": "공유",
+"shareNoteSemantic": "사진과 메모 공유"
 }

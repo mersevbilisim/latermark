@@ -179,27 +179,18 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
         final text = await _ocr.read(file);
         final elapsed = DateTime.now().difference(started).inMilliseconds;
 
-        // Okunamadıysa hiçbir şey yazma: sütun `null` kalsın ki bir sonraki
-        // taramada yeniden denensin. Boş dize yazmak, modelin henüz inmediği
-        // ilk anı kalıcı bir "yazı yok" kararına çevirirdi.
-        if (text == null) {
-          debugPrint('[OCR] not=${note.id} okunamadi, sonra denenecek');
-          continue;
-        }
+        // Okunamadıysa metin yazılmaz, yalnızca deneme sayacı artar: kayıt
+        // sırada kalır ama sonsuza dek denenmez. Boş dize yazmak, modelin
+        // henüz inmediği ilk anı kalıcı bir "yazı yok" kararına çevirirdi.
+        await widget.notes.saveScan(note.id, text);
 
-        await widget.notes.saveOcrText(note.id, text);
-
-        // Geliştirme günlüğü: OCR görünmez bir alana yazdığı için sonucu
-        // ekranda doğrulamanın başka yolu yok. Hem okunanı hem de veritabanına
-        // yazılanı basıyoruz ki ikisi ayrışırsa fark edilsin.
+        // Günlüğe metnin kendisi değil ölçüsü giriyor: OCR görünmez bir alana
+        // yazdığı için gözlemlenebilir kalması gerekiyor, ama sayfa dolusu
+        // yazıyı her karede log'a basmak tek başına taramayı yavaşlatıyordu.
         debugPrint(
           '[OCR] not=${note.id} sure=${elapsed}ms '
-          'uzunluk=${text.length} dosya=${file.path}',
+          '${text == null ? 'okunamadi, sonra denenecek' : 'uzunluk=${text.length}'}',
         );
-        debugPrint('[OCR] okunan="$text"');
-
-        final saved = await widget.notes.noteById(note.id);
-        debugPrint('[OCR] dbye yazilan="${saved?.ocrText}"');
       }
     } catch (error) {
       debugPrint('Kareler taranamadı: $error');

@@ -363,5 +363,7 @@
   "shareErrorTitle": "写真を追加できませんでした",
   "shareErrorBody": "写真をLatermarkに送信できませんでした。もう一度お試しください。",
   "cameraUsageDescription": "ノート用の写真を撮るためにカメラを使用します。",
-  "photoLibraryUsageDescription": "写真ライブラリの画像をノートに追加するために使用します。"
+  "photoLibraryUsageDescription": "写真ライブラリの画像をノートに追加するために使用します。",
+  "actionShare": "共有",
+"shareNoteSemantic": "写真とメモを共有"
 }
