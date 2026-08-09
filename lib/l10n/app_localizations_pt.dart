@@ -15,6 +15,9 @@ class L10nPt extends L10n {
   String get actionSave => 'Guardar';
 
   @override
+  String get composeSaving => 'A guardar';
+
+  @override
   String get actionCancel => 'Cancelar';
 
   @override
@@ -28,6 +31,12 @@ class L10nPt extends L10n {
 
   @override
   String get actionEdit => 'Editar';
+
+  @override
+  String get actionMore => 'Mais';
+
+  @override
+  String get openPhotoSemantic => 'Abrir a foto em ecrã inteiro';
 
   @override
   String get actionRetry => 'Tentar novamente';
@@ -45,14 +54,15 @@ class L10nPt extends L10n {
   String get shutterSemantic => 'Tirar uma fotografia';
 
   @override
-  String get searchHint => 'Ara';
+  String get searchHint => 'Pesquisar';
 
   @override
   String searchResults(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count sonuç',
+      other: '$count resultados',
+      one: '$count resultado',
     );
     return '$_temp0';
   }
@@ -68,6 +78,27 @@ class L10nPt extends L10n {
 
   @override
   String get notesTitle => 'Notas';
+
+  @override
+  String get dateGroupToday => 'Hoje';
+
+  @override
+  String get dateGroupYesterday => 'Ontem';
+
+  @override
+  String get dateGroupPastWeek => 'Últimos 7 dias';
+
+  @override
+  String get dateGroupPastMonth => 'Último mês';
+
+  @override
+  String get dateGroupPastThreeMonths => 'Últimos 3 meses';
+
+  @override
+  String get dateGroupPastYear => 'Último ano';
+
+  @override
+  String get dateGroupOlder => 'Há mais de um ano';
 
   @override
   String noteCount(int count) {
@@ -203,6 +234,25 @@ class L10nPt extends L10n {
   String get composeHint => 'Porque tirou esta fotografia?';
 
   @override
+  String get composeReminderDescription =>
+      'Recupere esta captura no dia que escolher.';
+
+  @override
+  String get composeLocationDescription =>
+      'Associa a sua localização atual apenas a esta captura.';
+
+  @override
+  String get composeLocationResolving => 'A obter a sua localização…';
+
+  @override
+  String get composeLocationReady =>
+      'A localização está pronta para esta captura.';
+
+  @override
+  String get composeLocationPermissionRequired =>
+      'É necessária permissão de localização.';
+
+  @override
   String get composeAnotherPhoto => 'Escolher outra fotografia';
 
   @override
@@ -216,6 +266,37 @@ class L10nPt extends L10n {
 
   @override
   String get reminderLabel => 'Lembrar-me';
+
+  @override
+  String get addedLabel => 'Data de adição';
+
+  @override
+  String get lastUpdatedLabel => 'Última atualização';
+
+  @override
+  String get locationLabel => 'Localização';
+
+  @override
+  String get locationAddLabel => 'Adicionar localização';
+
+  @override
+  String get locationBlocked =>
+      'Adicionar a localização depende da sua permissão. Permita o acesso à localização para registar onde a foto foi tirada.';
+
+  @override
+  String get compassNorth => 'N';
+
+  @override
+  String get compassSouth => 'S';
+
+  @override
+  String get compassEast => 'E';
+
+  @override
+  String get compassWest => 'O';
+
+  @override
+  String get toastMapFailed => 'Não foi possível abrir o Mapas';
 
   @override
   String get reminderSuffixActive => 'dias depois';
@@ -317,6 +398,51 @@ class L10nPt extends L10n {
   String get legalTerms => 'Termos de utilização';
 
   @override
+  String get yourDataTitle => 'Latermark e os seus dados';
+
+  @override
+  String get yourDataSubtitle =>
+      'A sua privacidade importa-nos — e tratamo-la com o respeito que merece.';
+
+  @override
+  String get yourDataSafetyQuestion => 'Os meus dados estão seguros?';
+
+  @override
+  String get yourDataSafetyAnswer =>
+      'O Latermark funciona inteiramente no seu dispositivo. As suas notas e memórias não são enviadas para análise, relatórios de erros ou estatísticas. Só saem do dispositivo quando decide partilhá-las.';
+
+  @override
+  String get yourDataLocationQuestion =>
+      'Porque é pedido acesso à minha localização?';
+
+  @override
+  String get yourDataLocationAnswer =>
+      'Esta permissão só é pedida se decidir adicionar uma localização a uma nota ou memória. A localização fica associada apenas a esse registo, sem seguimento em segundo plano. Só é enviada para a app de mapas se decidir abrir o mapa.';
+
+  @override
+  String get yourDataPhotosQuestion =>
+      'Para que serve o acesso às minhas fotografias?';
+
+  @override
+  String get yourDataPhotosAnswer =>
+      'Apenas para poder escolher uma imagem da fototeca em vez de tirar uma nova fotografia. O Latermark importa apenas a imagem escolhida e não necessita de ligação à internet.';
+
+  @override
+  String get yourDataRemindersQuestion => 'Como funcionam os lembretes?';
+
+  @override
+  String get yourDataRemindersAnswer =>
+      'São agendados e apresentados localmente no seu dispositivo. Nenhum servidor externo os envia ou aciona.';
+
+  @override
+  String get yourDataDeletionQuestion =>
+      'O que acontece se apagar a aplicação?';
+
+  @override
+  String get yourDataDeletionAnswer =>
+      'As notas, imagens importadas e localizações guardadas no Latermark são eliminadas de forma permanente. As fotografias da sua fototeca e os dados de outras aplicações não são afetados.';
+
+  @override
   String get legalOpenFailed => 'Não foi possível abrir a ligação.';
 
   @override
@@ -343,6 +469,31 @@ class L10nPt extends L10n {
 
   @override
   String get themeDark => 'Escuro';
+
+  @override
+  String get appColorTitle => 'Cor da aplicação';
+
+  @override
+  String get appColorDescription =>
+      'Escolha a cor de destaque dos controlos e elementos realçados.';
+
+  @override
+  String get accentOrange => 'Laranja';
+
+  @override
+  String get accentBlue => 'Azul';
+
+  @override
+  String get accentViolet => 'Violeta';
+
+  @override
+  String get accentPink => 'Rosa';
+
+  @override
+  String get accentGreen => 'Verde';
+
+  @override
+  String get accentGold => 'Dourado';
 
   @override
   String get retentionTitle => 'Eliminação automática';
@@ -611,6 +762,9 @@ class L10nPt extends L10n {
       'Sem subscrição. Pague uma vez e mantenha o Pro.';
 
   @override
+  String get paywallOwned => 'O Latermark Pro é seu.';
+
+  @override
   String get paywallFeatureNoSubscription => 'Sem subscrição';
 
   @override
@@ -700,6 +854,12 @@ class L10nPt extends L10n {
   @override
   String get photoLibraryUsageDescription =>
       'O acesso às fotografias permite adicionar imagens da biblioteca às suas notas.';
+
+  @override
+  String get actionShare => 'Partilhar';
+
+  @override
+  String get shareNoteSemantic => 'Partilhar foto e nota';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -711,6 +871,9 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get actionSave => 'Salvar';
+
+  @override
+  String get composeSaving => 'Salvando';
 
   @override
   String get actionCancel => 'Cancelar';
@@ -728,6 +891,12 @@ class L10nPtBr extends L10nPt {
   String get actionEdit => 'Editar';
 
   @override
+  String get actionMore => 'Mais';
+
+  @override
+  String get openPhotoSemantic => 'Abrir a foto em tela cheia';
+
+  @override
   String get actionRetry => 'Tentar novamente';
 
   @override
@@ -743,14 +912,15 @@ class L10nPtBr extends L10nPt {
   String get shutterSemantic => 'Tirar uma foto';
 
   @override
-  String get searchHint => 'Ara';
+  String get searchHint => 'Pesquisar';
 
   @override
   String searchResults(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count sonuç',
+      other: '$count resultados',
+      one: '$count resultado',
     );
     return '$_temp0';
   }
@@ -766,6 +936,27 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get notesTitle => 'Notas';
+
+  @override
+  String get dateGroupToday => 'Hoje';
+
+  @override
+  String get dateGroupYesterday => 'Ontem';
+
+  @override
+  String get dateGroupPastWeek => 'Últimos 7 dias';
+
+  @override
+  String get dateGroupPastMonth => 'Último mês';
+
+  @override
+  String get dateGroupPastThreeMonths => 'Últimos 3 meses';
+
+  @override
+  String get dateGroupPastYear => 'Último ano';
+
+  @override
+  String get dateGroupOlder => 'Há mais de um ano';
 
   @override
   String noteCount(int count) {
@@ -900,6 +1091,25 @@ class L10nPtBr extends L10nPt {
   String get composeHint => 'Por que você tirou esta foto?';
 
   @override
+  String get composeReminderDescription =>
+      'Reencontre este registro no dia que escolher.';
+
+  @override
+  String get composeLocationDescription =>
+      'Vincula sua localização atual somente a este registro.';
+
+  @override
+  String get composeLocationResolving => 'Obtendo sua localização…';
+
+  @override
+  String get composeLocationReady =>
+      'A localização está pronta para este registro.';
+
+  @override
+  String get composeLocationPermissionRequired =>
+      'A permissão de localização é necessária.';
+
+  @override
   String get composeAnotherPhoto => 'Escolher outra foto';
 
   @override
@@ -913,6 +1123,37 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get reminderLabel => 'Lembrar-me';
+
+  @override
+  String get addedLabel => 'Data de adição';
+
+  @override
+  String get lastUpdatedLabel => 'Última atualização';
+
+  @override
+  String get locationLabel => 'Localização';
+
+  @override
+  String get locationAddLabel => 'Adicionar localização';
+
+  @override
+  String get locationBlocked =>
+      'Adicionar a localização depende da sua permissão. Permita o acesso à localização para registrar onde a foto foi tirada.';
+
+  @override
+  String get compassNorth => 'N';
+
+  @override
+  String get compassSouth => 'S';
+
+  @override
+  String get compassEast => 'L';
+
+  @override
+  String get compassWest => 'O';
+
+  @override
+  String get toastMapFailed => 'Não foi possível abrir o Mapas';
 
   @override
   String get reminderSuffixActive => 'dias depois';
@@ -1014,6 +1255,50 @@ class L10nPtBr extends L10nPt {
   String get legalTerms => 'Termos de uso';
 
   @override
+  String get yourDataTitle => 'Latermark e seus dados';
+
+  @override
+  String get yourDataSubtitle =>
+      'Sua privacidade importa — e é tratada com o respeito que merece.';
+
+  @override
+  String get yourDataSafetyQuestion => 'Meus dados estão seguros?';
+
+  @override
+  String get yourDataSafetyAnswer =>
+      'O Latermark funciona totalmente no seu dispositivo. Suas notas e memórias não são enviadas para análises, relatórios de erros ou estatísticas. Elas só saem do dispositivo quando você decide compartilhá-las.';
+
+  @override
+  String get yourDataLocationQuestion =>
+      'Por que o Latermark pede acesso à minha localização?';
+
+  @override
+  String get yourDataLocationAnswer =>
+      'Essa permissão só é solicitada se você decidir adicionar uma localização a uma nota ou memória. A localização fica vinculada apenas àquele registro, sem rastreamento em segundo plano. Ela só é enviada ao app de mapas se você decidir abrir o mapa.';
+
+  @override
+  String get yourDataPhotosQuestion => 'Como o acesso às minhas fotos é usado?';
+
+  @override
+  String get yourDataPhotosAnswer =>
+      'Ele serve apenas para você escolher uma imagem da galeria em vez de tirar uma nova foto. O Latermark importa somente a imagem escolhida e não precisa de conexão com a internet.';
+
+  @override
+  String get yourDataRemindersQuestion => 'Como funcionam os lembretes?';
+
+  @override
+  String get yourDataRemindersAnswer =>
+      'Eles são agendados e exibidos localmente no seu dispositivo. Nenhum servidor externo os envia ou dispara.';
+
+  @override
+  String get yourDataDeletionQuestion =>
+      'O que acontece se eu desinstalar o app?';
+
+  @override
+  String get yourDataDeletionAnswer =>
+      'As notas, imagens importadas e localizações salvas no Latermark são apagadas permanentemente. As fotos da sua galeria e os dados de outros apps não são afetados.';
+
+  @override
   String get legalOpenFailed => 'Não foi possível abrir o link.';
 
   @override
@@ -1040,6 +1325,31 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get themeDark => 'Escuro';
+
+  @override
+  String get appColorTitle => 'Cor do app';
+
+  @override
+  String get appColorDescription =>
+      'Escolha a cor de destaque dos controles e elementos realçados.';
+
+  @override
+  String get accentOrange => 'Laranja';
+
+  @override
+  String get accentBlue => 'Azul';
+
+  @override
+  String get accentViolet => 'Violeta';
+
+  @override
+  String get accentPink => 'Rosa';
+
+  @override
+  String get accentGreen => 'Verde';
+
+  @override
+  String get accentGold => 'Dourado';
 
   @override
   String get retentionTitle => 'Apagar automaticamente';
@@ -1308,6 +1618,9 @@ class L10nPtBr extends L10nPt {
       'Sem assinatura. Pague uma vez e fique com o Pro.';
 
   @override
+  String get paywallOwned => 'O Latermark Pro é seu.';
+
+  @override
   String get paywallFeatureNoSubscription => 'Sem assinatura';
 
   @override
@@ -1397,4 +1710,10 @@ class L10nPtBr extends L10nPt {
   @override
   String get photoLibraryUsageDescription =>
       'O acesso às fotos permite adicionar imagens da galeria às suas notas.';
+
+  @override
+  String get actionShare => 'Compartilhar';
+
+  @override
+  String get shareNoteSemantic => 'Compartilhar foto e nota';
 }

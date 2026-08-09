@@ -29,6 +29,7 @@
 		C7A7AA2EC4BB8DCF7024C1AA /* NotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E61822D54492FBE0491E114 /* NotWidget.swift */; };
 		C93088154156E1934496CA1D /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 6B96D5DBBE34C430FC2D2B8A /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E8E855E52906AB49B84FFBF8 /* TextRecognitionChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F90A156E369E6B9F6C477C /* TextRecognitionChannel.swift */; };
+		9E7E587016EB4A64A9B9241D /* LocationChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD86FE290274462F81E4C28D /* LocationChannel.swift */; };
 		EE45DF1AF5281337DD20216D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09C6AA77E023DA42BB2C3703 /* Foundation.framework */; };
 		F359360CB0B2F7B2561B6EA0 /* SharedImportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807F920D2E455E676937AF88 /* SharedImportStore.swift */; };
 /* End PBXBuildFile section */
@@ -136,6 +137,7 @@
 		B1EA13BA3B99013429AA1FCA /* NotDesign.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotDesign.swift; sourceTree = "<group>"; };
 		B4519C9E1BA6A15AD1791C6C /* ShareExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		E7F90A156E369E6B9F6C477C /* TextRecognitionChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextRecognitionChannel.swift; sourceTree = "<group>"; };
+		BD86FE290274462F81E4C28D /* LocationChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationChannel.swift; sourceTree = "<group>"; };
 		F42F036B1BA50462730B83B0 /* NotWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NotWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -243,6 +245,7 @@
 				5AC515576851FB1F6B9E0EDE /* Runner.entitlements */,
 				A10000000000000000000021 /* InfoPlist.strings */,
 				E7F90A156E369E6B9F6C477C /* TextRecognitionChannel.swift */,
+				BD86FE290274462F81E4C28D /* LocationChannel.swift */,
 				606DA421C9CF6774698D8BD0 /* ImageChannel.swift */,
 			);
 			path = Runner;
@@ -530,6 +533,7 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				F359360CB0B2F7B2561B6EA0 /* SharedImportStore.swift in Sources */,
 				E8E855E52906AB49B84FFBF8 /* TextRecognitionChannel.swift in Sources */,
+				9E7E587016EB4A64A9B9241D /* LocationChannel.swift in Sources */,
 				224E9B149FAD95B175F04E52 /* ImageChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

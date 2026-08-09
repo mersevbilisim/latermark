@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../../core/theme/app_accent.dart';
 import '../../core/utils/app_format.dart';
 import '../../l10n/app_localizations.dart';
 import '../notes/data/notes_database.dart';
@@ -32,11 +33,26 @@ class HomeWidgetBridge {
 
   /// Pro hakkı. [AppScope] değiştikçe veriyor.
   bool _pro = false;
+  int _entitlementRevision = 0;
+  AppAccent _accent = AppAccent.orange;
+  List<Note>? _lastNotes;
+
+  /// Drift, dil ve satın alma akışları aynı anda değişebilir. Native depoya
+  /// yapılan birden çok yayının anahtarlarını birbirine karıştırmaması için
+  /// bütün kareleri tek sıra üzerinden geçiriyoruz.
+  Future<void> _publishQueue = Future<void>.value();
 
   set pro(bool value) {
     if (_pro == value) return;
     _pro = value;
-    _lastSignature = null;
+    _entitlementRevision++;
+    _invalidate();
+  }
+
+  set accent(AppAccent value) {
+    if (_accent == value) return;
+    _accent = value;
+    _invalidate();
   }
 
   set l10n(L10n value) {
@@ -44,7 +60,13 @@ class HomeWidgetBridge {
     _l10n = value;
     // Dil değişti: imza da değiştiği için bir sonraki yayında widget tazelenir.
     // Elde son liste yoksa beklemek yeterli; akış zaten sürekli yayın yapıyor.
+    _invalidate();
+  }
+
+  void _invalidate() {
     _lastSignature = null;
+    final notes = _lastNotes;
+    if (notes != null) _schedulePublish(notes);
   }
 
   /// Widget'ta gösterilecek fotoğrafın en geniş kenarı.
@@ -68,7 +90,7 @@ class HomeWidgetBridge {
     }
 
     _subscription = _repository.watchNotes().listen(
-      _publish,
+      _schedulePublish,
       onError: (Object error) => debugPrint('Widget akışı hatası: $error'),
     );
   }
@@ -76,33 +98,61 @@ class HomeWidgetBridge {
   Future<void> dispose() async {
     await _subscription?.cancel();
     _subscription = null;
+    await _publishQueue;
   }
 
   static bool get _isSupported => Platform.isIOS || Platform.isAndroid;
 
+  void _schedulePublish(List<Note> notes) {
+    final snapshot = List<Note>.unmodifiable(notes);
+    _lastNotes = snapshot;
+    _publishQueue = _publishQueue.then((_) => _publish(snapshot));
+    unawaited(_publishQueue);
+  }
+
   Future<void> _publish(List<Note> notes) async {
-    final latest = notes.isEmpty ? null : notes.first;
+    // Hak geri alındığında yalnızca native görünümün kilit dalına güvenmeyiz.
+    // Paylaşılan kapsayıcıdaki Pro içeriğini de aynı yayında sıfırlarız; böylece
+    // eski bir timeline, farklı bir widget ailesi veya ilerideki bir renderer
+    // not metnini/fotoğrafı yanlışlıkla yeniden gösteremez.
+    final isPro = _pro;
+    final entitlementRevision = _entitlementRevision;
+    final latest = isPro && notes.isNotEmpty ? notes.first : null;
+    final publishedCount = isPro ? notes.length : 0;
 
     // Fotoğraf yolu imzaya dahil: not aynı kalsa da kare değişmiş olabilir.
     final signature = latest == null
-        ? 'empty:${notes.length}:${_l10n?.localeName}'
+        ? 'empty:$publishedCount:${_l10n?.localeName}:$isPro:${_accent.name}'
         : '${latest.id}|${latest.body}|${latest.imageName}|'
-              '${latest.expiresAt}|${notes.length}|${_l10n?.localeName}|$_pro';
+              '${latest.createdAt}|${latest.expiresAt}|$publishedCount|'
+              '${_l10n?.localeName}|'
+              '$isPro|${_accent.name}';
     if (signature == _lastSignature) return;
-    _lastSignature = signature;
 
     try {
+      // Geri alma işleminin ilk yazısı hak anahtarıdır. Native timeline tam bu
+      // sırada kendiliğinden yenilense bile eski içerik kilit dalını aşamaz.
+      // Yeniden Pro olurken ise içerik ve fotoğraf eksiksiz hazırlandıktan
+      // sonra hakkı açarak ters yöndeki aynı yarışı da kapatıyoruz.
+      if (!isPro) {
+        await HomeWidget.saveWidgetData<bool>(WidgetKeys.pro, false);
+        // Alan temizliğinin herhangi bir adımı başarısız olsa bile mevcut
+        // native timeline beklemeden kilit görünümüne geçsin.
+        await _refreshWidget();
+      }
+
       await Future.wait([
         HomeWidget.saveWidgetData<bool>(WidgetKeys.hasNote, latest != null),
-        HomeWidget.saveWidgetData<int>(WidgetKeys.count, notes.length),
-        HomeWidget.saveWidgetData<bool>(WidgetKeys.pro, _pro),
+        HomeWidget.saveWidgetData<int>(WidgetKeys.count, publishedCount),
+        HomeWidget.saveWidgetData<String>(
+          WidgetKeys.accent,
+          _accent.onPhoto.toARGB32().toRadixString(16).padLeft(8, '0'),
+        ),
         HomeWidget.saveWidgetData<int>(WidgetKeys.noteId, latest?.id ?? 0),
         HomeWidget.saveWidgetData<String>(WidgetKeys.body, latest?.body ?? ''),
         HomeWidget.saveWidgetData<String>(
           WidgetKeys.time,
-          latest == null || _l10n == null
-              ? ''
-              : _l10n!.time(latest.createdAt),
+          latest == null || _l10n == null ? '' : _l10n!.time(latest.createdAt),
         ),
         HomeWidget.saveWidgetData<String>(
           WidgetKeys.date,
@@ -128,17 +178,63 @@ class HomeWidgetBridge {
             thumbnail,
             extension: 'png',
           );
+        } else {
+          // Yeni karenin küçük görseli üretilemediyse önceki nota ait dosya
+          // görünür kalmamalı. Native taraf bu boşlukta kendi diyaframlı
+          // fallback kompozisyonunu çizer.
+          await HomeWidget.saveWidgetData<String>(WidgetKeys.photo, null);
+        }
+      } else {
+        // home_widget, saveFile ile yönettiği yol `null` yapılırken varsayılan
+        // olarak fiziksel dosyayı da siler; anahtar ve PNG birlikte temizlenir.
+        await HomeWidget.saveWidgetData<String>(WidgetKeys.photo, null);
+      }
+
+      if (isPro) {
+        // Bu yayın hazırlanırken hak değiştiyse eski kare entitlement'ı tekrar
+        // açamaz. Son durum Free ise kilidi burada öne al; kuyruğa eklenen yeni
+        // yayın kalan alanları hemen ardından temizleyecek.
+        if (_entitlementRevision != entitlementRevision || !_pro) {
+          if (!_pro) await _revokeAndRefresh();
+          return;
+        }
+
+        await HomeWidget.saveWidgetData<bool>(WidgetKeys.pro, true);
+
+        // Platform-channel yazısı beklenirken de hak değişebilir. Eski Pro
+        // yayınının son yazı olarak `true` bırakmasına izin verme.
+        if (_entitlementRevision != entitlementRevision || !_pro) {
+          if (!_pro) await _revokeAndRefresh();
+          return;
         }
       }
 
-      await HomeWidget.updateWidget(
-        iOSName: kIosWidgetName,
-        androidName: kAndroidWidgetProvider,
-      );
+      await _refreshWidget();
+      // Yalnızca eksiksiz yazılmış bir kareyi yinelenmiş say. Bir dosya ya
+      // da platform güncellemesi başarısız olursa aynı durum sonraki akışta
+      // kendiliğinden yeniden denenebilsin.
+      _lastSignature = signature;
     } catch (error) {
       // Widget güncellenememesi uygulamanın çalışmasını engellememeli:
       // App Group yapılandırılmamış olabilir ya da widget hiç eklenmemiştir.
       debugPrint('Widget güncellenemedi: $error');
+    }
+  }
+
+  Future<void> _revokeAndRefresh() async {
+    await HomeWidget.saveWidgetData<bool>(WidgetKeys.pro, false);
+    await _refreshWidget();
+  }
+
+  Future<void> _refreshWidget() async {
+    await HomeWidget.updateWidget(
+      iOSName: kIosWidgetName,
+      androidName: kAndroidWidgetProvider,
+    );
+    if (Platform.isIOS) {
+      // WidgetKit her `kind` için ayrı timeline tutar. Yeni hızlı çekim
+      // widget'ı özellikle Pro hakkı geri alındığında aynı karede kilitlensin.
+      await HomeWidget.updateWidget(iOSName: kIosCaptureWidgetName);
     }
   }
 

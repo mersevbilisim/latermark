@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_accent.dart';
 import 'app_typography.dart';
 
 /// Uygulamanın renk paleti.
@@ -11,6 +12,7 @@ import 'app_typography.dart';
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
+    required this.accent,
     required this.brightness,
     required this.canvas,
     required this.canvasLift,
@@ -25,8 +27,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.hairlineBright,
     required this.ember,
     required this.emberGlow,
+    required this.onPhotoAccent,
+    required this.onPhotoAccentGlow,
     required this.danger,
   });
+
+  /// Bu paleti üreten kullanıcı tercihi. Parlaklık kopyalanırken vurgu
+  /// seçiminin varsayılan turuncuya dönmesini önler.
+  final AppAccent accent;
 
   final Brightness brightness;
 
@@ -51,9 +59,17 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color hairline;
   final Color hairlineBright;
 
-  /// Tek vurgu rengi: sıcak kor.
+  /// Kullanıcının seçtiği tek vurgu rengi.
+  ///
+  /// `ember` adı widget API'sinde geriye dönük olarak korunuyor; değer artık
+  /// turuncuya sabit değil, [AppAccent] seçiminden üretiliyor.
   final Color ember;
   final Color emberGlow;
+
+  /// Vizör ve fotoğraf üzerindeki öğeler için aynı seçimin canlı koyu-zemin
+  /// tonu. Bunlar açık tema seçiliyken de fotoğraf üzerinde okunur kalır.
+  final Color onPhotoAccent;
+  final Color onPhotoAccentGlow;
 
   final Color danger;
 
@@ -61,6 +77,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Karanlık: fotoğrafın önde, arayüzün geride durduğu asıl hâl.
   static const dark = AppPalette(
+    accent: AppAccent.orange,
     brightness: Brightness.dark,
     canvas: Color(0xFF0A0A0C),
     canvasLift: Color(0xFF141418),
@@ -73,8 +90,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     glassStrong: Color(0x1FFFFFFF),
     hairline: Color(0x1AFFFFFF),
     hairlineBright: Color(0x33FFFFFF),
-    ember: Color(0xFFFF7A55),
-    emberGlow: Color(0x2BFF7A55),
+    ember: AppAccent.defaultDark,
+    emberGlow: AppAccent.defaultDarkGlow,
+    onPhotoAccent: AppAccent.defaultDark,
+    onPhotoAccentGlow: AppAccent.defaultDarkGlow,
     danger: Color(0xFFFF5A5A),
   );
 
@@ -82,6 +101,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   ///
   /// Kor rengi burada koyulaşır — açık zeminde aynı turuncu okunmuyor.
   static const light = AppPalette(
+    accent: AppAccent.orange,
     brightness: Brightness.light,
     canvas: Color(0xFFF7F5F1),
     canvasLift: Color(0xFFFFFFFF),
@@ -94,21 +114,66 @@ class AppPalette extends ThemeExtension<AppPalette> {
     glassStrong: Color(0x14000000),
     hairline: Color(0x14000000),
     hairlineBright: Color(0x26000000),
-    ember: Color(0xFFD9532B),
-    emberGlow: Color(0x26D9532B),
+    ember: AppAccent.defaultLight,
+    emberGlow: AppAccent.defaultLightGlow,
+    onPhotoAccent: AppAccent.defaultDark,
+    onPhotoAccentGlow: AppAccent.defaultDarkGlow,
     danger: Color(0xFFC62B2B),
+  );
+
+  /// Nötr paleti bozmadan yalnızca gerçek vurgu kanallarını değiştirir.
+  static AppPalette forAccent(Brightness brightness, AppAccent accent) {
+    final base = brightness == Brightness.dark ? dark : light;
+    if (accent == AppAccent.orange) return base;
+    final color = accent.colorFor(brightness);
+    final photo = accent.onPhoto;
+    return base._withAccent(
+      accent,
+      color,
+      color.withValues(alpha: brightness == Brightness.dark ? 0.17 : 0.15),
+      photo,
+      photo.withValues(alpha: 0.17),
+    );
+  }
+
+  AppPalette _withAccent(
+    AppAccent accent,
+    Color color,
+    Color glow,
+    Color photo,
+    Color photoGlow,
+  ) => AppPalette(
+    accent: accent,
+    brightness: brightness,
+    canvas: canvas,
+    canvasLift: canvasLift,
+    canvasSunk: canvasSunk,
+    ink: ink,
+    inkSoft: inkSoft,
+    inkFaint: inkFaint,
+    inkGhost: inkGhost,
+    glass: glass,
+    glassStrong: glassStrong,
+    hairline: hairline,
+    hairlineBright: hairlineBright,
+    ember: color,
+    emberGlow: glow,
+    onPhotoAccent: photo,
+    onPhotoAccentGlow: photoGlow,
+    danger: danger,
   );
 
   @override
   AppPalette copyWith({Brightness? brightness}) =>
       brightness == null || brightness == this.brightness
       ? this
-      : (brightness == Brightness.dark ? dark : light);
+      : AppPalette.forAccent(brightness, accent);
 
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
     if (other is! AppPalette) return this;
     return AppPalette(
+      accent: t < 0.5 ? accent : other.accent,
       brightness: t < 0.5 ? brightness : other.brightness,
       canvas: Color.lerp(canvas, other.canvas, t)!,
       canvasLift: Color.lerp(canvasLift, other.canvasLift, t)!,
@@ -123,6 +188,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
       hairlineBright: Color.lerp(hairlineBright, other.hairlineBright, t)!,
       ember: Color.lerp(ember, other.ember, t)!,
       emberGlow: Color.lerp(emberGlow, other.emberGlow, t)!,
+      onPhotoAccent: Color.lerp(onPhotoAccent, other.onPhotoAccent, t)!,
+      onPhotoAccentGlow: Color.lerp(
+        onPhotoAccentGlow,
+        other.onPhotoAccentGlow,
+        t,
+      )!,
       danger: Color.lerp(danger, other.danger, t)!,
     );
   }
@@ -142,8 +213,6 @@ abstract final class OnPhoto {
   static const glassStrong = Color(0x1FFFFFFF);
   static const hairline = Color(0x1AFFFFFF);
   static const hairlineBright = Color(0x33FFFFFF);
-  static const ember = Color(0xFFFF7A55);
-  static const emberGlow = Color(0x2BFF7A55);
   static const danger = Color(0xFFFF5A5A);
 
   /// Vizör ve tam ekran fotoğraf zemini.

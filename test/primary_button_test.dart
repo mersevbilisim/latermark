@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/shared/widgets/primary_button.dart';
+import 'package:latermark/shared/widgets/primary_button.dart';
 
 void main() {
   Future<void> pumpButton(

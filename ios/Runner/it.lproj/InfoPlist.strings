@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "Latermark usa la fotocamera per scattare foto da aggiungere alle tue note.";
 "NSPhotoLibraryUsageDescription" = "L’accesso a Foto serve per aggiungere alle note le immagini della tua libreria.";
+"NSLocationWhenInUseUsageDescription" = "L'accesso alla posizione associa alla foto il luogo in cui l'hai scattata. La coordinata resta sul tuo dispositivo.";

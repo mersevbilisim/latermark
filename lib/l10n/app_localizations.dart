@@ -124,6 +124,12 @@ abstract class L10n {
   /// **'Save'**
   String get actionSave;
 
+  /// No description provided for @composeSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving'**
+  String get composeSaving;
+
   /// No description provided for @actionCancel.
   ///
   /// In en, this message translates to:
@@ -153,6 +159,18 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Edit'**
   String get actionEdit;
+
+  /// No description provided for @actionMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get actionMore;
+
+  /// No description provided for @openPhotoSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Open photo full screen'**
+  String get openPhotoSemantic;
 
   /// No description provided for @actionRetry.
   ///
@@ -187,13 +205,13 @@ abstract class L10n {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Ara'**
+  /// **'Search'**
   String get searchHint;
 
   /// No description provided for @searchResults.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, other{{count} sonuç}}'**
+  /// **'{count, plural, one{{count} result} other{{count} results}}'**
   String searchResults(int count);
 
   /// No description provided for @searchEmpty.
@@ -219,6 +237,48 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Notes'**
   String get notesTitle;
+
+  /// Heading for notes captured today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dateGroupToday;
+
+  /// No description provided for @dateGroupYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get dateGroupYesterday;
+
+  /// Heading for notes older than yesterday but within the previous seven calendar days.
+  ///
+  /// In en, this message translates to:
+  /// **'Past week'**
+  String get dateGroupPastWeek;
+
+  /// No description provided for @dateGroupPastMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Past month'**
+  String get dateGroupPastMonth;
+
+  /// No description provided for @dateGroupPastThreeMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Past 3 months'**
+  String get dateGroupPastThreeMonths;
+
+  /// No description provided for @dateGroupPastYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Past year'**
+  String get dateGroupPastYear;
+
+  /// Heading for notes older than one year.
+  ///
+  /// In en, this message translates to:
+  /// **'More than a year ago'**
+  String get dateGroupOlder;
 
   /// No description provided for @noteCount.
   ///
@@ -448,6 +508,36 @@ abstract class L10n {
   /// **'Why did you capture this?'**
   String get composeHint;
 
+  /// No description provided for @composeReminderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring this frame back on the day you choose.'**
+  String get composeReminderDescription;
+
+  /// No description provided for @composeLocationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach your current location only to this frame.'**
+  String get composeLocationDescription;
+
+  /// No description provided for @composeLocationResolving.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding your location…'**
+  String get composeLocationResolving;
+
+  /// No description provided for @composeLocationReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is ready for this frame.'**
+  String get composeLocationReady;
+
+  /// No description provided for @composeLocationPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is required.'**
+  String get composeLocationPermissionRequired;
+
   /// No description provided for @composeAnotherPhoto.
   ///
   /// In en, this message translates to:
@@ -477,6 +567,66 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Remind me'**
   String get reminderLabel;
+
+  /// No description provided for @addedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date added'**
+  String get addedLabel;
+
+  /// No description provided for @lastUpdatedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated'**
+  String get lastUpdatedLabel;
+
+  /// No description provided for @locationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get locationLabel;
+
+  /// No description provided for @locationAddLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add location'**
+  String get locationAddLabel;
+
+  /// No description provided for @locationBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding the location depends on your permission. Allow location access to tag where a photo was taken.'**
+  String get locationBlocked;
+
+  /// No description provided for @compassNorth.
+  ///
+  /// In en, this message translates to:
+  /// **'N'**
+  String get compassNorth;
+
+  /// No description provided for @compassSouth.
+  ///
+  /// In en, this message translates to:
+  /// **'S'**
+  String get compassSouth;
+
+  /// No description provided for @compassEast.
+  ///
+  /// In en, this message translates to:
+  /// **'E'**
+  String get compassEast;
+
+  /// No description provided for @compassWest.
+  ///
+  /// In en, this message translates to:
+  /// **'W'**
+  String get compassWest;
+
+  /// No description provided for @toastMapFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Maps'**
+  String get toastMapFailed;
 
   /// No description provided for @reminderSuffixActive.
   ///
@@ -622,6 +772,78 @@ abstract class L10n {
   /// **'Terms of Use'**
   String get legalTerms;
 
+  /// No description provided for @yourDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Latermark & Your Data'**
+  String get yourDataTitle;
+
+  /// No description provided for @yourDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'We care about your privacy, and treat it with respect.'**
+  String get yourDataSubtitle;
+
+  /// No description provided for @yourDataSafetyQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Is my data safe?'**
+  String get yourDataSafetyQuestion;
+
+  /// No description provided for @yourDataSafetyAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics.'**
+  String get yourDataSafetyAnswer;
+
+  /// No description provided for @yourDataLocationQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Why does Latermark ask for location access?'**
+  String get yourDataLocationQuestion;
+
+  /// No description provided for @yourDataLocationAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Latermark asks for a one-time location only when you choose to tag where a photo was taken. The coordinates are saved only with that entry; there is no background tracking. They are passed to another app only if you choose to open the map.'**
+  String get yourDataLocationAnswer;
+
+  /// No description provided for @yourDataPhotosQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'How is photo access used?'**
+  String get yourDataPhotosQuestion;
+
+  /// No description provided for @yourDataPhotosAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'It is used only when you choose an image from your photo library instead of taking a new one. Latermark imports only the image you select, and the process does not require an internet connection.'**
+  String get yourDataPhotosAnswer;
+
+  /// No description provided for @yourDataRemindersQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'How do reminders work?'**
+  String get yourDataRemindersQuestion;
+
+  /// No description provided for @yourDataRemindersAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders are scheduled on your device and shown by your device. No external server sends or triggers them.'**
+  String get yourDataRemindersAnswer;
+
+  /// No description provided for @yourDataDeletionQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'What happens if I delete the app?'**
+  String get yourDataDeletionQuestion;
+
+  /// No description provided for @yourDataDeletionAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes, imported images, and location tags stored in Latermark are permanently deleted. Your photo library and data in other apps are not affected.'**
+  String get yourDataDeletionAnswer;
+
   /// No description provided for @legalOpenFailed.
   ///
   /// In en, this message translates to:
@@ -675,6 +897,54 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Dark'**
   String get themeDark;
+
+  /// No description provided for @appColorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App Color'**
+  String get appColorTitle;
+
+  /// No description provided for @appColorDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the accent Latermark uses for controls and highlights.'**
+  String get appColorDescription;
+
+  /// No description provided for @accentOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get accentOrange;
+
+  /// No description provided for @accentBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get accentBlue;
+
+  /// No description provided for @accentViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet'**
+  String get accentViolet;
+
+  /// No description provided for @accentPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get accentPink;
+
+  /// No description provided for @accentGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get accentGreen;
+
+  /// No description provided for @accentGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get accentGold;
 
   /// No description provided for @retentionTitle.
   ///
@@ -988,6 +1258,12 @@ abstract class L10n {
   /// **'No subscription. Pay once, keep Pro.'**
   String get paywallNoSubscription;
 
+  /// No description provided for @paywallOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'Latermark Pro is yours.'**
+  String get paywallOwned;
+
   /// No description provided for @paywallFeatureNoSubscription.
   ///
   /// In en, this message translates to:
@@ -1155,6 +1431,18 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Photo access lets you add images from your library to your notes.'**
   String get photoLibraryUsageDescription;
+
+  /// No description provided for @actionShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get actionShare;
+
+  /// No description provided for @shareNoteSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Share photo and note'**
+  String get shareNoteSemantic;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

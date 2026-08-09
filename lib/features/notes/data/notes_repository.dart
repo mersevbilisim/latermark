@@ -4,6 +4,8 @@ import 'package:cross_file/cross_file.dart';
 import 'package:drift/drift.dart';
 
 import '../domain/retention.dart';
+import '../../settings/domain/pro_downgrade_policy.dart';
+import 'location_service.dart';
 import 'notes_database.dart';
 import 'photo_store.dart';
 import 'search_text.dart';
@@ -21,11 +23,7 @@ class SearchHits {
   });
 
   /// Süzme yok: arama kapalı ya da sorgu boş.
-  static const none = SearchHits(
-    query: '',
-    ids: <int>{},
-    photoOnly: <int>{},
-  );
+  static const none = SearchHits(query: '', ids: <int>{}, photoOnly: <int>{});
 
   /// Bu sonucu üreten katlanmış sorgu. Arayüz, geciken bir cevabın hâlâ
   /// ekrandaki metne ait olup olmadığını bununla anlıyor.
@@ -109,6 +107,7 @@ class NotesRepository {
     required RetentionChoice retention,
     int remindAfterDays = 0,
     DateTime? createdAt,
+    NoteLocation? location,
   }) async {
     final stamp = createdAt ?? DateTime.now();
     final imageName = await _store.persist(capture);
@@ -119,6 +118,15 @@ class NotesRepository {
     // olmayan bir kayıt ne aranabilir ne de sıraya girer, üstelik ikisi de
     // sessizce olur.
     return _db.transaction(() async {
+      final isPro = await _isProUnlocked();
+      // Compose, entitlement değişmeden hemen önce açılmış olabilir. UI kilidi
+      // tek başına yeterli değil; son karar veritabanına yazıldığı anda alınır.
+      final effectiveRetention = isPro
+          ? retention
+          : freeRetentionFallback(retention);
+      final effectiveReminder = isPro && remindAfterDays > 0
+          ? remindAfterDays
+          : 0;
       final id = await _db
           .into(_db.notes)
           .insert(
@@ -126,10 +134,14 @@ class NotesRepository {
               imageName: imageName,
               body: Value(text),
               createdAt: stamp,
-              retention: Value(retention.retention),
-              customMinutes: Value(retention.customMinutes),
-              expiresAt: Value(retention.expiryFrom(stamp)),
-              remindAfterDays: Value(remindAfterDays),
+              retention: Value(effectiveRetention.retention),
+              customMinutes: Value(effectiveRetention.customMinutes),
+              expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
+              remindAfterDays: Value(effectiveReminder),
+              // Koordinat Pro kilidine takılmıyor: konum bir ücretli özellik
+              // değil, kaydın bir alanı.
+              latitude: Value(location?.latitude),
+              longitude: Value(location?.longitude),
             ),
           );
 
@@ -161,21 +173,38 @@ class NotesRepository {
     final text = body.trim();
 
     return _db.transaction(() async {
+      final isPro = await _isProUnlocked();
+      final reminder = isPro && remindAfterDays > 0 ? remindAfterDays : 0;
+
+      // Damga yalnızca gerçekten bir şey değiştiyse vurulur. Düzenleme
+      // ekranını açıp hiçbir şeye dokunmadan kaydetmek notu "düzenlenmiş"
+      // yapmamalı; aksi hâlde damga zamanla anlamını yitirirdi.
+      final changed = text != note.body || reminder != note.remindAfterDays;
+
       await (_db.update(_db.notes)..where((t) => t.id.equals(note.id))).write(
         NotesCompanion(
           body: Value(text),
-          remindAfterDays: Value(remindAfterDays),
+          remindAfterDays: Value(reminder),
+          updatedAt: changed
+              ? Value(DateTime.now())
+              : const Value.absent(),
         ),
       );
 
       // İndeks nota bağlı kalmalı: düzenlenen bir not eski metniyle
       // bulunmaya devam ederse arama yalan söylüyor demektir.
-      await (_db.update(
-        _db.noteSearch,
-      )..where((t) => t.noteId.equals(note.id))).write(
-        NoteSearchCompanion(bodyFolded: Value(SearchText.fold(text))),
-      );
+      await (_db.update(_db.noteSearch)..where((t) => t.noteId.equals(note.id)))
+          .write(NoteSearchCompanion(bodyFolded: Value(SearchText.fold(text))));
     });
+  }
+
+  /// Pro alanları yazılırken entitlement'ı aynı transaction içinde yeniden
+  /// okur. Böylece açık kalmış compose/edit ekranı downgrade temizliğinden
+  /// sonra custom süre veya hatırlatmayı geri getiremez.
+  Future<bool> _isProUnlocked() async {
+    final query = _db.select(_db.settingsTable)
+      ..where((row) => row.id.equals(1));
+    return (await query.getSingleOrNull())?.proUnlocked ?? false;
   }
 
   /// Nota ve karesindeki yazıya göre arar.
@@ -253,14 +282,14 @@ class NotesRepository {
 
     final folded = SearchText.fold(SearchText.normalize(text));
     final written =
-        await (_db.update(_db.noteSearch)
-              ..where((t) => t.noteId.equals(id)))
-            .write(
-              NoteSearchCompanion(
-                photoFolded: Value(folded),
-                attempts: const Value(0),
-              ),
-            );
+        await (_db.update(
+          _db.noteSearch,
+        )..where((t) => t.noteId.equals(id))).write(
+          NoteSearchCompanion(
+            photoFolded: Value(folded),
+            attempts: const Value(0),
+          ),
+        );
     if (written > 0) return;
 
     // İndeks satırı yoksa kendini onarır. Buraya normalde hiç girilmez —
@@ -293,17 +322,13 @@ class NotesRepository {
               ..addColumns([_db.noteSearch.noteId])
               ..where(
                 _db.noteSearch.photoFolded.isNull() &
-                    _db.noteSearch.attempts.isSmallerThanValue(
-                      maxScanAttempts,
-                    ),
+                    _db.noteSearch.attempts.isSmallerThanValue(maxScanAttempts),
               )
               ..limit(limit))
             .get();
     if (pending.isEmpty) return const [];
 
-    final ids = [
-      for (final row in pending) row.read(_db.noteSearch.noteId)!,
-    ];
+    final ids = [for (final row in pending) row.read(_db.noteSearch.noteId)!];
     final query = _db.select(_db.notes)..where((t) => t.id.isIn(ids));
     return query.get();
   }

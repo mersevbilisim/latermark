@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "Fotoğraf çekip notlarına ekleyebilmek için kamera erişimi gerekir.";
 "NSPhotoLibraryUsageDescription" = "Galerinden seçtiğin fotoğrafları notlarına ekleyebilmek için fotoğraf erişimi gerekir.";
+"NSLocationWhenInUseUsageDescription" = "Konum erişimi, çektiğin kareye nerede çekildiğini iliştirir. Koordinat cihazından çıkmaz.";

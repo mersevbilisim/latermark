@@ -6,6 +6,9 @@
     <string name="widget_empty_subtitle">Your first note will appear here</string>
     <string name="widget_photo_description">Photo from your latest frame</string>
     <string name="widget_note_without_body">Untitled note</string>
+    <string name="widget_folio">LM / %1$02d</string>
+    <string name="widget_pro_title">Latermark Pro</string>
+    <string name="widget_pro_subtitle">Unlock your latest trace</string>
     <string name="widget_remaining_now">now</string>
     <string name="widget_remaining_days">%1$dd</string>
     <string name="widget_remaining_hours">%1$dh</string>

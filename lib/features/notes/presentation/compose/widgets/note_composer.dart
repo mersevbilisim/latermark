@@ -56,32 +56,57 @@ class NoteComposer extends StatelessWidget {
       textCapitalization: TextCapitalization.sentences,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
-      keyboardAppearance: Brightness.dark,
+      keyboardAppearance: palette.brightness,
       style: palette.body.copyWith(fontSize: 17, height: 1.45),
       cursorColor: palette.ember,
       cursorWidth: 2,
       cursorRadius: const Radius.circular(2),
       decoration: InputDecoration.collapsed(
         hintText: hintText ?? context.l10n.composeHint,
-        hintStyle: palette.body.copyWith(
-          fontSize: 17,
-          color: palette.inkGhost,
-        ),
+        hintStyle: palette.body.copyWith(fontSize: 17, color: palette.inkGhost),
       ),
     );
 
+    if (!expand) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (header != null) ...[header!, const SizedBox(height: 14)],
+          field,
+          if (extra != null) ...[const SizedBox(height: 20), extra!],
+          const SizedBox(height: 18),
+          action,
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      // Tam ekran yazarken kalan yüksekliği kaplar; panel içinde içeriği kadar
-      // yer tutar. Aksi hâlde alt panel ekranın tamamına yayılıyor.
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       children: [
         if (header != null) ...[header!, const SizedBox(height: 14)],
-        if (expand) Expanded(child: field) else field,
-        if (extra != null) ...[
-          const SizedBox(height: 20),
-          extra!,
-        ],
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, viewport) => SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: field),
+                      if (extra != null) ...[
+                        const SizedBox(height: 20),
+                        extra!,
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 18),
         action,
       ],

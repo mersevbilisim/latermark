@@ -91,6 +91,9 @@ class _PaywallHostState extends State<_PaywallHost> {
               noteCount: widget.noteCount,
               reason: widget.reason,
               busy: busy,
+              // Hak henüz doğrulanmadan kilitli bir kontrole dokunan Pro
+              // kullanıcı da buraya düşebiliyor; ona satış göstermiyoruz.
+              unlocked: AppScope.preferences(context).proUnlocked,
               onPurchase: price == null ? null : purchases.buy,
               onRestore: purchases.restore,
               // Sınıra çarpan kullanıcı ödemeden de devam edebilmeli: bir

@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "Camera access lets you capture photos for your notes.";
 "NSPhotoLibraryUsageDescription" = "Photo access lets you add images from your library to your notes.";
+"NSLocationWhenInUseUsageDescription" = "Location access lets Latermark tag a photo with where you took it. The coordinate stays on your device.";

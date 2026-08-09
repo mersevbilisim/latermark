@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/core/utils/legal_links.dart';
-import 'package:not_app/l10n/app_localizations.dart';
+import 'package:latermark/core/utils/legal_links.dart';
+import 'package:latermark/l10n/app_localizations.dart';
 
 /// Gizlilik adresi dil koduyla bitiyor. Yanlış kod, kullanıcıyı olmayan bir
 /// sayfaya götürür — ve bu sessizce olur, o yüzden testle sabitleniyor.

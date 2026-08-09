@@ -15,6 +15,9 @@ class L10nKo extends L10n {
   String get actionSave => '저장';
 
   @override
+  String get composeSaving => '저장 중';
+
+  @override
   String get actionCancel => '취소';
 
   @override
@@ -28,6 +31,12 @@ class L10nKo extends L10n {
 
   @override
   String get actionEdit => '편집';
+
+  @override
+  String get actionMore => '더 보기';
+
+  @override
+  String get openPhotoSemantic => '사진을 전체 화면으로 열기';
 
   @override
   String get actionRetry => '다시 시도';
@@ -45,14 +54,14 @@ class L10nKo extends L10n {
   String get shutterSemantic => '사진 촬영';
 
   @override
-  String get searchHint => 'Ara';
+  String get searchHint => '검색';
 
   @override
   String searchResults(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count sonuç',
+      other: '$count개 결과',
     );
     return '$_temp0';
   }
@@ -68,6 +77,27 @@ class L10nKo extends L10n {
 
   @override
   String get notesTitle => '노트';
+
+  @override
+  String get dateGroupToday => '오늘';
+
+  @override
+  String get dateGroupYesterday => '어제';
+
+  @override
+  String get dateGroupPastWeek => '최근 7일';
+
+  @override
+  String get dateGroupPastMonth => '최근 1개월';
+
+  @override
+  String get dateGroupPastThreeMonths => '최근 3개월';
+
+  @override
+  String get dateGroupPastYear => '최근 1년';
+
+  @override
+  String get dateGroupOlder => '1년 이전';
 
   @override
   String noteCount(int count) {
@@ -188,6 +218,21 @@ class L10nKo extends L10n {
   String get composeHint => '왜 이 사진을 찍었나요?';
 
   @override
+  String get composeReminderDescription => '선택한 날에 이 기록을 다시 알려드려요.';
+
+  @override
+  String get composeLocationDescription => '현재 위치를 이 기록에만 연결합니다.';
+
+  @override
+  String get composeLocationResolving => '현재 위치를 확인하는 중…';
+
+  @override
+  String get composeLocationReady => '이 기록에 추가할 위치를 확인했어요.';
+
+  @override
+  String get composeLocationPermissionRequired => '위치 권한이 필요합니다.';
+
+  @override
   String get composeAnotherPhoto => '다른 사진 선택';
 
   @override
@@ -201,6 +246,37 @@ class L10nKo extends L10n {
 
   @override
   String get reminderLabel => '리마인드';
+
+  @override
+  String get addedLabel => '추가한 날짜';
+
+  @override
+  String get lastUpdatedLabel => '마지막 업데이트';
+
+  @override
+  String get locationLabel => '위치';
+
+  @override
+  String get locationAddLabel => '위치 추가';
+
+  @override
+  String get locationBlocked =>
+      '위치 추가는 권한 허용에 따라 결정됩니다. 촬영 장소를 기록하려면 위치 접근을 허용하세요.';
+
+  @override
+  String get compassNorth => 'N';
+
+  @override
+  String get compassSouth => 'S';
+
+  @override
+  String get compassEast => 'E';
+
+  @override
+  String get compassWest => 'W';
+
+  @override
+  String get toastMapFailed => '지도를 열 수 없습니다';
 
   @override
   String get reminderSuffixActive => '일 후';
@@ -282,6 +358,47 @@ class L10nKo extends L10n {
   String get legalTerms => '이용 약관';
 
   @override
+  String get yourDataTitle => 'Latermark와 내 데이터';
+
+  @override
+  String get yourDataSubtitle => '개인정보를 소중히 여기고 존중합니다.';
+
+  @override
+  String get yourDataSafetyQuestion => '내 데이터는 안전한가요?';
+
+  @override
+  String get yourDataSafetyAnswer =>
+      'Latermark는 노트, 사진, 위치 정보를 모두 기기 안에서 처리합니다. 직접 공유하지 않는 한 데이터는 기기 밖으로 나가지 않으며, 분석·오류 보고·이용 통계를 위해 전송되는 일도 없습니다.';
+
+  @override
+  String get yourDataLocationQuestion => '위치 권한은 왜 필요한가요?';
+
+  @override
+  String get yourDataLocationAnswer =>
+      '기록에 장소를 추가하고 싶을 때만 위치를 한 번 확인합니다. 위치는 해당 기록에만 저장되며 백그라운드에서 추적하지 않습니다. 지도를 열 때만 좌표가 지도 앱으로 전달됩니다.';
+
+  @override
+  String get yourDataPhotosQuestion => '사진 접근 권한은 어떻게 사용되나요?';
+
+  @override
+  String get yourDataPhotosAnswer =>
+      '사진 보관함에서 이미지를 골라 기록에 추가할 때만 사용합니다. Latermark는 선택한 이미지만 가져오며 이 과정에 인터넷 연결은 필요하지 않습니다.';
+
+  @override
+  String get yourDataRemindersQuestion => '리마인더는 어떻게 작동하나요?';
+
+  @override
+  String get yourDataRemindersAnswer =>
+      '리마인더는 기기 안에서 예약되고 기기가 직접 알려드립니다. 외부 서버에서 보내거나 원격으로 실행하지 않습니다.';
+
+  @override
+  String get yourDataDeletionQuestion => '앱을 삭제하면 어떻게 되나요?';
+
+  @override
+  String get yourDataDeletionAnswer =>
+      'Latermark에 저장한 노트, 가져온 이미지, 위치 정보는 모두 영구적으로 삭제됩니다. 사진 보관함이나 다른 앱의 데이터에는 영향을 주지 않습니다.';
+
+  @override
   String get legalOpenFailed => '링크를 열지 못했습니다.';
 
   @override
@@ -307,6 +424,30 @@ class L10nKo extends L10n {
 
   @override
   String get themeDark => '다크';
+
+  @override
+  String get appColorTitle => '앱 색상';
+
+  @override
+  String get appColorDescription => '컨트롤과 강조 표시에 사용할 포인트 색상을 선택하세요.';
+
+  @override
+  String get accentOrange => '주황';
+
+  @override
+  String get accentBlue => '파랑';
+
+  @override
+  String get accentViolet => '보라';
+
+  @override
+  String get accentPink => '분홍';
+
+  @override
+  String get accentGreen => '초록';
+
+  @override
+  String get accentGold => '골드';
 
   @override
   String get retentionTitle => '자동 삭제';
@@ -503,6 +644,9 @@ class L10nKo extends L10n {
   String get paywallNoSubscription => '구독 없이 한 번 구매로 계속 Pro.';
 
   @override
+  String get paywallOwned => 'Latermark Pro를 사용할 수 있습니다.';
+
+  @override
   String get paywallFeatureNoSubscription => '구독 없음';
 
   @override
@@ -585,4 +729,10 @@ class L10nKo extends L10n {
 
   @override
   String get photoLibraryUsageDescription => '사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다.';
+
+  @override
+  String get actionShare => '공유';
+
+  @override
+  String get shareNoteSemantic => '사진과 메모 공유';
 }

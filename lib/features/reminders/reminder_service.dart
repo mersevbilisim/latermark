@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../l10n/app_localizations.dart';
 import '../notes/data/notes_database.dart';
+import '../notes/domain/note_reminder.dart';
 import '../settings/domain/app_settings.dart';
 
 /// Kullanıcının açıkça istediği hatırlatmaları kurar.
@@ -21,43 +23,89 @@ import '../settings/domain/app_settings.dart';
 /// alıyordu — üstelik iOS aynı anda yalnızca **64** bekleyen bildirim tuttuğu
 /// için fazlası sessizce düşüyordu. İstemek artık kullanıcının kararı.
 class ReminderService {
-  ReminderService();
+  ReminderService({bool? supported}) : _supportedOverride = supported;
 
   final _plugin = FlutterLocalNotificationsPlugin();
+  final _noteTaps = StreamController<int>.broadcast();
+  final bool? _supportedOverride;
   static const _settingsChannel = MethodChannel('latermark/app_settings');
 
   bool _ready = false;
+  bool _disposed = false;
+  Future<void>? _initialization;
+  int? _pendingNoteId;
 
   /// Bildirim kimlikleri not kimlikleriyle birebir aynı; böylece bir notu
   /// yeniden planlamak eskisini kendiliğinden değiştirir.
   static const _channelId = 'latermark_reminders';
 
-  static bool get _supported => Platform.isIOS || Platform.isAndroid;
+  bool get _supported =>
+      _supportedOverride ?? (!kIsWeb && (Platform.isIOS || Platform.isAndroid));
 
-  Future<void> initialize() async {
-    if (_ready || !_supported) return;
+  /// Bildirim dokunuşlarını not kimliği olarak dinler.
+  ///
+  /// Soğuk açılış bilgisi widget ağacı kurulmadan gelebilir. Böyle bir ilk
+  /// dokunuş kaybolmaz; ilk dinleyici bağlandığı anda bir kez teslim edilir.
+  StreamSubscription<int> listenNoteTaps(void Function(int noteId) onTap) {
+    final subscription = _noteTaps.stream.listen(onTap);
+    final pending = _pendingNoteId;
+    _pendingNoteId = null;
+    if (pending != null) onTap(pending);
+    return subscription;
+  }
 
-    tzdata.initializeTimeZones();
-    // Bölge adını tahmin etmek yerine her şey UTC üzerinden planlanır.
-    //
-    // Hatırlatma "şu andan X gün sonra" olduğu için önemli olan mutlak an;
-    // duvar saati değil. UTC kullanmak, cihazın bölge adını bilmeye (ve fazladan
-    // bir pakete) gerek bırakmadan anı tam doğru veriyor. Bu yaklaşım yalnızca
-    // "her gün saat 9'da" gibi tekrarlarda yetersiz kalırdı — öyle bir şey yok.
-    tz.setLocalLocation(tz.UTC);
+  Future<void> initialize() {
+    if (_ready || _disposed || !_supported) return Future<void>.value();
+    return _initialization ??= _initialize();
+  }
 
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(
-          // İzin, kullanıcı ayarı açtığında açıkça istenir; açılışta değil.
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
+  Future<void> _initialize() async {
+    try {
+      tzdata.initializeTimeZones();
+      // Bölge adını tahmin etmek yerine her şey UTC üzerinden planlanır.
+      //
+      // Hatırlatma "şu andan X gün sonra" olduğu için önemli olan mutlak an;
+      // duvar saati değil. UTC kullanmak, cihazın bölge adını bilmeye (ve fazladan
+      // bir pakete) gerek bırakmadan anı tam doğru veriyor. Bu yaklaşım yalnızca
+      // "her gün saat 9'da" gibi tekrarlarda yetersiz kalırdı — öyle bir şey yok.
+      tz.setLocalLocation(tz.UTC);
+
+      await _plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(
+            // İzin, kullanıcı ayarı açtığında açıkça istenir; açılışta değil.
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
         ),
-      ),
-    );
-    _ready = true;
+        onDidReceiveNotificationResponse: (response) {
+          _emitPayload(response.payload);
+        },
+      );
+
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      _ready = true;
+      if (launch?.didNotificationLaunchApp ?? false) {
+        _emitPayload(launch?.notificationResponse?.payload);
+      }
+    } catch (_) {
+      // Başlatma başarısızsa sonraki yaşam döngüsü/senkron çağrısı yeniden
+      // deneyebilsin; tamamlanmamış Future kalıcı kilit olmasın.
+      _initialization = null;
+      rethrow;
+    }
+  }
+
+  void _emitPayload(String? payload) {
+    final noteId = noteIdFromReminderPayload(payload);
+    if (noteId == null || _disposed) return;
+    if (_noteTaps.hasListener) {
+      _noteTaps.add(noteId);
+    } else {
+      _pendingNoteId = noteId;
+    }
   }
 
   /// Kullanıcı hatırlatıcıyı açtığında çağrılır.
@@ -129,35 +177,44 @@ class ReminderService {
     }
   }
 
-  /// Tüm hatırlatmaları baştan kurar.
+  /// Bekleyen hatırlatma programını baştan kurar.
   ///
-  /// Tek tek güncellemek yerine hepsini silip yeniden planlamak, notların
-  /// silinmesi/süresinin dolması gibi durumlarda hayalet bildirim kalmasını
-  /// imkânsız kılıyor. Bildirim sayısı not sayısı kadar, yani zaten küçük.
+  /// Tek tek zaman karşılaştırmak yerine bekleyen istekleri yenilemek, notların
+  /// düzenlenmesi ve saat değişikliklerinde programı deterministik tutar.
+  /// Daha önce teslim edilmiş geçerli bildirimler burada korunur; yalnız
+  /// silinmiş notların hayalet bildirimleri ayıklanır.
   Future<void> sync(List<Note> notes, AppSettings settings, L10n l10n) async {
     if (!_supported) return;
     await initialize();
 
     try {
-      await _plugin.cancelAll();
-      if (!settings.reminderEnabled) return;
+      // Ana şalter kapatıldığında hem bekleyen hem de daha önce teslim edilmiş
+      // Latermark bildirimleri temizlenir. Açıkken ise yalnız bekleyen programı
+      // yeniden kurarız; okunmamış, teslim edilmiş başka bir not bildirimi sırf
+      // veritabanında bir şey değişti diye tepsiden kaybolmamalı.
+      // Mağaza hakkı ana şalterden bağımsız bir güvenlik sınırıdır. Eski bir
+      // ayar satırı `reminderEnabled=true` taşısa bile iade/geri alma sonrası
+      // Pro yoksa bekleyen ve teslim edilmiş Latermark bildirimleri kalmaz.
+      if (!settings.proUnlocked || !settings.reminderEnabled) {
+        await _plugin.cancelAll();
+        return;
+      }
+
+      await _plugin.cancelAllPendingNotifications();
+      await _removeOrphanedDeliveredNotifications(notes);
       if (!await hasPermission()) return;
 
       final now = tz.TZDateTime.now(tz.UTC);
 
       for (final note in notes) {
-        // Süre verilmemiş kayıtlar sessiz kalır.
-        if (note.remindAfterDays <= 0) continue;
-
-        final at = tz.TZDateTime.from(
-          note.createdAt.add(Duration(days: note.remindAfterDays)).toUtc(),
-          tz.UTC,
+        final pendingAt = pendingReminderAt(
+          createdAt: note.createdAt,
+          remindAfterDays: note.remindAfterDays,
+          expiresAt: note.expiresAt,
+          now: now,
         );
-
-        // Geçmişte kalanı planlamanın anlamı yok.
-        if (!at.isAfter(now)) continue;
-        // Hatırlatmadan önce zaten silinecekse hiç kurma.
-        if (note.expiresAt != null && !note.expiresAt!.isAfter(at)) continue;
+        if (pendingAt == null) continue;
+        final at = tz.TZDateTime.from(pendingAt.toUtc(), tz.UTC);
 
         await _plugin.zonedSchedule(
           id: note.id,
@@ -173,6 +230,8 @@ class ReminderService {
               channelDescription: l10n.notificationChannelDescription,
               importance: Importance.defaultImportance,
               priority: Priority.defaultPriority,
+              // Android dokunulduğunda kendi satırını tepsiden anında siler.
+              autoCancel: true,
             ),
             iOS: const DarwinNotificationDetails(),
           ),
@@ -184,6 +243,45 @@ class ReminderService {
     }
   }
 
+  /// İlgili notun sistem tepsisindeki teslim edilmiş bildirimini kaldırır.
+  ///
+  /// Önce aktif listeyi okumamız bilinçli: `cancel(id:)` bekleyen isteği de
+  /// kaldırır. Kullanıcı hatırlatma tarihi gelmeden nota kendi kendine bakarsa
+  /// gelecekte istediği hatırlatmayı yanlışlıkla iptal etmemeliyiz.
+  Future<void> dismissNote(int noteId) async {
+    if (!_supported || _disposed || noteId <= 0) return;
+    await initialize();
+
+    try {
+      final active = await _plugin.getActiveNotifications();
+      final delivered = active.any(
+        (notification) => _noteIdOf(notification) == noteId,
+      );
+      if (delivered) await _plugin.cancel(id: noteId);
+    } on PlatformException catch (error) {
+      debugPrint('Not bildirimi kapatılamadı: $error');
+    }
+  }
+
+  /// Uygulama kapalıyken süresi dolup silinen bir nota ait teslim edilmiş
+  /// bildirimi de geride bırakma. Geçerli notların okunmamış bildirimlerine
+  /// dokunulmaz; onlar kullanıcı notu açana kadar tepside kalabilir.
+  Future<void> _removeOrphanedDeliveredNotifications(List<Note> notes) async {
+    final noteIds = notes.map((note) => note.id).toSet();
+    final active = await _plugin.getActiveNotifications();
+
+    for (final notification in active) {
+      final noteId = _noteIdOf(notification);
+      if (noteId != null && !noteIds.contains(noteId)) {
+        await _plugin.cancel(id: noteId);
+      }
+    }
+  }
+
+  int? _noteIdOf(ActiveNotification notification) => Platform.isAndroid
+      ? (notification.channelId == _channelId ? notification.id : null)
+      : noteIdFromReminderPayload(notification.payload);
+
   Future<void> cancelAll() async {
     if (!_supported || !_ready) return;
     try {
@@ -193,10 +291,26 @@ class ReminderService {
     }
   }
 
-  static String _title(Note note, L10n l10n) => note.body.isEmpty
-      ? l10n.notificationTitleNoBody
-      : l10n.notificationTitle;
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _pendingNoteId = null;
+    await _noteTaps.close();
+  }
+
+  static String _title(Note note, L10n l10n) =>
+      note.body.isEmpty ? l10n.notificationTitleNoBody : 'Latermark Pro';
 
   static String _body(Note note, L10n l10n) =>
       note.body.isEmpty ? l10n.notificationBodyNoBody : note.body;
+}
+
+/// Yalnızca bu servisin ürettiği `note/<pozitif kimlik>` biçimini kabul eder.
+int? noteIdFromReminderPayload(String? payload) {
+  if (payload == null) return null;
+  final segments = payload.split('/');
+  if (segments.length != 2 || segments.first != 'note') return null;
+
+  final noteId = int.tryParse(segments.last);
+  return noteId != null && noteId > 0 ? noteId : null;
 }

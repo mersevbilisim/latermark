@@ -43,6 +43,8 @@ class MainActivity : FlutterActivity() {
     private var settingsChannel: MethodChannel? = null
     private var ocrChannel: MethodChannel? = null
     private var imageChannel: MethodChannel? = null
+    private var locationChannel: MethodChannel? = null
+    private var location: LocationChannel? = null
 
     /// Tanıyıcı tembel kuruluyor: OCR hiç kullanılmayabilir ve kurulum
     /// Play Services'e gidiyor.
@@ -102,6 +104,16 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+        locationChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            LocationChannel.NAME,
+        ).also { channel ->
+            LocationChannel(this).also { handler ->
+                location = handler
+                handler.register(channel)
+            }
+        }
+
         settingsChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             SETTINGS_CHANNEL,
@@ -123,6 +135,15 @@ class MainActivity : FlutterActivity() {
         ocrChannel?.setMethodCallHandler(null)
         ocrChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        if (location?.onPermissionResult(requestCode, grantResults) == true) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     override fun onDestroy() {

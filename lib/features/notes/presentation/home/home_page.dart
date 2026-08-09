@@ -11,6 +11,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/shutter_confirm.dart';
 import '../../../home_widget/home_widget_link.dart';
+import '../../../reminders/reminder_service.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
@@ -39,11 +40,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Stream<List<Note>>? _notes;
   StreamSubscription<void>? _sharedImportSubscription;
   late final HomeWidgetLink _widgetLink;
-  StreamSubscription<int>? _widgetLinkSubscription;
+  StreamSubscription<HomeWidgetAction>? _widgetLinkSubscription;
+  ReminderService? _reminders;
+  StreamSubscription<int>? _reminderLinkSubscription;
   bool _pickingFromGallery = false;
   bool _drainingSharedImports = false;
-  int? _activeWidgetNoteId;
-  int? _queuedWidgetNoteId;
+  int? _activeLinkedNoteId;
+  int? _queuedLinkedNoteId;
+  bool _openingWidgetCamera = false;
+  bool _widgetCameraQueued = false;
 
   /// Arama durumu burada yaşıyor: üstlük bir sliver delegesi ve kaydırmanın
   /// her karesinde yeniden kuruluyor, denetim durumunu orada tutamayız.
@@ -55,6 +60,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   SearchHits _hits = SearchHits.none;
   Timer? _searchDebounce;
 
+  /// Yaş bölümlerinin dayandığı yerel gün. Akış açıkken gece yarısı geçilse
+  /// bile "Bugün / Dün" başlıkları bir sonraki veri değişimini beklememeli.
+  late DateTime _calendarReference;
+  Timer? _calendarRollover;
+
   /// Sorgu artık veritabanına gidiyor, yani cevap bir sonraki karede değil bir
   /// süre sonra geliyor. Bu sayaç hangi cevabın güncel olduğunu söylüyor:
   /// hızlı yazan bir kullanıcıda istekler sırayla bitmeyebilir ve geciken eski
@@ -64,9 +74,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _calendarReference = DateTime.now();
+    _scheduleCalendarRollover();
     WidgetsBinding.instance.addObserver(this);
     _widgetLink = HomeWidgetLink();
-    _widgetLinkSubscription = _widgetLink.noteIds.listen(_queueWidgetNote);
+    _widgetLinkSubscription = _widgetLink.actions.listen(_queueWidgetAction);
     unawaited(_widgetLink.start());
     _sharedImportSubscription = SharedImportBridge.onImportAvailable.listen((
       _,
@@ -87,17 +99,37 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();
+    _calendarRollover?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     _sharedImportSubscription?.cancel();
     _widgetLinkSubscription?.cancel();
+    _reminderLinkSubscription?.cancel();
     unawaited(_widgetLink.dispose());
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _drainSharedImports();
+    if (state != AppLifecycleState.resumed) return;
+    _drainSharedImports();
+    _drainExternalRoutes();
+    setState(() => _calendarReference = DateTime.now());
+    _scheduleCalendarRollover();
+  }
+
+  void _scheduleCalendarRollover() {
+    _calendarRollover?.cancel();
+    final now = DateTime.now();
+    final nextDay = DateTime(now.year, now.month, now.day + 1);
+    _calendarRollover = Timer(
+      nextDay.difference(now) + const Duration(milliseconds: 50),
+      () {
+        if (!mounted) return;
+        setState(() => _calendarReference = DateTime.now());
+        _scheduleCalendarRollover();
+      },
+    );
   }
 
   @override
@@ -108,18 +140,42 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _repository = repository;
       _notes = repository.watchNotes();
     }
+
+    final reminders = context.reminders;
+    if (reminders != _reminders) {
+      unawaited(_reminderLinkSubscription?.cancel());
+      _reminders = reminders;
+      _reminderLinkSubscription = reminders.listenNoteTaps(_queueLinkedNote);
+      unawaited(_initializeReminderLinks(reminders));
+    }
+  }
+
+  Future<void> _initializeReminderLinks(ReminderService reminders) async {
+    try {
+      await reminders.initialize();
+    } catch (error) {
+      debugPrint('Bildirim bağlantısı başlatılamadı: $error');
+    }
   }
 
   /// Yeni kayıt kapısı.
   ///
   /// Kontrol **çekimden önce** yapılıyor. Fotoğrafı çektirip notu yazdırdıktan
   /// sonra "limit doldu" demek, kullanıcının emeğini çöpe atmak olurdu.
-  Future<bool> _allowNewNote() async {
-    final settings = AppScope.preferences(context);
-    final notes = await AppScope.of(context).watchNotes().first;
+  Future<bool> _allowNewNote({bool? isProOverride}) async {
+    // Cold-start widget açılışında InheritedWidget henüz Drift'in ilk
+    // karesini almamış olabilir. Limiti kalıcı ayardan okumak, Pro kullanıcıyı
+    // varsayılan `false` yüzünden yanlış paywall'a göndermeyi önler.
+    final settingsRepository = AppScope.settingsOf(context);
+    final notesRepository = AppScope.of(context);
+    final settings = await settingsRepository.read();
+    final notes = await notesRepository.watchNotes().first;
     if (!mounted) return false;
 
-    if (!ProLimits.blocksNewNote(notes.length, isPro: settings.proUnlocked)) {
+    if (!ProLimits.blocksNewNote(
+      notes.length,
+      isPro: isProOverride ?? settings.proUnlocked,
+    )) {
       return true;
     }
 
@@ -127,9 +183,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return false;
   }
 
-  Future<void> _openCamera() async {
-    if (!await _allowNewNote() || !mounted) return;
-    await Navigator.of(context).push(AppRoutes.shutter(const CapturePage()));
+  Future<void> _openCamera({
+    bool? isProOverride,
+    VoidCallback? onFlowClosed,
+  }) async {
+    if (!await _allowNewNote(isProOverride: isProOverride) || !mounted) {
+      onFlowClosed?.call();
+      return;
+    }
+    await Navigator.of(
+      context,
+    ).push(AppRoutes.shutter(CapturePage(onFlowClosed: onFlowClosed)));
   }
 
   Future<void> _pickFromGallery() async {
@@ -224,41 +288,118 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
     } finally {
       _drainingSharedImports = false;
-      final queued = _queuedWidgetNoteId;
-      if (queued != null) _queueWidgetNote(queued);
+      _drainExternalRoutes();
     }
   }
 
-  void _queueWidgetNote(int noteId) {
+  void _queueWidgetAction(HomeWidgetAction action) {
+    switch (action) {
+      case OpenWidgetNote(:final noteId):
+        _queueLinkedNote(noteId);
+        return;
+      case OpenWidgetCapture():
+        _queueWidgetCamera();
+        return;
+    }
+  }
+
+  /// Widget, bildirim ve hızlı çekim dokunuşlarını aynı tekli route kuyruğunda
+  /// birleştirir. Kilit açılırken gelen URL uygulama `resumed` olmadan route
+  /// üretmez; kamera donanımı ancak gerçekten öndeyken başlatılır.
+  void _queueLinkedNote(int noteId) {
     if (!mounted) return;
-    if (_activeWidgetNoteId == noteId) return;
-    if (_activeWidgetNoteId != null || _drainingSharedImports) {
-      _queuedWidgetNoteId = noteId;
+    if (_activeLinkedNoteId == noteId) return;
+    _queuedLinkedNoteId = noteId;
+    _drainExternalRoutes();
+  }
+
+  void _queueWidgetCamera() {
+    if (!mounted || _openingWidgetCamera || _widgetCameraQueued) return;
+    _widgetCameraQueued = true;
+    _drainExternalRoutes();
+  }
+
+  void _drainExternalRoutes() {
+    if (!mounted ||
+        _drainingSharedImports ||
+        _openingWidgetCamera ||
+        _activeLinkedNoteId != null ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       return;
     }
 
-    _queuedWidgetNoteId = null;
+    // Kamera dokunuşu zaman hassastır; sırada hem bildirim hem de deklanşör
+    // varsa önce kullanıcının az önce istediği çekim açılır.
+    if (_widgetCameraQueued) {
+      _widgetCameraQueued = false;
+      _openingWidgetCamera = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openWidgetCamera());
+      });
+      return;
+    }
+
+    final noteId = _queuedLinkedNoteId;
+    if (noteId == null) return;
+    _queuedLinkedNoteId = null;
     // İlk frame gelmeden ikinci bir native olay ulaşırsa da iki detay sayfası
     // planlanmasın; "active" hem planlanmış hem açık rotayı temsil eder.
-    _activeWidgetNoteId = noteId;
+    _activeLinkedNoteId = noteId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openWidgetNote(noteId);
+      if (mounted) _openLinkedNote(noteId);
     });
   }
 
-  Future<void> _openWidgetNote(int noteId) async {
-    if (!mounted || _activeWidgetNoteId != noteId) return;
+  Future<void> _openWidgetCamera() async {
+    if (!mounted || !_openingWidgetCamera) return;
+
+    try {
+      // Native timeline eski kalabilir ve özel URL elle de çağrılabilir.
+      // Widget hakkını uygulama tarafında yeniden doğrulamak downgrade sonrası
+      // kestirmenin kamerayı açmasını engeller.
+      final purchases = context.purchases;
+      final settingsRepository = AppScope.settingsOf(context);
+      final verified = await purchases.checkEntitlement();
+      final settings = await settingsRepository.read();
+      if (!mounted) return;
+      // Kesin mağaza sonucu varsa cache'in önüne geçer. Ağ/StoreKit o anda
+      // cevap veremiyorsa son doğrulanmış yerel hak çevrimdışı çalışmayı sürdürür.
+      final isPro = verified ?? settings.proUnlocked;
+      if (!isPro) {
+        await showPaywall(context, reason: PaywallReason.widget);
+        return;
+      }
+
+      // CapturePage, ComposePage'e `pushReplacement` ile geçtiği için yalnız
+      // route future'ını beklemek akışı erken bitirirdi. Callback, fotoğraf
+      // kaydedilene/atılana kadar dış route kuyruğunu gerçekten kilitli tutar.
+      final flowClosed = Completer<void>();
+      await _openCamera(
+        isProOverride: isPro,
+        onFlowClosed: () {
+          if (!flowClosed.isCompleted) flowClosed.complete();
+        },
+      );
+      await flowClosed.future;
+    } finally {
+      _openingWidgetCamera = false;
+      if (mounted) _drainExternalRoutes();
+    }
+  }
+
+  Future<void> _openLinkedNote(int noteId) async {
+    if (!mounted || _activeLinkedNoteId != noteId) return;
     await Navigator.of(
       context,
-    ).push(AppRoutes.lift(NoteDetailPage(noteId: noteId)));
-    _activeWidgetNoteId = null;
-
-    final queued = _queuedWidgetNoteId;
-    if (queued != null && mounted) _queueWidgetNote(queued);
+    ).push(AppRoutes.photoDetail(NoteDetailPage(noteId: noteId)));
+    _activeLinkedNoteId = null;
+    _drainExternalRoutes();
   }
 
   void _openNote(Note note) {
-    Navigator.of(context).push(AppRoutes.lift(NoteDetailPage(noteId: note.id)));
+    Navigator.of(
+      context,
+    ).push(AppRoutes.photoDetail(NoteDetailPage(noteId: note.id)));
   }
 
   void _toggleSearch() {
@@ -310,8 +451,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     Navigator.of(context).push(AppRoutes.lift(const SettingsPage()));
   }
 
-
-
   /// Karta basılı tutunca doğrudan silme onayı açılır — detaya girmeden.
   Future<void> _confirmDelete(Note note) async {
     final confirmed = await showShutterConfirm(
@@ -332,7 +471,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final density = AppScope.preferences(context).density;
+    final preferences = AppScope.preferences(context);
+    final density = preferences.density;
 
     return Scaffold(
       body: StreamBuilder<List<Note>>(
@@ -363,8 +503,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     density: density,
                     child: NotesFeed(
                       notes: notes,
+                      calendarReference: _calendarReference,
                       repository: _repository!,
                       density: density,
+                      remindersActive:
+                          preferences.proUnlocked &&
+                          preferences.reminderEnabled,
                       onOpen: _openNote,
                       onDelete: _confirmDelete,
                       onOpenSettings: _openSettings,
@@ -385,7 +529,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   docked: notes.isNotEmpty,
                   importing: _pickingFromGallery,
                   noteCount: notes.length,
-                  isPro: AppScope.preferences(context).proUnlocked,
+                  isPro: preferences.proUnlocked,
                   onCapture: _openCamera,
                   onImport: _pickFromGallery,
                   onOpenSettings: notes.isEmpty ? _openSettings : null,

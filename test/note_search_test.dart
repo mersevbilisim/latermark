@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/features/notes/data/notes_database.dart';
-import 'package:not_app/features/notes/data/notes_repository.dart';
-import 'package:not_app/features/notes/data/photo_store.dart';
-import 'package:not_app/features/notes/data/search_text.dart';
-import 'package:not_app/features/notes/domain/retention.dart';
+import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/data/notes_repository.dart';
+import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/notes/data/search_text.dart';
+import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:sqlite3/sqlite3.dart' as raw;
 
 void main() {
@@ -17,7 +17,7 @@ void main() {
   late NotesRepository repository;
 
   setUp(() async {
-    sandbox = await Directory.systemTemp.createTemp('not_app_search_test');
+    sandbox = await Directory.systemTemp.createTemp('latermark_search_test');
     database = NotesDatabase.forExecutor(NativeDatabase.memory());
     photos = await PhotoStore.openIn(sandbox);
     repository = NotesRepository(database: database, photos: photos);
@@ -80,10 +80,7 @@ void main() {
 
     test('boşluksuz gürültü olduğu yerden kesilir', () {
       final blob = 'x' * (SearchText.maxIndexedChars * 2);
-      expect(
-        SearchText.normalize(blob).length,
-        SearchText.maxIndexedChars,
-      );
+      expect(SearchText.normalize(blob).length, SearchText.maxIndexedChars);
     });
   });
 

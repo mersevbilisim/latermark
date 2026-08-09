@@ -36,8 +36,9 @@ class IconOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.palette.onPhotoAccent;
     final effectiveFill = active
-        ? const Color(0xE62D1711)
+        ? Color.lerp(OnPhoto.canvasDeep, accent, 0.18)!.withValues(alpha: 0.92)
         : fill ?? OnPhoto.canvasDeep.withValues(alpha: 0.78);
 
     return Pressable(
@@ -47,16 +48,12 @@ class IconOrb extends StatelessWidget {
       child: GlassSurface.circle(
         tint: effectiveFill,
         borderColor: active
-            ? OnPhoto.ember.withValues(alpha: 0.60)
+            ? accent.withValues(alpha: 0.60)
             : (fill == null ? OnPhoto.hairlineBright : null),
         elevation: fill == null ? 10 : 0,
         child: SizedBox.square(
           dimension: size,
-          child: Icon(
-            icon,
-            size: iconSize,
-            color: active ? OnPhoto.ember : tint,
-          ),
+          child: Icon(icon, size: iconSize, color: active ? accent : tint),
         ),
       ),
     );

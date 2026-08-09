@@ -20,12 +20,17 @@ class ReminderControl extends StatefulWidget {
     super.key,
     required this.days,
     required this.onChanged,
+    this.prominent = false,
   });
 
   /// Kaç gün sonra hatırlatılacağı. `0` ise hatırlatma yok.
   final int days;
 
   final ValueChanged<int> onChanged;
+
+  /// Compose'ta açıklamalı metadata label'ını kullanır. Düzenleme panelindeki
+  /// daha sıkışık satır geriye dönük olarak aynı kalır.
+  final bool prominent;
 
   @override
   State<ReminderControl> createState() => _ReminderControlState();
@@ -71,6 +76,7 @@ class _ReminderControlState extends State<ReminderControl> {
       days: widget.days,
       blocked: _blocked,
       locked: !AppScope.preferences(context).proUnlocked,
+      prominent: widget.prominent,
       onChanged: _onChanged,
       onLockedTap: () => showPaywall(context, reason: PaywallReason.reminder),
       onOpenSystemSettings: () => context.reminders.openSystemSettings(),

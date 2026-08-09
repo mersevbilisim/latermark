@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "노트에 넣을 사진을 촬영하기 위해 카메라를 사용합니다.";
 "NSPhotoLibraryUsageDescription" = "사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다.";
+"NSLocationWhenInUseUsageDescription" = "위치 접근을 허용하면 사진에 촬영한 장소가 기록됩니다. 좌표는 기기에만 남습니다.";

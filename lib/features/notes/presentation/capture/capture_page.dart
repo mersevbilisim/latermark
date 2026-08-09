@@ -19,7 +19,11 @@ import '../../../../l10n/l10n_context.dart';
 /// uygulamanın arka plana alınması, objektif değişimi ve çekim. Alt widget'lar
 /// yalnızca çizer.
 class CapturePage extends StatefulWidget {
-  const CapturePage({super.key});
+  const CapturePage({super.key, this.onFlowClosed});
+
+  /// Widget gibi uygulama dışı bir giriş, çekimden sonraki Compose kapanana
+  /// kadar bütün akışı tek route olarak izlemek isteyebilir.
+  final VoidCallback? onFlowClosed;
 
   @override
   State<CapturePage> createState() => _CapturePageState();
@@ -57,6 +61,8 @@ class _CapturePageState extends State<CapturePage>
   String _failure = '';
 
   bool _capturing = false;
+  bool _flowHandedOff = false;
+  bool _flowClosed = false;
   Offset? _focusAt;
   int _focusTick = 0;
 
@@ -72,7 +78,14 @@ class _CapturePageState extends State<CapturePage>
     WidgetsBinding.instance.removeObserver(this);
     _flash.dispose();
     _controller?.dispose();
+    if (!_flowHandedOff) _closeFlow();
     super.dispose();
+  }
+
+  void _closeFlow() {
+    if (_flowClosed) return;
+    _flowClosed = true;
+    widget.onFlowClosed?.call();
   }
 
   @override
@@ -177,9 +190,12 @@ class _CapturePageState extends State<CapturePage>
       final shot = await controller.takePicture();
       if (!mounted) return;
       // Vizör yığından çıkar: kaydettikten sonra doğrudan ana ekrana dönülür.
-      Navigator.of(
-        context,
-      ).pushReplacement(AppRoutes.lift(ComposePage(capture: shot)));
+      _flowHandedOff = true;
+      Navigator.of(context).pushReplacement(
+        AppRoutes.lift(
+          ComposePage(capture: shot, onFlowClosed: widget.onFlowClosed),
+        ),
+      );
     } on CameraException catch (error) {
       if (!mounted) return;
       setState(() => _capturing = false);

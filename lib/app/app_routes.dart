@@ -57,4 +57,30 @@ abstract final class AppRoutes {
       },
     );
   }
+
+  /// Fotoğraf detayı: alttaki akışı canlı tutar; böylece fotoğraf aşağı
+  /// çekildiğinde detay bir perde gibi kapanmak yerine ana ekranı açığa çıkarır.
+  static Route<T> photoDetail<T>(Widget page) {
+    return PageRouteBuilder<T>(
+      transitionDuration: AppMotion.medium,
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      opaque: false,
+      barrierColor: Colors.transparent,
+      pageBuilder: (_, _, _) => page,
+      transitionsBuilder: (context, animation, secondary, child) {
+        final eased = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: AppMotion.exit,
+        );
+        return FadeTransition(
+          opacity: eased,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .985, end: 1).animate(eased),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
 }

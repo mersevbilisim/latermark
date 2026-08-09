@@ -1,4 +1,9 @@
 "widget.description" = "Muestra tu última captura y su nota.";
+"widget.capture.name" = "Captura rápida";
+"widget.capture.description" = "Abre la cámara de Latermark directamente desde la pantalla de bloqueo.";
+"widget.capture.action" = "Abrir cámara";
+"widget.capture.accessibility" = "Abrir la cámara de Latermark";
+"widget.capture.hint" = "Haz una foto y continúa con una nota nueva.";
 "widget.note.untitled" = "Sin nota";
 "widget.empty.title" = "Toca para capturar";
 "widget.empty.subtitle" = "Tu primera nota aparecerá aquí";

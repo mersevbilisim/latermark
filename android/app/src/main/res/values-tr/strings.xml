@@ -6,6 +6,9 @@
     <string name="widget_empty_subtitle">İlk notun burada görünecek</string>
     <string name="widget_photo_description">Son karenin fotoğrafı</string>
     <string name="widget_note_without_body">Notsuz kayıt</string>
+    <string name="widget_folio">LM / %1$02d</string>
+    <string name="widget_pro_title">Latermark Pro</string>
+    <string name="widget_pro_subtitle">Son izini widget’ta göster</string>
     <string name="widget_remaining_now">şimdi</string>
     <string name="widget_remaining_days">%1$dg</string>
     <string name="widget_remaining_hours">%1$dsa</string>

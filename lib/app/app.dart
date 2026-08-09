@@ -12,11 +12,7 @@ import '../l10n/l10n_context.dart';
 /// Uygulamanın kökü: tema, dil ve depo bağlaması. Ekranlara ait hiçbir mantık
 /// burada durmaz.
 class LatermarkApp extends StatelessWidget {
-  const LatermarkApp({
-    super.key,
-    required this.notes,
-    required this.settings,
-  });
+  const LatermarkApp({super.key, required this.notes, required this.settings});
 
   final NotesRepository notes;
   final SettingsRepository settings;
@@ -36,8 +32,8 @@ class LatermarkApp extends StatelessWidget {
           return MaterialApp(
             onGenerateTitle: (context) => context.l10n.appTitle,
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
+            theme: AppTheme.light(preferences.accent),
+            darkTheme: AppTheme.dark(preferences.accent),
             themeMode: preferences.themeMode.flutterMode,
             // `null` ise Flutter telefonun dilini kullanır ve eşleşme yoksa
             // aşağıdaki çözümleyici devreye girer.

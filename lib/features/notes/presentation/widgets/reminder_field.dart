@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../l10n/l10n_context.dart';
-import '../../../../../core/theme/app_shape.dart';
 import '../../../../../shared/widgets/pressable.dart';
+import '../../../../../shared/widgets/pro_badge.dart';
+import 'note_option_label.dart';
 
 /// "Beni kaç gün sonra hatırlat?"
 ///
@@ -24,6 +25,7 @@ class ReminderField extends StatefulWidget {
     this.locked = false,
     this.onOpenSystemSettings,
     this.onLockedTap,
+    this.prominent = false,
   });
 
   /// Kaç gün sonra hatırlatılacağı. `0` ise hatırlatma yok.
@@ -45,6 +47,10 @@ class ReminderField extends StatefulWidget {
   final bool locked;
 
   final VoidCallback? onLockedTap;
+
+  /// Compose ekranındaki açıklamalı sol label. Panel içindeki kompakt kullanım
+  /// için varsayılan kapalıdır.
+  final bool prominent;
 
   /// Makul bir üst sınır: bundan uzağı için hatırlatma değil, takvim gerekir.
   static const maxDays = 365;
@@ -100,7 +106,12 @@ class _ReminderFieldState extends State<ReminderField> {
     final palette = context.palette;
     final active = widget.days > 0;
 
-    if (widget.locked) return _LockedField(onTap: widget.onLockedTap);
+    if (widget.locked) {
+      return _LockedField(
+        onTap: widget.onLockedTap,
+        prominent: widget.prominent,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,15 +127,9 @@ class _ReminderFieldState extends State<ReminderField> {
   }
 
   Widget _field(AppPalette palette, bool active) {
-    return Row(
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          context.l10n.reminderLabel,
-          style: palette.label.copyWith(
-            color: active ? palette.ink : palette.inkSoft,
-          ),
-        ),
-        const Spacer(),
         SizedBox(
           width: 54,
           child: TextField(
@@ -133,7 +138,7 @@ class _ReminderFieldState extends State<ReminderField> {
             onChanged: _submit,
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
-            keyboardAppearance: Brightness.dark,
+            keyboardAppearance: palette.brightness,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(3),
@@ -164,6 +169,31 @@ class _ReminderFieldState extends State<ReminderField> {
               : context.l10n.reminderSuffixOff,
           style: palette.caption.copyWith(color: palette.inkFaint),
         ),
+      ],
+    );
+
+    if (widget.prominent) {
+      return NoteOptionRow(
+        label: NoteOptionLabel(
+          icon: Icons.notifications_none_rounded,
+          title: context.l10n.reminderLabel,
+          detail: context.l10n.composeReminderDescription,
+          active: active,
+        ),
+        trailing: trailing,
+      );
+    }
+
+    return Row(
+      children: [
+        Text(
+          context.l10n.reminderLabel,
+          style: palette.label.copyWith(
+            color: active ? palette.ink : palette.inkSoft,
+          ),
+        ),
+        const Spacer(),
+        trailing,
       ],
     );
   }
@@ -218,9 +248,10 @@ class _BlockedNotice extends StatelessWidget {
 
 /// Ücretsiz katmandaki hâli: aynı satır, ama kilitli ve Pro işaretli.
 class _LockedField extends StatelessWidget {
-  const _LockedField({required this.onTap});
+  const _LockedField({required this.onTap, required this.prominent});
 
   final VoidCallback? onTap;
+  final bool prominent;
 
   @override
   Widget build(BuildContext context) {
@@ -229,47 +260,28 @@ class _LockedField extends StatelessWidget {
     return Pressable(
       onPressed: onTap,
       scale: 0.99,
-      semanticLabel: context.l10n.reminderLabel,
-      child: Row(
-        children: [
-          Text(
-            context.l10n.reminderLabel,
-            style: palette.label.copyWith(color: palette.inkSoft),
-          ),
-          const Spacer(),
-          const _ProBadge(),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProBadge extends StatelessWidget {
-  const _ProBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: palette.emberGlow,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: AppShape.all(AppShape.chip),
-          side: BorderSide(color: palette.ember, width: 0.5),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Text(
-          context.l10n.proBadge,
-          style: palette.caption.copyWith(
-            color: palette.ember,
-            fontWeight: FontWeight.w700,
-            fontSize: 10,
-            letterSpacing: 0.8,
-          ),
-        ),
+      semanticLabel: '${context.l10n.reminderLabel}, ${context.l10n.proBadge}',
+      child: ExcludeSemantics(
+        child: prominent
+            ? NoteOptionRow(
+                label: NoteOptionLabel(
+                  icon: Icons.notifications_none_rounded,
+                  title: context.l10n.reminderLabel,
+                  detail: context.l10n.composeReminderDescription,
+                  active: false,
+                ),
+                trailing: const ProGateMark(),
+              )
+            : Row(
+                children: [
+                  Text(
+                    context.l10n.reminderLabel,
+                    style: palette.label.copyWith(color: palette.inkSoft),
+                  ),
+                  const Spacer(),
+                  const ProGateMark(),
+                ],
+              ),
       ),
     );
   }

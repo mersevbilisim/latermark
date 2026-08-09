@@ -1,32 +1,48 @@
 {
   "@@locale": "tr",
-
   "appTitle": "Latermark",
   "actionSave": "Kaydet",
+  "composeSaving": "Kaydediliyor",
   "actionCancel": "Vazgeç",
   "actionClose": "Kapat",
   "actionBack": "Geri",
   "actionDelete": "Sil",
   "actionEdit": "Düzenle",
+  "actionMore": "Daha fazla",
+  "openPhotoSemantic": "Fotoğrafı tam ekran aç",
   "actionRetry": "Yeniden dene",
   "actionGoBack": "Geri dön",
   "actionOpen": "Aç",
   "actionOK": "Tamam",
   "settingsAction": "Ayarlar",
   "shutterSemantic": "Fotoğraf çek",
-
   "searchHint": "Ara",
   "searchResults": "{count, plural, other{{count} sonuç}}",
   "@searchResults": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "searchEmpty": "Eşleşen kayıt yok",
   "searchCancel": "Vazgeç",
   "searchInPhoto": "karede",
   "notesTitle": "Notlar",
+  "dateGroupToday": "Bugün",
+  "dateGroupYesterday": "Dün",
+  "dateGroupPastWeek": "Son 7 gün",
+  "dateGroupPastMonth": "Son 1 ay",
+  "dateGroupPastThreeMonths": "Son 3 ay",
+  "dateGroupPastYear": "Son 1 yıl",
+  "dateGroupOlder": "1 yıldan eski",
   "noteCount": "{count, plural, other{{count} not}}",
   "@noteCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "noteWithoutBody": "Notsuz kayıt",
   "inviteTitle": "Dokun ve çek",
@@ -39,7 +55,6 @@
   "manifestoThird": "Güvende",
   "switchToLargeView": "Büyük görünüme geç",
   "switchToGridView": "Izgara görünüme geç",
-
   "toastPhotoPickFailed": "Fotoğraf seçilemedi. Tekrar dene.",
   "toastPendingPickFailed": "Yarım kalan fotoğraf seçimi açılamadı.",
   "toastSharedPhotoAdded": "Paylaşılan fotoğraf eklendi.",
@@ -48,14 +63,12 @@
   "toastSaveFailed": "Kaydedilemedi. Tekrar dene.",
   "toastEditFailed": "Değişiklik kaydedilemedi.",
   "toastPermissionDenied": "Bildirim izni verilmedi. Hatırlatmalar kapalı kaldı.",
-
   "deleteConfirmTitle": "Bu kare silinsin mi?",
   "deleteConfirmCaption": "Fotoğraf ve not birlikte kalkacak.",
   "holdToDelete": "Silmek için basılı tut",
   "holdStageAlmost": "Neredeyse",
   "holdStageRelease": "Bırakma…",
   "holdStageGone": "Gitti",
-
   "cameraNotFoundTitle": "Kamera bulunamadı",
   "cameraNotFoundBody": "Bu cihazda kullanılabilir bir kamera yok.",
   "cameraDeniedTitle": "Kamera izni kapalı",
@@ -65,40 +78,68 @@
   "switchLens": "Objektifi değiştir",
   "flashSemantic": "Flaş: {state}",
   "@flashSemantic": {
-    "placeholders": { "state": { "type": "String" } }
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
   },
   "flashOff": "kapalı",
   "flashAuto": "otomatik",
   "flashOn": "açık",
-
   "composeHint": "Bunu neden çektin?",
+  "composeReminderDescription": "Bu kareyi seçtiğin gün yeniden karşına çıkarır.",
+  "composeLocationDescription": "Bulunduğun yeri yalnızca bu kareyle ilişkilendirir.",
+  "composeLocationResolving": "Konum alınıyor…",
+  "composeLocationReady": "Konum bu kare için hazır.",
+  "composeLocationPermissionRequired": "Konum izni gerekli.",
   "composeAnotherPhoto": "Başka fotoğraf",
   "composeRetake": "Yeniden",
   "sourceGallery": "GALERİ",
   "sourceShared": "PAYLAŞIM",
   "reminderLabel": "Hatırlat",
+  "addedLabel": "Eklenme Tarihi",
+  "lastUpdatedLabel": "Son Güncellenme",
+  "locationLabel": "Konum",
+  "locationAddLabel": "Konum ekle",
+  "locationBlocked": "Konum bilgisinin eklenebilmesi izin vermenize bağlıdır. Karenin nerede çekildiğini iliştirmek için konum erişimine izin verin.",
+  "compassNorth": "K",
+  "compassSouth": "G",
+  "compassEast": "D",
+  "compassWest": "B",
+  "toastMapFailed": "Harita açılamadı",
   "reminderSuffixActive": "gün sonra",
   "reminderSuffixOff": "gün — kapalı",
   "reminderBlocked": "Bildirimler kapalı. Kayıt yine de saklanır; izin verdiğinde hatırlatma çalışmaya başlar.",
-
   "editNoteSemantic": "Notu düzenle",
   "editSheetHeader": "NOTU DÜZENLE",
   "retentionSelectorTitle": "Otomatik Sil",
   "retentionOffNotice": "Otomatik silme kapalı — bu kare sen silmedikçe kalıcı.",
-
   "retentionCustom": "Özel",
   "retentionCustomTitle": "Özel süre",
   "retentionCustomHours": "{count, plural, other{{count} saat}}",
   "@retentionCustomHours": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "retentionCustomDays": "{count, plural, other{{count} gün}}",
   "@retentionCustomDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "retentionCustomWeeks": "{count, plural, other{{count} hafta}}",
   "@retentionCustomWeeks": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "retentionUnitHours": "Saat",
   "retentionUnitDays": "Gün",
@@ -110,9 +151,20 @@
   "retentionOffDescription": "Kapalı",
   "retentionThreeDaysDescription": "3 gün sonra silinir",
   "retentionOneWeekDescription": "1 hafta sonra silinir",
-
   "legalPrivacy": "Gizlilik",
   "legalTerms": "Kullanım Koşulları",
+  "yourDataTitle": "Latermark ve Verileriniz",
+  "yourDataSubtitle": "Gizliliğinizi önemsiyor ve ona saygı duyuyoruz.",
+  "yourDataSafetyQuestion": "Verilerim güvende mi?",
+  "yourDataSafetyAnswer": "Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez.",
+  "yourDataLocationQuestion": "Konum izni neden istenir?",
+  "yourDataLocationAnswer": "Yalnızca bir kareye çekildiği yeri eklemeyi seçtiğinizde tek seferlik konum istenir. Koordinat sadece o kayda eklenir; arka planda izleme yapılmaz. Harita düğmesine dokunmadıkça başka bir uygulamaya aktarılmaz.",
+  "yourDataPhotosQuestion": "Fotoğraf erişimi nasıl kullanılır?",
+  "yourDataPhotosAnswer": "Fotoğraf arşivinizden bir görsel seçmek istediğinizde kullanılır. Latermark yalnızca seçtiğiniz görseli kayda alır; bu işlem internet bağlantısı gerektirmez.",
+  "yourDataRemindersQuestion": "Bildirimler nasıl çalışır?",
+  "yourDataRemindersAnswer": "Hatırlatmalar cihazınızda planlanır ve cihazınız tarafından gösterilir. Dışarıdaki bir sunucu onları göndermez veya tetiklemez.",
+  "yourDataDeletionQuestion": "Uygulamayı silersem ne olur?",
+  "yourDataDeletionAnswer": "Latermark içinde saklanan notlar, uygulamaya alınan görseller ve konum etiketleri kalıcı olarak silinir. Fotoğraf arşiviniz ve diğer uygulamalardaki veriler etkilenmez.",
   "legalOpenFailed": "Bağlantı açılamadı.",
   "settingsTitle": "Ayarlar",
   "sectionAppearance": "Görünüm",
@@ -122,6 +174,14 @@
   "themeSystem": "Sistem",
   "themeLight": "Aydınlık",
   "themeDark": "Karanlık",
+  "appColorTitle": "Uygulama rengi",
+  "appColorDescription": "Latermark'ın kontrollerde ve vurgularda kullanacağı rengi seç.",
+  "accentOrange": "Turuncu",
+  "accentBlue": "Mavi",
+  "accentViolet": "Mor",
+  "accentPink": "Pembe",
+  "accentGreen": "Yeşil",
+  "accentGold": "Altın",
   "retentionTitle": "Otomatik sil",
   "retentionDescription": "Yeni kayıtlar bu süreyle açılır. Her kaydın süresini kendi ekranından değiştirebilirsin.",
   "feedTitle": "Akış",
@@ -139,82 +199,134 @@
   "versionMark": "Sürüm {version} ({build})",
   "@versionMark": {
     "placeholders": {
-      "version": { "type": "String" },
-      "build": { "type": "String" }
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
     }
   },
-
   "dayToday": "Bugün",
   "dayYesterday": "Dün",
   "relativeJustNow": "az önce",
   "relativeMinutes": "{count, plural, other{{count} dk}}",
   "@relativeMinutes": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "relativeHours": "{count, plural, other{{count} sa}}",
   "@relativeHours": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "relativeYesterday": "dün",
   "relativeDays": "{count, plural, other{{count} gün}}",
   "@relativeDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "remainingNow": "şimdi",
   "remainingShortDays": "{count}g",
   "@remainingShortDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "remainingShortHours": "{count}sa",
   "@remainingShortHours": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "remainingShortMinutes": "{count}dk",
   "@remainingShortMinutes": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "remainingShortLessThanMinute": "<1dk",
-
   "remainingSoon": "Birazdan silinecek",
   "remainingLongDays": "{days, plural, other{{days} gün}} sonra silinecek",
   "@remainingLongDays": {
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "remainingLongDaysHours": "{days, plural, other{{days} gün}} {hours, plural, other{{hours} saat}} sonra silinecek",
   "@remainingLongDaysHours": {
     "placeholders": {
-      "days": { "type": "int" },
-      "hours": { "type": "int" }
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "remainingLongHours": "{hours, plural, other{{hours} saat}} sonra silinecek",
   "@remainingLongHours": {
-    "placeholders": { "hours": { "type": "int" } }
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
   },
   "remainingLongHoursMinutes": "{hours, plural, other{{hours} saat}} {minutes, plural, other{{minutes} dakika}} sonra silinecek",
   "@remainingLongHoursMinutes": {
     "placeholders": {
-      "hours": { "type": "int" },
-      "minutes": { "type": "int" }
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "remainingLongMinutes": "{minutes, plural, other{{minutes} dakika}} sonra silinecek",
   "@remainingLongMinutes": {
-    "placeholders": { "minutes": { "type": "int" } }
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
-
   "paywallLimitTitle": "10 karen dolu",
   "paywallLimitBody": "Ücretsiz katmanda aynı anda {limit} kare tutulur. Pro ile sınır kalkar — ya da bir kare silip devam edebilirsin.",
   "@paywallLimitBody": {
-    "placeholders": { "limit": { "type": "int" } }
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
   },
   "paywallLimitDelete": "Bir kareyi sil",
   "paywallCounter": "{count}/{limit}",
   "@paywallCounter": {
     "placeholders": {
-      "count": { "type": "int" },
-      "limit": { "type": "int" }
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
     }
   },
   "proBadge": "PRO",
@@ -222,12 +334,20 @@
   "paywallSubtitle": "Latermark unutmak için tasarlandı. Pro, unutulmasını istemediklerin için.",
   "paywallOwnedCount": "{count, plural, other{Şu an {count} karen var.}}",
   "@paywallOwnedCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "paywallFeatureUnlimited": "Sınırsız kayıt",
   "paywallFeatureUnlimitedDetail": "Ücretsizde {limit} kare tutulur.",
   "@paywallFeatureUnlimitedDetail": {
-    "placeholders": { "limit": { "type": "int" } }
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
   },
   "paywallFeatureCustomRetention": "Süreyi kendin belirle",
   "paywallFeatureCustomRetentionDetail": "3 gün ve 1 hafta dışında istediğin süre.",
@@ -236,34 +356,49 @@
   "paywallFeatureWidget": "Ana ekran widget'ı",
   "paywallFeatureWidgetDetail": "Son karen kilit ekranında bir bakışta.",
   "@paywallPerMonth": {
-    "placeholders": { "price": { "type": "String" } }
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
   },
   "@paywallSaveBadge": {
-    "placeholders": { "percent": { "type": "int" } }
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
   },
   "paywallPrice": "{price}",
   "@paywallPrice": {
-    "placeholders": { "price": { "type": "String" } }
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
   },
   "paywallOneTime": "Tek seferlik ödeme",
   "paywallNoSubscription": "Abonelik yok. Bir kez öde, hep senin.",
+  "paywallOwned": "Latermark Pro senin.",
   "paywallFeatureNoSubscription": "Aboneliğe gerek yok",
   "paywallFeatureNoSubscriptionDetail": "Çoğu uygulama bunu her ay satar. Bu bir kez.",
   "paywallCta": "Pro'ya geç",
   "@paywallCtaTrial": {
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "paywallRestore": "Satın alımları geri yükle",
   "paywallClose": "Kapat",
   "paywallLifeFree": "Ücretsiz",
   "paywallLifePro": "Pro",
-
   "notificationTitle": "Hatırlatma",
   "notificationTitleNoBody": "Bir kare bekliyor",
   "notificationBodyNoBody": "Bu kareyi hatırlatmamı istemiştin.",
   "notificationChannelName": "Hatırlatmalar",
   "notificationChannelDescription": "Süre verdiğin kayıtları hatırlatır.",
-
   "widgetDescription": "Son kareni ve notunu gösterir.",
   "widgetEmptySubtitle": "İlk notun burada görünecek",
   "widgetPhotoDescription": "Son karenin fotoğrafı",
@@ -274,13 +409,11 @@
   "widgetProRequired": "Widget, Latermark Pro ile açılır.",
   "widgetPreviewNote": "Muhasebeye göndereceğim",
   "widgetPreviewDay": "BUGÜN",
-
   "shareComposeHint": "Bu fotoğrafı neden saklıyorsun?",
   "shareErrorTitle": "Fotoğraf eklenemedi",
   "shareErrorBody": "Latermark'a aktarım tamamlanamadı. Lütfen tekrar dene.",
-
   "cameraUsageDescription": "Fotoğraf çekip notlarına ekleyebilmek için kamera erişimi gerekir.",
   "photoLibraryUsageDescription": "Galerinden seçtiğin fotoğrafları notlarına ekleyebilmek için fotoğraf erişimi gerekir.",
   "actionShare": "Paylaş",
-"shareNoteSemantic": "Fotoğrafı ve notu paylaş"
+  "shareNoteSemantic": "Fotoğrafı ve notu paylaş"
 }

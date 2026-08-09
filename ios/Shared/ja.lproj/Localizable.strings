@@ -1,4 +1,9 @@
 "widget.description" = "最新の写真とノートを表示します。";
+"widget.capture.name" = "クイック撮影";
+"widget.capture.description" = "ロック画面からLatermarkのカメラをすぐに開きます。";
+"widget.capture.action" = "カメラを開く";
+"widget.capture.accessibility" = "Latermarkのカメラを開く";
+"widget.capture.hint" = "写真を撮って、新しいノートの作成を続けます。";
 "widget.note.untitled" = "メモなし";
 "widget.empty.title" = "タップして撮影";
 "widget.empty.subtitle" = "最初のノートがここに表示されます";

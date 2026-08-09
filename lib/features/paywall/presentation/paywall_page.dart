@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_shape.dart';
 import '../../../l10n/l10n_context.dart';
+import '../../../shared/widgets/pro_badge.dart';
 import '../../../shared/widgets/life_rule.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../../shared/widgets/primary_button.dart';
@@ -39,6 +40,7 @@ class PaywallPage extends StatelessWidget {
     this.noteCount = 0,
     this.freeLimit = 30,
     this.busy = false,
+    this.unlocked = false,
     this.reason,
     this.onPurchase,
     this.onRestore,
@@ -70,6 +72,13 @@ class PaywallPage extends StatelessWidget {
   /// Mağaza akışı sürerken düğme bekleme durumuna geçer.
   final bool busy;
 
+  /// Kullanıcı Pro hakkına zaten sahip.
+  ///
+  /// Bu ekrana Pro biri de düşebiliyor: hak henüz doğrulanmadan kilitli bir
+  /// kontrole dokunmak yeter. Ona fiyat ve "Pro'ya geç" düğmesi göstermek,
+  /// ödediği şeyi yeniden satmaya çalışmak olurdu.
+  final bool unlocked;
+
   final VoidCallback? onPurchase;
   final VoidCallback? onRestore;
 
@@ -91,7 +100,7 @@ class PaywallPage extends StatelessWidget {
               22,
               0,
               22,
-              MediaQuery.paddingOf(context).bottom + 180,
+              MediaQuery.paddingOf(context).bottom + 228,
             ),
             children: [
               SizedBox(height: topInset + 62),
@@ -141,9 +150,6 @@ class PaywallPage extends StatelessWidget {
                   style: palette.caption.copyWith(color: palette.inkFaint),
                 ),
               ],
-
-              const SizedBox(height: 26),
-              _PriceBlock(price: price),
             ],
           ),
 
@@ -194,6 +200,8 @@ class PaywallPage extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: _Footer(
+              price: price,
+              unlocked: unlocked,
               busy: busy,
               onPurchase: onPurchase,
               onRestore: onRestore,
@@ -291,7 +299,9 @@ class _LifeComparison extends StatelessWidget {
           width: 62,
           child: Text(label, style: palette.caption.copyWith(color: tint)),
         ),
-        Expanded(child: LifeRule(left: left, fill: tint, height: 3)),
+        Expanded(
+          child: LifeRule(left: left, fill: tint, height: 3),
+        ),
       ],
     );
   }
@@ -377,57 +387,6 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-/// Fiyat bloğu.
-///
-/// Tek ürün olduğu için seçim yok; seçim olmayınca da kart, radyo düğmesi ya
-/// da vurgulu çerçeveye gerek kalmıyor. Fiyat büyük, altında ne olduğu tek
-/// satır. Kıyas ölçütü aylık bir plan değil — abonelik fikrinin kendisi.
-class _PriceBlock extends StatelessWidget {
-  const _PriceBlock({required this.price});
-
-  final String? price;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final l10n = context.l10n;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _Hairline(),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            if (price == null)
-              _PricePlaceholder(palette: palette)
-            else
-              Text(
-                price!,
-                style: palette.display.copyWith(fontSize: 38, height: 1),
-              ),
-            const SizedBox(width: 10),
-            Text(
-              l10n.paywallOneTime,
-              style: palette.body.copyWith(color: palette.inkSoft),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          l10n.paywallNoSubscription,
-          style: palette.caption.copyWith(
-            color: palette.ember,
-            height: 1.35,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// Fiyat gelene kadar duran sessiz blok.
 class _PricePlaceholder extends StatelessWidget {
   const _PricePlaceholder({required this.palette});
@@ -437,8 +396,8 @@ class _PricePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 132,
-      height: 34,
+      width: 96,
+      height: 25,
       decoration: ShapeDecoration(
         color: palette.canvasLift,
         shape: RoundedSuperellipseBorder(
@@ -449,30 +408,22 @@ class _PricePlaceholder extends StatelessWidget {
   }
 }
 
-class _Hairline extends StatelessWidget {
-  const _Hairline();
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: context.palette.hairline,
-      child: const SizedBox(height: 0.5, width: double.infinity),
-    );
-  }
-}
-
 /// Eylem ve güven satırı.
 ///
 /// Zeminle aynı renkte, üstten yumuşayan bir perdenin üzerinde durur; liste
 /// altından geçerken okunurluk bozulmasın diye. Blur yok — perde bedelsiz.
 class _Footer extends StatelessWidget {
   const _Footer({
+    required this.price,
     required this.busy,
+    required this.unlocked,
     required this.onPurchase,
     required this.onRestore,
   });
 
+  final String? price;
   final bool busy;
+  final bool unlocked;
   final VoidCallback? onPurchase;
   final VoidCallback? onRestore;
 
@@ -480,6 +431,7 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final l10n = context.l10n;
+    final veil = palette.canvasSunk;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -487,11 +439,15 @@ class _Footer extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            palette.canvas.withValues(alpha: 0),
-            palette.canvas,
-            palette.canvas,
+            veil.withValues(alpha: 0),
+            veil.withValues(alpha: 0.72),
+            veil.withValues(alpha: 0.9),
+            veil.withValues(alpha: 0.97),
           ],
-          stops: const [0, 0.32, 1],
+          // `canvasSunk`, zeminin biraz daha koyu kâğıdı. Perde fiyat satırına
+          // ulaşmadan güçlenir ama hiçbir noktada tam opak olmaz; alttaki akış
+          // yalnızca siluet olarak kalırken footer ayrı bir mat panele dönüşmez.
+          stops: const [0, 0.08, 0.18, 1],
         ),
       ),
       child: Padding(
@@ -505,11 +461,17 @@ class _Footer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PrimaryButton(
-              label: l10n.paywallCta,
-              busy: busy,
-              onPressed: onPurchase,
-            ),
+            if (unlocked)
+              ProOwnedMark(label: l10n.paywallOwned)
+            else ...[
+              _PurchaseSummary(price: price),
+              const SizedBox(height: 14),
+              PrimaryButton(
+                label: l10n.paywallCta,
+                busy: busy,
+                onPressed: onPurchase,
+              ),
+            ],
             const SizedBox(height: 12),
             // Geri yükleme görünür yerde: cihaz değiştiren kullanıcı için
             // tek çıkış yolu bu ve App Review da bunu arıyor.
@@ -519,8 +481,12 @@ class _Footer extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _FooterLink(label: l10n.paywallRestore, onTap: onRestore),
-                const _FooterDot(),
+                // Geri yükleme yalnızca satın alma teklif edilirken anlamlı;
+                // hakkı olan biri için yapacak bir şeyi yok.
+                if (!unlocked) ...[
+                  _FooterLink(label: l10n.paywallRestore, onTap: onRestore),
+                  const _FooterDot(),
+                ],
                 _FooterLink(
                   label: l10n.legalPrivacy,
                   onTap: () => LegalLinks.open(LegalLinks.privacy(context)),
@@ -534,6 +500,58 @@ class _Footer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Fiyatı satın alma eylemiyle aynı bakış alanında tutan kısa özet.
+///
+/// Tek ürün olduğu için seçim kartına gerek yok. Mağazanın biçimlendirdiği
+/// fiyat ve ürünün tek seferlik olduğu bilgisi, CTA'nın hemen üzerinde tek bir
+/// tipografik cümle gibi durur. Paywall'ın güçlü vaadi olan "abonelik yok"
+/// metni de taşınırken kaybolmaz; fiyatın altında küçük bir dipnot olarak
+/// kalır. Uzun çeviriler [Wrap] ile doğal olarak ikinci satıra geçebilir.
+class _PurchaseSummary extends StatelessWidget {
+  const _PurchaseSummary({required this.price});
+
+  final String? price;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final l10n = context.l10n;
+
+    return MergeSemantics(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 3,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (price == null)
+                _PricePlaceholder(palette: palette)
+              else
+                Text(
+                  price!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: palette.title.copyWith(fontSize: 27, height: 1),
+                ),
+              Text(
+                l10n.paywallOneTime,
+                style: palette.label.copyWith(color: palette.inkSoft),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            l10n.paywallNoSubscription,
+            style: palette.caption.copyWith(color: palette.ember),
+          ),
+        ],
       ),
     );
   }
@@ -577,7 +595,9 @@ class _FooterDot extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7),
       child: Text(
         '·',
-        style: context.palette.caption.copyWith(color: context.palette.inkGhost),
+        style: context.palette.caption.copyWith(
+          color: context.palette.inkGhost,
+        ),
       ),
     );
   }

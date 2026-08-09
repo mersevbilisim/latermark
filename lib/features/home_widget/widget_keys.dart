@@ -37,9 +37,13 @@ abstract final class WidgetKeys {
   /// Toplam kayıt sayısı.
   static const count = 'not_count';
 
-  /// Pro hakkı açık mı. Widget ücretsiz kullanıcıda kendi kilit durumunu
-  /// çizer — bozulmaz ve eski veri göstermez.
+  /// Pro hakkı açık mı. Köprü hakkı kapatmayı veri sınırı sayıp not alanlarını
+  /// ve fotoğrafı temizler; native widget da ayrıca kendi kilit durumunu çizer.
   static const pro = 'not_pro';
+
+  /// Kullanıcının seçtiği fotoğraf-üstü vurgu renginin sekiz haneli ARGB
+  /// karşılığı. Swift/Kotlin, widget'ı Flutter paletiyle aynı tonda çizer.
+  static const accent = 'not_accent';
 
   /// Paylaşılan kapsayıcıya yazılan küçültülmüş fotoğrafın yolu.
   ///
@@ -56,7 +60,8 @@ const String kAppGroupId = 'group.com.mersev.latermark';
 
 /// WidgetKit eklentisinin ve Android sağlayıcısının adları.
 const String kIosWidgetName = 'NotWidget';
+const String kIosCaptureWidgetName = 'LatermarkCaptureWidget';
 const String kAndroidWidgetProvider = 'NotWidgetProvider';
 
-/// Widget'a dokunulduğunda açılan şema: `notapp://note/12`.
+/// Widget'a dokunulduğunda açılan şema: `latermark://note/12`.
 const String kWidgetUrlScheme = 'latermark';

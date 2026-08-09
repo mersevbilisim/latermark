@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:not_app/core/utils/app_format.dart';
-import 'package:not_app/l10n/app_localizations.dart';
+import 'package:latermark/core/utils/app_format.dart';
+import 'package:latermark/l10n/app_localizations.dart';
 
 /// Biçimlendirme artık yürürlükteki dile bağlı; testler de bir [L10n] örneği
 /// üzerinden çalışıyor. Türkçe seçilmesinin sebebi ARB'lerin şu an Türkçe
@@ -81,10 +81,22 @@ void main() {
 
   group('relative', () {
     test('eşiklere göre kısalır', () {
-      expect(tr.relative(now.subtract(const Duration(seconds: 5)), now: now), 'az önce');
-      expect(tr.relative(now.subtract(const Duration(minutes: 12)), now: now), '12 dk');
-      expect(tr.relative(now.subtract(const Duration(hours: 3)), now: now), '3 sa');
-      expect(tr.relative(now.subtract(const Duration(days: 1)), now: now), 'dün');
+      expect(
+        tr.relative(now.subtract(const Duration(seconds: 5)), now: now),
+        'az önce',
+      );
+      expect(
+        tr.relative(now.subtract(const Duration(minutes: 12)), now: now),
+        '12 dk',
+      );
+      expect(
+        tr.relative(now.subtract(const Duration(hours: 3)), now: now),
+        '3 sa',
+      );
+      expect(
+        tr.relative(now.subtract(const Duration(days: 1)), now: now),
+        'dün',
+      );
     });
   });
 

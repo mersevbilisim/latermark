@@ -3,22 +3,26 @@ import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/features/notes/data/notes_database.dart';
-import 'package:not_app/features/notes/data/notes_repository.dart';
-import 'package:not_app/features/notes/data/photo_store.dart';
-import 'package:not_app/features/notes/domain/retention.dart';
+import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/data/location_service.dart';
+import 'package:latermark/features/notes/data/notes_repository.dart';
+import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/notes/domain/retention.dart';
+import 'package:latermark/features/settings/data/settings_repository.dart';
 
 void main() {
   late Directory sandbox;
   late NotesDatabase database;
   late PhotoStore photos;
   late NotesRepository repository;
+  late SettingsRepository settings;
 
   setUp(() async {
-    sandbox = await Directory.systemTemp.createTemp('not_app_test');
+    sandbox = await Directory.systemTemp.createTemp('latermark_test');
     database = NotesDatabase.forExecutor(NativeDatabase.memory());
     photos = await PhotoStore.openIn(sandbox);
     repository = NotesRepository(database: database, photos: photos);
+    settings = SettingsRepository(database);
   });
 
   tearDown(() async {
@@ -51,6 +55,19 @@ void main() {
     expect(note.body, 'Muhasebeye göndereceğim');
     expect(note.expiresAt, isNull);
     expect(repository.imageOf(note).existsSync(), isTrue);
+  });
+
+  test('konum enlem ve boylam olarak notla birlikte saklanır', () async {
+    await repository.create(
+      capture: await fakeCapture(),
+      body: 'Araba burada',
+      retention: RetentionChoice(Retention.off),
+      location: const NoteLocation(latitude: 41.2607, longitude: 29.0421),
+    );
+
+    final note = (await repository.watchNotes().first).single;
+    expect(note.latitude, 41.2607);
+    expect(note.longitude, 29.0421);
   });
 
   test('süreli kayıt için son kullanma tarihi hesaplanır', () async {
@@ -107,6 +124,7 @@ void main() {
   });
 
   test('düzenleme saklama süresine dokunmaz', () async {
+    await settings.setProUnlocked(true);
     final created = DateTime(2026, 8, 6, 14, 32);
     await repository.create(
       capture: await fakeCapture(),
@@ -128,7 +146,40 @@ void main() {
     expect(updated.expiresAt, DateTime(2026, 8, 9, 14, 32));
   });
 
+  test('düzenleme damgası yalnızca gerçek bir değişiklikte vurulur', () async {
+    await settings.setProUnlocked(true);
+    final created = DateTime(2026, 8, 6, 14, 32);
+    await repository.create(
+      capture: await fakeCapture(),
+      body: 'ilk',
+      retention: RetentionChoice(Retention.threeDays),
+      createdAt: created,
+    );
+
+    final fresh = (await repository.watchNotes().first).single;
+    // Çekildiğinden beri dokunulmamış bir kayıt "düzenlenmiş" görünmez.
+    expect(fresh.updatedAt, isNull);
+
+    // Düzenleyiciyi açıp hiçbir şeye dokunmadan kaydetmek de değişiklik
+    // değildir; damga zamanla anlamını yitirmemeli.
+    await repository.update(
+      fresh,
+      body: fresh.body,
+      remindAfterDays: fresh.remindAfterDays,
+    );
+    expect((await repository.watchNotes().first).single.updatedAt, isNull);
+
+    await repository.update(fresh, body: 'ikinci', remindAfterDays: 0);
+    final edited = (await repository.watchNotes().first).single;
+    expect(edited.updatedAt, isNotNull);
+    expect(edited.updatedAt!.isAfter(created), isTrue);
+    // Damga ömre karışmaz: silinme anı hâlâ oluşturulma anından hesaplanır.
+    expect(edited.expiresAt, DateTime(2026, 8, 9, 14, 32));
+    expect(edited.createdAt, created);
+  });
+
   test('hatırlatma düzenlemeden kaldırılabilir', () async {
+    await settings.setProUnlocked(true);
     await repository.create(
       capture: await fakeCapture(),
       body: 'hatırlatmalı',
@@ -141,6 +192,28 @@ void main() {
 
     expect((await repository.watchNotes().first).single.remindAfterDays, 0);
   });
+
+  test(
+    'free durumda gecikmiş Pro alanları veritabanına geri yazılamaz',
+    () async {
+      await repository.create(
+        capture: await fakeCapture(),
+        body: 'gecikmiş sheet',
+        retention: RetentionChoice.custom(const Duration(days: 5).inMinutes),
+        remindAfterDays: 4,
+        createdAt: DateTime(2026, 8, 8, 12),
+      );
+
+      var note = (await repository.watchNotes().first).single;
+      expect(note.retention, Retention.oneWeek);
+      expect(note.customMinutes, 0);
+      expect(note.remindAfterDays, 0);
+
+      await repository.update(note, body: note.body, remindAfterDays: 9);
+      note = (await repository.watchNotes().first).single;
+      expect(note.remindAfterDays, 0);
+    },
+  );
 
   test('silme kaydı ve fotoğrafı birlikte kaldırır', () async {
     await repository.create(

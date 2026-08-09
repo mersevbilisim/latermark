@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../../../core/theme/app_accent.dart';
 import '../../notes/domain/retention.dart';
 import 'app_locale.dart';
 
@@ -36,8 +37,10 @@ enum FeedDensity {
 class AppSettings {
   const AppSettings({
     this.themeMode = AppThemeMode.dark,
+    this.accent = AppAccent.orange,
     this.density = FeedDensity.grid,
     this.reminderEnabled = false,
+    this.locationEnabled = false,
     this.defaultRetention = Retention.off,
     this.defaultCustomMinutes = 0,
     this.locale = AppLocale.system,
@@ -45,6 +48,10 @@ class AppSettings {
   });
 
   final AppThemeMode themeMode;
+
+  /// Kontroller, seçimler ve fotoğraf üstü etkileşimlerin vurgu rengi.
+  final AppAccent accent;
+
   final FeedDensity density;
 
   /// Hatırlatmaların ana şalteri. Kapalıysa hiçbir not bildirim göndermez;
@@ -53,6 +60,12 @@ class AppSettings {
   /// Bildirim izni verilmemişse bu yine `true` olabilir; izin ayrı bir konudur
   /// ve her planlamada yeniden denenir.
   final bool reminderEnabled;
+
+  /// Yeni kayıtlara çekim yeri iliştirilsin mi.
+  ///
+  /// Compose ekranındaki anahtarın varsayılanı. Kullanıcı bir kez açtığında
+  /// her çekimde yeniden açmak zorunda kalmaz; kapattığında da öyle.
+  final bool locationEnabled;
 
   /// Yeni kayıtların açılacağı saklama süresi.
   final Retention defaultRetention;
@@ -68,16 +81,20 @@ class AppSettings {
 
   AppSettings copyWith({
     AppThemeMode? themeMode,
+    AppAccent? accent,
     FeedDensity? density,
     bool? reminderEnabled,
     Retention? defaultRetention,
     int? defaultCustomMinutes,
     AppLocale? locale,
     bool? proUnlocked,
+    bool? locationEnabled,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
+    accent: accent ?? this.accent,
     density: density ?? this.density,
     reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+    locationEnabled: locationEnabled ?? this.locationEnabled,
     defaultRetention: defaultRetention ?? this.defaultRetention,
     defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
     locale: locale ?? this.locale,
@@ -88,6 +105,7 @@ class AppSettings {
   bool operator ==(Object other) =>
       other is AppSettings &&
       other.themeMode == themeMode &&
+      other.accent == accent &&
       other.density == density &&
       other.reminderEnabled == reminderEnabled &&
       other.defaultRetention == defaultRetention &&
@@ -96,14 +114,14 @@ class AppSettings {
       other.proUnlocked == proUnlocked;
 
   @override
-  int get hashCode =>
-      Object.hash(
-        themeMode,
-        density,
-        reminderEnabled,
-        defaultRetention,
-        defaultCustomMinutes,
-        locale,
-        proUnlocked,
-      );
+  int get hashCode => Object.hash(
+    themeMode,
+    accent,
+    density,
+    reminderEnabled,
+    defaultRetention,
+    defaultCustomMinutes,
+    locale,
+    proUnlocked,
+  );
 }

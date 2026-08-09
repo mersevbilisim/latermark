@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,6 +9,7 @@ import '../../domain/retention.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../../../l10n/enum_labels.dart';
 import '../../../../core/utils/app_format.dart';
+import '../../../../shared/widgets/pro_badge.dart';
 import 'custom_retention_sheet.dart';
 
 /// "Otomatik Sil" seçimi: cam bir ray üzerinde yay gibi kayan kemik beyazı pil.
@@ -42,18 +45,21 @@ class RetentionSelector extends StatelessWidget {
     final palette = context.palette;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle) ...[
           Row(
             children: [
-              Text(
-                context.l10n.upper(
-                  title ?? context.l10n.retentionSelectorTitle,
+              Expanded(
+                child: Text(
+                  context.l10n.upper(
+                    title ?? context.l10n.retentionSelectorTitle,
+                  ),
+                  style: palette.overline,
                 ),
-                style: palette.overline,
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               // Süreli bir seçim yapıldığında kor rengi bir işaret belirir.
               AnimatedOpacity(
                 opacity: value.isTimed ? 1 : 0,
@@ -73,80 +79,173 @@ class RetentionSelector extends StatelessWidget {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            final segmentWidth = constraints.maxWidth / options.length;
+            final labels = [
+              for (final option in options) _labelFor(context, option),
+            ];
+            final labelStyle = palette.label.copyWith(
+              fontWeight: FontWeight.w600,
+            );
+            final textScaler = MediaQuery.textScalerOf(context);
+            final direction = Directionality.of(context);
+            final oneRowSegment = constraints.maxWidth / options.length;
+            final oneRow = labels.every(
+              (label) =>
+                  _textWidth(label, labelStyle, textScaler, direction) <=
+                  oneRowSegment - 8,
+            );
+            final columns = oneRow ? options.length : 2;
+            final rows = (options.length / columns).ceil();
+            final segmentWidth = constraints.maxWidth / columns;
+            final labelWidth = math.max(1.0, segmentWidth - 12);
+            final requiredCellHeight = [
+              for (
+                var optionIndex = 0;
+                optionIndex < options.length;
+                optionIndex++
+              )
+                _textHeight(
+                      labels[optionIndex],
+                      labelStyle,
+                      textScaler,
+                      direction,
+                      labelWidth,
+                    ) +
+                    (options[optionIndex].isCustom && !isPro ? 18 : 0) +
+                    16,
+            ].reduce(math.max);
+            final cellHeight = math.max(46.0, requiredCellHeight);
             final index = options.indexOf(value.retention);
 
-            return Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: palette.canvasSunk,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: palette.hairlineBright, width: 0.5),
-              ),
-              child: Stack(
-                children: [
-                  AnimatedPositioned(
-                    duration: AppMotion.medium,
-                    curve: Curves.easeOutQuart,
-                    left: segmentWidth * index,
-                    top: 0,
-                    bottom: 0,
-                    width: segmentWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color.lerp(
+            return SizedBox(
+              height: cellHeight * rows,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: palette.canvasSunk,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: palette.hairlineBright, width: 0.5),
+                ),
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: AppMotion.medium,
+                      curve: Curves.easeOutQuart,
+                      left: segmentWidth * (index % columns),
+                      top: cellHeight * (index ~/ columns),
+                      width: segmentWidth,
+                      height: cellHeight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color.lerp(
+                                  palette.canvasLift,
+                                  Colors.white,
+                                  palette.isDark ? 0.08 : 0.35,
+                                )!,
                                 palette.canvasLift,
-                                Colors.white,
-                                palette.isDark ? 0.08 : 0.35,
-                              )!,
-                              palette.canvasLift,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: palette.ember.withValues(alpha: 0.28),
+                              width: 0.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha: palette.isDark ? 0.24 : 0.08,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: palette.ember.withValues(alpha: 0.28),
-                            width: 0.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(
-                                alpha: palette.isDark ? 0.24 : 0.08,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
                         ),
                       ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      for (final option in options)
-                        Expanded(
-                          child: _Segment(
-                            option: option,
-                            choice: value,
-                            selected: option == value.retention,
-                            locked: option.isCustom && !isPro,
-                            onTap: () => _select(context, option),
+                    Column(
+                      children: [
+                        for (var row = 0; row < rows; row++)
+                          SizedBox(
+                            height: cellHeight,
+                            child: Row(
+                              children: [
+                                for (var column = 0; column < columns; column++)
+                                  Expanded(
+                                    child: _Segment(
+                                      label: labels[row * columns + column],
+                                      selected:
+                                          options[row * columns + column] ==
+                                          value.retention,
+                                      locked:
+                                          options[row * columns + column]
+                                              .isCustom &&
+                                          !isPro,
+                                      singleLine: oneRow,
+                                      onTap: () => _select(
+                                        context,
+                                        options[row * columns + column],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
         ),
       ],
     );
+  }
+
+  /// Seçili özel sürede segment sayıyı gösterir: "Özel" yerine "6 saat".
+  String _labelFor(BuildContext context, Retention option) =>
+      option.isCustom && option == value.retention && value.customMinutes > 0
+      ? value.label(context.l10n)
+      : option.label(context.l10n);
+
+  double _textWidth(
+    String text,
+    TextStyle style,
+    TextScaler textScaler,
+    TextDirection direction,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textScaler: textScaler,
+      textDirection: direction,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
+  double _textHeight(
+    String text,
+    TextStyle style,
+    TextScaler textScaler,
+    TextDirection direction,
+    double maxWidth,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textScaler: textScaler,
+      textDirection: direction,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: maxWidth);
+    final height = painter.height;
+    painter.dispose();
+    return height;
   }
 
   Future<void> _select(BuildContext context, Retention option) async {
@@ -176,49 +275,63 @@ class RetentionSelector extends StatelessWidget {
 
 class _Segment extends StatelessWidget {
   const _Segment({
-    required this.option,
-    required this.choice,
+    required this.label,
     required this.selected,
     required this.locked,
+    required this.singleLine,
     required this.onTap,
   });
 
-  final Retention option;
-  final RetentionChoice choice;
+  final String label;
   final bool selected;
   final bool locked;
+  final bool singleLine;
   final VoidCallback onTap;
-
-  /// Seçili özel sürede segment sayıyı gösterir: "Özel" yerine "6 saat".
-  /// Kullanıcı ne seçtiğini kontrole bakarak görmeli.
-  String _label(BuildContext context) =>
-      option.isCustom && selected && choice.customMinutes > 0
-      ? choice.label(context.l10n)
-      : option.label(context.l10n);
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
       selected: selected,
-      label: _label(context),
+      label: locked ? '$label, ${context.l10n.proBadge}' : label,
+      excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Center(
-          child: AnimatedDefaultTextStyle(
-            duration: AppMotion.medium,
-            curve: AppMotion.ease,
-            style: context.palette.label.copyWith(
-              color: locked
-                  ? context.palette.inkFaint
-                  : (selected ? context.palette.ink : context.palette.inkSoft),
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            ),
-            child: Text(
-              _label(context),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: singleLine ? 4 : 6),
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: AppMotion.medium,
+              curve: AppMotion.ease,
+              style: context.palette.label.copyWith(
+                color: locked
+                    ? context.palette.inkSoft
+                    : (selected
+                          ? context.palette.ink
+                          : context.palette.inkSoft),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              ),
+              child: locked
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          maxLines: singleLine ? 1 : null,
+                          softWrap: !singleLine,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 2),
+                        const ProGateMark(),
+                      ],
+                    )
+                  : Text(
+                      label,
+                      maxLines: singleLine ? 1 : null,
+                      softWrap: !singleLine,
+                      textAlign: TextAlign.center,
+                    ),
             ),
           ),
         ),

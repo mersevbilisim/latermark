@@ -227,7 +227,10 @@ class _HoldTarget extends StatelessWidget {
                 // İlerlemeyi çevreleyen ince yay.
                 CustomPaint(
                   size: const Size.square(_size),
-                  painter: _ProgressRingPainter(t),
+                  painter: _ProgressRingPainter(
+                    t,
+                    context.palette.onPhotoAccent,
+                  ),
                 ),
 
                 ClipOval(
@@ -278,9 +281,10 @@ class _HoldTarget extends StatelessWidget {
 }
 
 class _ProgressRingPainter extends CustomPainter {
-  const _ProgressRingPainter(this.progress);
+  const _ProgressRingPainter(this.progress, this.accent);
 
   final double progress;
+  final Color accent;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -307,12 +311,13 @@ class _ProgressRingPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
-        ..color = Color.lerp(OnPhoto.ember, OnPhoto.danger, progress)!,
+        ..color = Color.lerp(accent, OnPhoto.danger, progress)!,
     );
   }
 
   @override
-  bool shouldRepaint(_ProgressRingPainter old) => old.progress != progress;
+  bool shouldRepaint(_ProgressRingPainter old) =>
+      old.progress != progress || old.accent != accent;
 }
 
 /// Basma süresince değişen tek satırlık yönerge.

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/features/paywall/domain/pro_limits.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 
 /// Sınır, para kazandıran yol olduğu kadar **kullanıcıyı kırabilecek** yol da;
 /// davranışı testle sabitlenmeli.
@@ -47,10 +47,7 @@ void main() {
         ProLimits.showsCounter(ProLimits.freeNotes - 3, isPro: false),
         isTrue,
       );
-      expect(
-        ProLimits.showsCounter(ProLimits.freeNotes, isPro: false),
-        isTrue,
-      );
+      expect(ProLimits.showsCounter(ProLimits.freeNotes, isPro: false), isTrue);
     });
   });
 }

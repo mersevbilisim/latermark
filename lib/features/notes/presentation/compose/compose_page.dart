@@ -8,13 +8,15 @@ import '../../../../app/app_routes.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../shared/widgets/app_toast.dart';
-import '../../../../shared/widgets/primary_button.dart';
 import '../capture/capture_page.dart';
 import '../import/gallery_import.dart';
 import '../import/shared_import.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
+import 'widgets/compose_save_action.dart';
+import '../widgets/location_control.dart';
 import '../widgets/reminder_control.dart';
+import '../../data/location_service.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../../../core/utils/app_format.dart';
 import '../../domain/retention.dart';
@@ -30,6 +32,7 @@ class ComposePage extends StatefulWidget {
     this.initialText = '',
     this.capturedAt,
     this.sharedImportId,
+    this.onFlowClosed,
   });
 
   /// Düzenlenecek kare. Kamera ve paylaşım kaynakları Latermark'ın yönettiği
@@ -39,6 +42,9 @@ class ComposePage extends StatefulWidget {
   final String initialText;
   final DateTime? capturedAt;
   final String? sharedImportId;
+
+  /// CapturePage'den başlayan dış yönlendirme zincirinin son halkası.
+  final VoidCallback? onFlowClosed;
 
   @override
   State<ComposePage> createState() => _ComposePageState();
@@ -57,8 +63,30 @@ class _ComposePageState extends State<ComposePage> {
   /// Hatırlatma gün sayısı. Sıfır = kapalı, ve varsayılan bu.
   int _remindAfterDays = 0;
 
-  bool _saving = false;
+  /// Konum anahtarı. Varsayılanı ayarlardaki son tercih besler; yalnızca
+  /// kamerayla çekilen karede anlamlı.
+  bool _locationEnabled = false;
+  bool _locationDefaultRead = false;
+
+  /// Çözülmüş koordinat. Sabitleme henüz gelmemişse kaydetme kısa bir süre
+  /// bekler — bkz. [_locationSettleLimit].
+  NoteLocation? _location;
+  final LocationController _locationController = LocationController();
+
+  /// Kaydete basıldığında bekleyen bir sabitleme için ayrılan en uzun süre.
+  ///
+  /// Eskiden hiç beklenmiyordu: konum ekle deyip hemen kaydeden biri, henüz
+  /// sabitlenmediği için notunu konumsuz alıyor ve haklı olarak "ben konum
+  /// istemiştim" diyordu. Süresiz beklemek de yanlış olurdu; bu pay, tipik bir
+  /// sabitlemeye yetecek ama kimseyi ekranda tutmayacak kadar.
+  static const _locationSettleLimit = Duration(seconds: 4);
+
+  ComposeSavePhase _savePhase = ComposeSavePhase.idle;
   bool _tempCleared = false;
+  bool _flowHandedOff = false;
+  bool _flowClosed = false;
+
+  bool get _saving => _savePhase != ComposeSavePhase.idle;
 
   @override
   void initState() {
@@ -68,9 +96,29 @@ class _ComposePageState extends State<ComposePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_locationDefaultRead || !_wantsLocation) return;
+    _locationDefaultRead = true;
+    _locationEnabled = AppScope.preferences(context).locationEnabled;
+  }
+
+  /// Konum satırı yalnızca kamerada. Galeriden ya da paylaşımdan gelen bir
+  /// kare başka zaman, başka yerde çekilmiş olabilir; ona cihazın *şu anki*
+  /// konumunu yazmak kaydı sessizce yalancı yapardı.
+  bool get _wantsLocation => widget.source == ComposeSource.camera;
+
+  @override
   void dispose() {
     _text.dispose();
+    if (!_flowHandedOff) _closeFlow();
     super.dispose();
+  }
+
+  void _closeFlow() {
+    if (_flowClosed) return;
+    _flowClosed = true;
+    widget.onFlowClosed?.call();
   }
 
   /// Kameranın geçici dosyasını siler. Kaydetme sırasında kare zaten kalıcı
@@ -100,7 +148,13 @@ class _ComposePageState extends State<ComposePage> {
 
   Future<void> _save() async {
     if (_saving) return;
-    setState(() => _saving = true);
+    // Kayıt anının kararlarını ilk await'ten önce dondur. Konum çözümlemesi
+    // ya da başka bir kontrol sonradan sonuçlansa bile yarı eski/yarı yeni bir
+    // not yazılmaz.
+    final body = _text.text;
+    final remindAfterDays = _remindAfterDays;
+    final wantsLocation = _wantsLocation && _locationEnabled;
+    setState(() => _savePhase = ComposeSavePhase.saving);
 
     final repository = AppScope.of(context);
     final navigator = Navigator.of(context);
@@ -110,35 +164,52 @@ class _ComposePageState extends State<ComposePage> {
       // açılıyor ve gerekirse kaydın kendi ekranından değiştiriliyor.
       final settings = await AppScope.settingsOf(context).read();
 
+      // Kaydetme evresi zaten başladı; düğme çalıştığını gösteriyor. Bekleyen
+      // sabitleme varsa kısa bir pay tanınır, gelmezse konumsuz devam edilir.
+      final location = wantsLocation
+          ? _location ??
+                await _locationController.settle(limit: _locationSettleLimit)
+          : null;
+      if (!mounted) return;
+
       await repository.create(
         capture: widget.capture,
-        body: _text.text,
+        body: body,
         retention: RetentionChoice(
           settings.defaultRetention,
           customMinutes: settings.defaultCustomMinutes,
         ),
-        remindAfterDays: _remindAfterDays,
+        remindAfterDays: remindAfterDays,
         createdAt: _capturedAt,
+        location: location,
       );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _saving = false);
+      setState(() => _savePhase = ComposeSavePhase.idle);
       showToast(context, context.l10n.toastSaveFailed, error: true);
       return;
     }
 
     await _clearTemp();
     if (!mounted) return;
+    // Route geri çekilirken diyaframın son mekanik durağı görünür kalsın.
+    // Bir kare beklemek yapay bir gecikme değildir; setState'in çizilmesini
+    // garanti eder, ardından mevcut sayfa geçişi hemen başlar.
+    setState(() => _savePhase = ComposeSavePhase.sealed);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     navigator.pop();
   }
 
   Future<void> _discard() async {
+    if (_saving) return;
     await _clearTemp();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
   Future<void> _retake() async {
+    if (_saving) return;
     if (widget.source != ComposeSource.camera) {
       await _reselectFromGallery();
       return;
@@ -146,12 +217,14 @@ class _ComposePageState extends State<ComposePage> {
 
     await _clearTemp();
     if (!mounted) return;
-    Navigator.of(
-      context,
-    ).pushReplacement(AppRoutes.shutter(const CapturePage()));
+    _flowHandedOff = true;
+    Navigator.of(context).pushReplacement(
+      AppRoutes.shutter(CapturePage(onFlowClosed: widget.onFlowClosed)),
+    );
   }
 
   Future<void> _reselectFromGallery() async {
+    if (_saving) return;
     try {
       // Kullanıcı seçiciyi kapatırsa mevcut fotoğraf yerinde kalır.
       final replacement = await GalleryImport.pick();
@@ -196,54 +269,96 @@ class _ComposePageState extends State<ComposePage> {
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _clearTemp();
         },
-        child: Column(
-          children: [
-            CapturePreview(
-              file: File(widget.capture.path),
-              height: photoHeight,
-              onDiscard: _discard,
-              onRetake: _retake,
-              replacementIcon: widget.source != ComposeSource.camera
-                  ? Icons.photo_library_outlined
-                  : Icons.refresh_rounded,
-              replacementLabel: widget.source != ComposeSource.camera
-                  ? context.l10n.composeAnotherPhoto
-                  : context.l10n.composeRetake,
-            ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(22, 22, 22, bottomSafe + 18),
-                child: NoteComposer(
-                  controller: _text,
-                  autofocus: true,
-                  extra: ReminderControl(
-                    days: _remindAfterDays,
-                    onChanged: (value) =>
-                        setState(() => _remindAfterDays = value),
-                  ),
-                  header: ComposerStamp(
-                    at: context.l10n.stamp(_capturedAt),
-                    trailing: switch (widget.source) {
-                      ComposeSource.gallery => _SourceMark(
-                        icon: Icons.photo_library_outlined,
-                        label: context.l10n.sourceGallery,
-                      ),
-                      ComposeSource.shared => _SourceMark(
-                        icon: Icons.ios_share_rounded,
-                        label: context.l10n.sourceShared,
-                      ),
-                      ComposeSource.camera => null,
-                    },
-                  ),
-                  action: PrimaryButton(
-                    label: context.l10n.actionSave,
-                    busy: _saving,
-                    onPressed: _save,
+        child: IgnorePointer(
+          // Kalıcı kopya yazılırken fotoğrafı silme/değiştirme ya da üstüne
+          // başka bir rota açma yarışlarını tek bir etkileşim sınırı kapatır.
+          // Alt rayın animasyonu bu katmanın altında çalışmaya devam eder.
+          ignoring: _saving,
+          child: Column(
+            children: [
+              CapturePreview(
+                file: File(widget.capture.path),
+                height: photoHeight,
+                onDiscard: _discard,
+                onRetake: _retake,
+                replacementIcon: widget.source != ComposeSource.camera
+                    ? Icons.photo_library_outlined
+                    : Icons.refresh_rounded,
+                replacementLabel: widget.source != ComposeSource.camera
+                    ? context.l10n.composeAnotherPhoto
+                    : context.l10n.composeRetake,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(22, 22, 22, bottomSafe + 18),
+                  child: NoteComposer(
+                    controller: _text,
+                    autofocus: true,
+                    extra: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ReminderControl(
+                          days: _remindAfterDays,
+                          prominent: true,
+                          onChanged: (value) =>
+                              setState(() => _remindAfterDays = value),
+                        ),
+                        if (_wantsLocation) ...[
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              32,
+                              18,
+                              0,
+                              18,
+                            ),
+                            child: ColoredBox(
+                              color: context.palette.hairline,
+                              child: const SizedBox(height: 0.6),
+                            ),
+                          ),
+                          LocationControl(
+                            enabled: _locationEnabled,
+                            onChanged: (value) {
+                              setState(() => _locationEnabled = value);
+                              unawaited(
+                                AppScope.settingsOf(
+                                  context,
+                                ).setLocationEnabled(value),
+                              );
+                            },
+                            onResolved: (value) {
+                              if (mounted) setState(() => _location = value);
+                            },
+                            controller: _locationController,
+                          ),
+                        ],
+                      ],
+                    ),
+                    header: ComposerStamp(
+                      at: context.l10n.stamp(_capturedAt),
+                      trailing: switch (widget.source) {
+                        ComposeSource.gallery => _SourceMark(
+                          icon: Icons.photo_library_outlined,
+                          label: context.l10n.sourceGallery,
+                        ),
+                        ComposeSource.shared => _SourceMark(
+                          icon: Icons.ios_share_rounded,
+                          label: context.l10n.sourceShared,
+                        ),
+                        ComposeSource.camera => null,
+                      },
+                    ),
+                    action: ComposeSaveAction(
+                      label: context.l10n.actionSave,
+                      phase: _savePhase,
+                      onPressed: _save,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

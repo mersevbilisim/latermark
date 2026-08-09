@@ -5,15 +5,17 @@ import 'package:cross_file/cross_file.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/app/app_scope.dart';
-import 'package:not_app/features/notes/data/notes_database.dart';
-import 'package:not_app/features/notes/data/notes_repository.dart';
-import 'package:not_app/features/notes/data/photo_store.dart';
-import 'package:not_app/features/notes/domain/retention.dart';
-import 'package:not_app/features/settings/data/settings_repository.dart';
-import 'package:not_app/features/settings/domain/app_locale.dart';
-import 'package:not_app/features/settings/presentation/widgets/pro_callout.dart';
-import 'package:not_app/l10n/app_localizations.dart';
+import 'package:latermark/app/app_scope.dart';
+import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/data/notes_repository.dart';
+import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/notes/domain/retention.dart';
+import 'package:latermark/features/settings/data/settings_repository.dart';
+import 'package:latermark/core/theme/app_palette.dart';
+import 'package:latermark/shared/widgets/pro_badge.dart';
+import 'package:latermark/features/settings/domain/app_locale.dart';
+import 'package:latermark/features/settings/presentation/widgets/pro_callout.dart';
+import 'package:latermark/l10n/app_localizations.dart';
 
 final _pixel = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC'
@@ -27,7 +29,7 @@ void main() {
   late SettingsRepository settings;
 
   setUp(() async {
-    sandbox = await Directory.systemTemp.createTemp('not_app_pro_callout');
+    sandbox = await Directory.systemTemp.createTemp('latermark_pro_callout');
     database = NotesDatabase.forExecutor(NativeDatabase.memory());
     repository = NotesRepository(
       database: database,
@@ -71,10 +73,7 @@ void main() {
           notes: repository,
           settings: settings,
           child: const Scaffold(
-            body: Padding(
-              padding: EdgeInsets.all(22),
-              child: ProCallout(),
-            ),
+            body: Padding(padding: EdgeInsets.all(22), child: ProCallout()),
           ),
         ),
       ),
@@ -88,20 +87,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   }
 
-  testWidgets('kontakt baskısı dolu gözleri kullanıcının kareleriyle doldurur', (
-    tester,
-  ) async {
-    await addNotes(tester, 7);
-    await pumpCallout(tester);
+  testWidgets(
+    'kontakt baskısı dolu gözleri kullanıcının kareleriyle doldurur',
+    (tester) async {
+      await addNotes(tester, 7);
+      await pumpCallout(tester);
 
-    // Teklif okunuyor ve eylemin ne olduğu yazıyor — chevron değil.
-    expect(find.text('Bazı kareler kalmalı.'), findsOneWidget);
-    expect(find.text("Pro'ya geç"), findsOneWidget);
-    // Yedi kare var, yedi göz dolu. Kalan üç göz boş: sınır sayılabiliyor.
-    expect(find.byType(Image), findsNWidgets(7));
+      // Teklif okunuyor ve eylemin ne olduğu yazıyor — chevron değil.
+      expect(find.text('Bazı kareler kalmalı.'), findsOneWidget);
+      expect(find.text("Pro'ya geç"), findsOneWidget);
+      // Yedi kare var, yedi göz dolu. Kalan üç göz boş: sınır sayılabiliyor.
+      expect(find.byType(Image), findsNWidgets(7));
 
-    await disposeTree(tester);
-  });
+      await disposeTree(tester);
+    },
+  );
 
   testWidgets('şerit sınırdan fazlasını göstermez', (tester) async {
     // Ücretsiz katman zaten 10'da duruyor, ama şerit bunu kendi başına da
@@ -132,9 +132,24 @@ void main() {
     await settings.setProUnlocked(true);
     await pumpCallout(tester);
 
-    // Durum onaylanıyor: ne teklif ne de sayılacak bir sınır var.
-    expect(find.text('PRO'), findsOneWidget);
+    // Durum sakin biçimde ama **görünür** biçimde onaylanıyor. Ödediğini
+    // hissetmesi gereken kullanıcıya jenerik bir onay ikonu ya da kenarlıklı
+    // bir kapsül takılmıyor; uygulamanın kilitli kapı işareti olan diyafram
+    // burada açılıyor — aynı sembolün zıt durumu.
+    expect(find.text('LATERMARK PRO'), findsOneWidget);
+    expect(find.byType(ProOwnedMark), findsOneWidget);
+    expect(find.text('Latermark Pro senin.'), findsOneWidget);
+    expect(find.text('PRO'), findsNothing);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
     expect(find.text('Şu an 3 karen var.'), findsOneWidget);
+
+    // Künye vurgu rengiyle çiziliyor: nötr griyken bu şerit ayarlardaki
+    // herhangi bir bölüm başlığından ayırt edilemiyordu. Kurulum tema
+    // uzantısı vermiyor, dolayısıyla `context.palette` koyu palete düşüyor.
+    expect(
+      tester.widget<Text>(find.text('LATERMARK PRO')).style?.color,
+      AppPalette.dark.ember,
+    );
     expect(find.text("Pro'ya geç"), findsNothing);
     expect(find.text('Bazı kareler kalmalı.'), findsNothing);
     expect(find.byType(Image), findsNothing);

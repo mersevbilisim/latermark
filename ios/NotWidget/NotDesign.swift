@@ -10,7 +10,16 @@ enum NotDesign {
     static let ink = Color(red: 0.953, green: 0.945, blue: 0.929)
     static let inkSoft = Color(red: 0.953, green: 0.945, blue: 0.929, opacity: 0.55)
     static let inkFaint = Color(red: 0.953, green: 0.945, blue: 0.929, opacity: 0.32)
-    static let ember = Color(red: 1.0, green: 0.478, blue: 0.333)
+
+    /// Flutter'ın paylaştığı sekiz haneli ARGB rengini SwiftUI rengine çevirir.
+    /// Eski/boş widget verisi varsayılan Latermark turuncusuna düşer.
+    static func accent(_ argb: String) -> Color {
+        let value = UInt64(argb, radix: 16) ?? 0xFFFF7A55
+        let red = Double((value >> 16) & 0xFF) / 255
+        let green = Double((value >> 8) & 0xFF) / 255
+        let blue = Double(value & 0xFF) / 255
+        return Color(red: red, green: green, blue: blue)
+    }
 
     static let cornerRadius: CGFloat = 22
 }
@@ -96,13 +105,14 @@ struct ApertureEdges: Shape {
 /// Boş durumda görünen, kor rengiyle içten aydınlatılmış diyafram.
 struct ApertureMark: View {
     var size: CGFloat
+    var accent: Color
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [NotDesign.ember.opacity(0.30), .clear],
+                        colors: [accent.opacity(0.30), .clear],
                         center: .center,
                         startRadius: 0,
                         endRadius: size * 0.62

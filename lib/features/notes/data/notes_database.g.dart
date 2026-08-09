@@ -97,6 +97,39 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _remindAfterDaysMeta = const VerificationMeta(
     'remindAfterDays',
   );
@@ -119,6 +152,9 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     customMinutes,
     expiresAt,
     lastSeenAt,
+    updatedAt,
+    latitude,
+    longitude,
     remindAfterDays,
   ];
   @override
@@ -182,6 +218,24 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         ),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    }
     if (data.containsKey('remind_after_days')) {
       context.handle(
         _remindAfterDaysMeta,
@@ -234,6 +288,18 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_seen_at'],
       ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      ),
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      ),
       remindAfterDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}remind_after_days'],
@@ -275,6 +341,27 @@ class Note extends DataClass implements Insertable<Note> {
   /// Nota en son ne zaman bakıldığı. Detay ekranında tazelenir.
   final DateTime? lastSeenAt;
 
+  /// Notun yazısının en son ne zaman değiştirildiği; **hiç düzenlenmediyse
+  /// `null`**.
+  ///
+  /// Göçte eski kayıtlara `createdAt` yazılmıyor. Yazılsaydı arşivdeki her not
+  /// "düzenlenmiş" görünürdü — oysa hiçbiri düzenlenmedi. `null`, "bu kayda
+  /// çekildiğinden beri dokunulmadı" demenin dürüst yolu.
+  ///
+  /// Kaydın **ömrünü etkilemez**: silinme anı her zaman [createdAt]'ten
+  /// hesaplanır, düzenlemek notun ömrünü uzatmaz.
+  final DateTime? updatedAt;
+
+  /// Karenin çekildiği yerin koordinatları; bilinmiyorsa ikisi de `null`.
+  ///
+  /// **Yer adı saklanmıyor, saklanamaz da.** "41.2607, 29.0421" değerini
+  /// "Uludağ, Bursa"ya çevirmek ters geocoding ister ve hem Apple hem Google
+  /// bunu kendi sunucularında yapar — yani koordinat cihazdan çıkar. Bu
+  /// uygulamanın verdiği söz bunu kaldırmıyor. Koordinat burada durur,
+  /// kullanıcı dokunduğunda haritayı **o** açar.
+  final double? latitude;
+  final double? longitude;
+
   /// "Beni bu kadar gün sonra hatırlat." `0` ise hatırlatma yok.
   ///
   /// Hatırlatma isteğe bağlıdır ve **not başına** verilir. Eskiden her kayda
@@ -291,6 +378,9 @@ class Note extends DataClass implements Insertable<Note> {
     required this.customMinutes,
     this.expiresAt,
     this.lastSeenAt,
+    this.updatedAt,
+    this.latitude,
+    this.longitude,
     required this.remindAfterDays,
   });
   @override
@@ -312,6 +402,15 @@ class Note extends DataClass implements Insertable<Note> {
     if (!nullToAbsent || lastSeenAt != null) {
       map['last_seen_at'] = Variable<DateTime>(lastSeenAt);
     }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
     map['remind_after_days'] = Variable<int>(remindAfterDays);
     return map;
   }
@@ -330,6 +429,15 @@ class Note extends DataClass implements Insertable<Note> {
       lastSeenAt: lastSeenAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSeenAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
       remindAfterDays: Value(remindAfterDays),
     );
   }
@@ -350,6 +458,9 @@ class Note extends DataClass implements Insertable<Note> {
       customMinutes: serializer.fromJson<int>(json['customMinutes']),
       expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
       lastSeenAt: serializer.fromJson<DateTime?>(json['lastSeenAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
       remindAfterDays: serializer.fromJson<int>(json['remindAfterDays']),
     );
   }
@@ -367,6 +478,9 @@ class Note extends DataClass implements Insertable<Note> {
       'customMinutes': serializer.toJson<int>(customMinutes),
       'expiresAt': serializer.toJson<DateTime?>(expiresAt),
       'lastSeenAt': serializer.toJson<DateTime?>(lastSeenAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
       'remindAfterDays': serializer.toJson<int>(remindAfterDays),
     };
   }
@@ -380,6 +494,9 @@ class Note extends DataClass implements Insertable<Note> {
     int? customMinutes,
     Value<DateTime?> expiresAt = const Value.absent(),
     Value<DateTime?> lastSeenAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    Value<double?> latitude = const Value.absent(),
+    Value<double?> longitude = const Value.absent(),
     int? remindAfterDays,
   }) => Note(
     id: id ?? this.id,
@@ -390,6 +507,9 @@ class Note extends DataClass implements Insertable<Note> {
     customMinutes: customMinutes ?? this.customMinutes,
     expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
     lastSeenAt: lastSeenAt.present ? lastSeenAt.value : this.lastSeenAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    latitude: latitude.present ? latitude.value : this.latitude,
+    longitude: longitude.present ? longitude.value : this.longitude,
     remindAfterDays: remindAfterDays ?? this.remindAfterDays,
   );
   Note copyWithCompanion(NotesCompanion data) {
@@ -406,6 +526,9 @@ class Note extends DataClass implements Insertable<Note> {
       lastSeenAt: data.lastSeenAt.present
           ? data.lastSeenAt.value
           : this.lastSeenAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
       remindAfterDays: data.remindAfterDays.present
           ? data.remindAfterDays.value
           : this.remindAfterDays,
@@ -423,6 +546,9 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
           ..write('remindAfterDays: $remindAfterDays')
           ..write(')'))
         .toString();
@@ -438,6 +564,9 @@ class Note extends DataClass implements Insertable<Note> {
     customMinutes,
     expiresAt,
     lastSeenAt,
+    updatedAt,
+    latitude,
+    longitude,
     remindAfterDays,
   );
   @override
@@ -452,6 +581,9 @@ class Note extends DataClass implements Insertable<Note> {
           other.customMinutes == this.customMinutes &&
           other.expiresAt == this.expiresAt &&
           other.lastSeenAt == this.lastSeenAt &&
+          other.updatedAt == this.updatedAt &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
           other.remindAfterDays == this.remindAfterDays);
 }
 
@@ -464,6 +596,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<int> customMinutes;
   final Value<DateTime?> expiresAt;
   final Value<DateTime?> lastSeenAt;
+  final Value<DateTime?> updatedAt;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
   final Value<int> remindAfterDays;
   const NotesCompanion({
     this.id = const Value.absent(),
@@ -474,6 +609,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
     this.remindAfterDays = const Value.absent(),
   });
   NotesCompanion.insert({
@@ -485,6 +623,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.customMinutes = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.lastSeenAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
     this.remindAfterDays = const Value.absent(),
   }) : imageName = Value(imageName),
        createdAt = Value(createdAt);
@@ -497,6 +638,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<int>? customMinutes,
     Expression<DateTime>? expiresAt,
     Expression<DateTime>? lastSeenAt,
+    Expression<DateTime>? updatedAt,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
     Expression<int>? remindAfterDays,
   }) {
     return RawValuesInsertable({
@@ -508,6 +652,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (customMinutes != null) 'custom_minutes': customMinutes,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
       if (remindAfterDays != null) 'remind_after_days': remindAfterDays,
     });
   }
@@ -521,6 +668,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<int>? customMinutes,
     Value<DateTime?>? expiresAt,
     Value<DateTime?>? lastSeenAt,
+    Value<DateTime?>? updatedAt,
+    Value<double?>? latitude,
+    Value<double?>? longitude,
     Value<int>? remindAfterDays,
   }) {
     return NotesCompanion(
@@ -532,6 +682,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
       customMinutes: customMinutes ?? this.customMinutes,
       expiresAt: expiresAt ?? this.expiresAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       remindAfterDays: remindAfterDays ?? this.remindAfterDays,
     );
   }
@@ -565,6 +718,15 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (lastSeenAt.present) {
       map['last_seen_at'] = Variable<DateTime>(lastSeenAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
     if (remindAfterDays.present) {
       map['remind_after_days'] = Variable<int>(remindAfterDays.value);
     }
@@ -582,6 +744,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('customMinutes: $customMinutes, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
           ..write('remindAfterDays: $remindAfterDays')
           ..write(')'))
         .toString();
@@ -950,6 +1115,16 @@ class $SettingsTableTable extends SettingsTable
         defaultValue: const Constant(2),
       ).withConverter<AppThemeMode>($SettingsTableTable.$converterthemeMode);
   @override
+  late final GeneratedColumnWithTypeConverter<AppAccent, int> accent =
+      GeneratedColumn<int>(
+        'accent',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      ).withConverter<AppAccent>($SettingsTableTable.$converteraccent);
+  @override
   late final GeneratedColumnWithTypeConverter<FeedDensity, int> density =
       GeneratedColumn<int>(
         'density',
@@ -971,6 +1146,21 @@ class $SettingsTableTable extends SettingsTable
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("reminder_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _locationEnabledMeta = const VerificationMeta(
+    'locationEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> locationEnabled = GeneratedColumn<bool>(
+    'location_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("location_enabled" IN (0, 1))',
     ),
     defaultValue: const Constant(false),
   );
@@ -1026,8 +1216,10 @@ class $SettingsTableTable extends SettingsTable
   List<GeneratedColumn> get $columns => [
     id,
     themeMode,
+    accent,
     density,
     reminderEnabled,
+    locationEnabled,
     defaultRetention,
     locale,
     defaultCustomMinutes,
@@ -1054,6 +1246,15 @@ class $SettingsTableTable extends SettingsTable
         reminderEnabled.isAcceptableOrUnknown(
           data['reminder_enabled']!,
           _reminderEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_enabled')) {
+      context.handle(
+        _locationEnabledMeta,
+        locationEnabled.isAcceptableOrUnknown(
+          data['location_enabled']!,
+          _locationEnabledMeta,
         ),
       );
     }
@@ -1094,6 +1295,12 @@ class $SettingsTableTable extends SettingsTable
           data['${effectivePrefix}theme_mode'],
         )!,
       ),
+      accent: $SettingsTableTable.$converteraccent.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}accent'],
+        )!,
+      ),
       density: $SettingsTableTable.$converterdensity.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -1103,6 +1310,10 @@ class $SettingsTableTable extends SettingsTable
       reminderEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}reminder_enabled'],
+      )!,
+      locationEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}location_enabled'],
       )!,
       defaultRetention: $SettingsTableTable.$converterdefaultRetention.fromSql(
         attachedDatabase.typeMapping.read(
@@ -1134,6 +1345,8 @@ class $SettingsTableTable extends SettingsTable
 
   static JsonTypeConverter2<AppThemeMode, int, int> $converterthemeMode =
       const EnumIndexConverter<AppThemeMode>(AppThemeMode.values);
+  static JsonTypeConverter2<AppAccent, int, int> $converteraccent =
+      const EnumIndexConverter<AppAccent>(AppAccent.values);
   static JsonTypeConverter2<FeedDensity, int, int> $converterdensity =
       const EnumIndexConverter<FeedDensity>(FeedDensity.values);
   static JsonTypeConverter2<Retention, int, int> $converterdefaultRetention =
@@ -1150,10 +1363,19 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// ve karanlık zemin kareyi öne çıkarıyor.
   final AppThemeMode themeMode;
 
+  /// Küratörlü uygulama vurgu rengi. Turuncu (index 0) eski görünümü korur.
+  final AppAccent accent;
+
   /// Varsayılan ızgara (index 1): uygulama ilk açıldığında daha çok kayıt
   /// tek bakışta görünsün.
   final FeedDensity density;
   final bool reminderEnabled;
+
+  /// Yeni kayıtlara çekim yeri iliştirilsin mi.
+  ///
+  /// Varsayılan **kapalı**. Gizlilik iddiası olan bir uygulama konum
+  /// toplamaya sessizce başlamaz; anahtar açıldığında izin istenir.
+  final bool locationEnabled;
 
   /// Yeni kayıtların varsayılan saklama süresi.
   ///
@@ -1175,8 +1397,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   const SettingsRow({
     required this.id,
     required this.themeMode,
+    required this.accent,
     required this.density,
     required this.reminderEnabled,
+    required this.locationEnabled,
     required this.defaultRetention,
     required this.locale,
     required this.defaultCustomMinutes,
@@ -1192,11 +1416,17 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       );
     }
     {
+      map['accent'] = Variable<int>(
+        $SettingsTableTable.$converteraccent.toSql(accent),
+      );
+    }
+    {
       map['density'] = Variable<int>(
         $SettingsTableTable.$converterdensity.toSql(density),
       );
     }
     map['reminder_enabled'] = Variable<bool>(reminderEnabled);
+    map['location_enabled'] = Variable<bool>(locationEnabled);
     {
       map['default_retention'] = Variable<int>(
         $SettingsTableTable.$converterdefaultRetention.toSql(defaultRetention),
@@ -1216,8 +1446,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return SettingsTableCompanion(
       id: Value(id),
       themeMode: Value(themeMode),
+      accent: Value(accent),
       density: Value(density),
       reminderEnabled: Value(reminderEnabled),
+      locationEnabled: Value(locationEnabled),
       defaultRetention: Value(defaultRetention),
       locale: Value(locale),
       defaultCustomMinutes: Value(defaultCustomMinutes),
@@ -1235,10 +1467,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       themeMode: $SettingsTableTable.$converterthemeMode.fromJson(
         serializer.fromJson<int>(json['themeMode']),
       ),
+      accent: $SettingsTableTable.$converteraccent.fromJson(
+        serializer.fromJson<int>(json['accent']),
+      ),
       density: $SettingsTableTable.$converterdensity.fromJson(
         serializer.fromJson<int>(json['density']),
       ),
       reminderEnabled: serializer.fromJson<bool>(json['reminderEnabled']),
+      locationEnabled: serializer.fromJson<bool>(json['locationEnabled']),
       defaultRetention: $SettingsTableTable.$converterdefaultRetention.fromJson(
         serializer.fromJson<int>(json['defaultRetention']),
       ),
@@ -1259,10 +1495,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'themeMode': serializer.toJson<int>(
         $SettingsTableTable.$converterthemeMode.toJson(themeMode),
       ),
+      'accent': serializer.toJson<int>(
+        $SettingsTableTable.$converteraccent.toJson(accent),
+      ),
       'density': serializer.toJson<int>(
         $SettingsTableTable.$converterdensity.toJson(density),
       ),
       'reminderEnabled': serializer.toJson<bool>(reminderEnabled),
+      'locationEnabled': serializer.toJson<bool>(locationEnabled),
       'defaultRetention': serializer.toJson<int>(
         $SettingsTableTable.$converterdefaultRetention.toJson(defaultRetention),
       ),
@@ -1277,8 +1517,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   SettingsRow copyWith({
     int? id,
     AppThemeMode? themeMode,
+    AppAccent? accent,
     FeedDensity? density,
     bool? reminderEnabled,
+    bool? locationEnabled,
     Retention? defaultRetention,
     AppLocale? locale,
     int? defaultCustomMinutes,
@@ -1286,8 +1528,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   }) => SettingsRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
+    accent: accent ?? this.accent,
     density: density ?? this.density,
     reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+    locationEnabled: locationEnabled ?? this.locationEnabled,
     defaultRetention: defaultRetention ?? this.defaultRetention,
     locale: locale ?? this.locale,
     defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
@@ -1297,10 +1541,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return SettingsRow(
       id: data.id.present ? data.id.value : this.id,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
+      accent: data.accent.present ? data.accent.value : this.accent,
       density: data.density.present ? data.density.value : this.density,
       reminderEnabled: data.reminderEnabled.present
           ? data.reminderEnabled.value
           : this.reminderEnabled,
+      locationEnabled: data.locationEnabled.present
+          ? data.locationEnabled.value
+          : this.locationEnabled,
       defaultRetention: data.defaultRetention.present
           ? data.defaultRetention.value
           : this.defaultRetention,
@@ -1319,8 +1567,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return (StringBuffer('SettingsRow(')
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
+          ..write('accent: $accent, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
+          ..write('locationEnabled: $locationEnabled, ')
           ..write('defaultRetention: $defaultRetention, ')
           ..write('locale: $locale, ')
           ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
@@ -1333,8 +1583,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   int get hashCode => Object.hash(
     id,
     themeMode,
+    accent,
     density,
     reminderEnabled,
+    locationEnabled,
     defaultRetention,
     locale,
     defaultCustomMinutes,
@@ -1346,8 +1598,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       (other is SettingsRow &&
           other.id == this.id &&
           other.themeMode == this.themeMode &&
+          other.accent == this.accent &&
           other.density == this.density &&
           other.reminderEnabled == this.reminderEnabled &&
+          other.locationEnabled == this.locationEnabled &&
           other.defaultRetention == this.defaultRetention &&
           other.locale == this.locale &&
           other.defaultCustomMinutes == this.defaultCustomMinutes &&
@@ -1357,8 +1611,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
 class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> id;
   final Value<AppThemeMode> themeMode;
+  final Value<AppAccent> accent;
   final Value<FeedDensity> density;
   final Value<bool> reminderEnabled;
+  final Value<bool> locationEnabled;
   final Value<Retention> defaultRetention;
   final Value<AppLocale> locale;
   final Value<int> defaultCustomMinutes;
@@ -1366,8 +1622,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   const SettingsTableCompanion({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.accent = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
+    this.locationEnabled = const Value.absent(),
     this.defaultRetention = const Value.absent(),
     this.locale = const Value.absent(),
     this.defaultCustomMinutes = const Value.absent(),
@@ -1376,8 +1634,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   SettingsTableCompanion.insert({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.accent = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
+    this.locationEnabled = const Value.absent(),
     this.defaultRetention = const Value.absent(),
     this.locale = const Value.absent(),
     this.defaultCustomMinutes = const Value.absent(),
@@ -1386,8 +1646,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<int>? themeMode,
+    Expression<int>? accent,
     Expression<int>? density,
     Expression<bool>? reminderEnabled,
+    Expression<bool>? locationEnabled,
     Expression<int>? defaultRetention,
     Expression<int>? locale,
     Expression<int>? defaultCustomMinutes,
@@ -1396,8 +1658,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (themeMode != null) 'theme_mode': themeMode,
+      if (accent != null) 'accent': accent,
       if (density != null) 'density': density,
       if (reminderEnabled != null) 'reminder_enabled': reminderEnabled,
+      if (locationEnabled != null) 'location_enabled': locationEnabled,
       if (defaultRetention != null) 'default_retention': defaultRetention,
       if (locale != null) 'locale': locale,
       if (defaultCustomMinutes != null)
@@ -1409,8 +1673,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   SettingsTableCompanion copyWith({
     Value<int>? id,
     Value<AppThemeMode>? themeMode,
+    Value<AppAccent>? accent,
     Value<FeedDensity>? density,
     Value<bool>? reminderEnabled,
+    Value<bool>? locationEnabled,
     Value<Retention>? defaultRetention,
     Value<AppLocale>? locale,
     Value<int>? defaultCustomMinutes,
@@ -1419,8 +1685,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     return SettingsTableCompanion(
       id: id ?? this.id,
       themeMode: themeMode ?? this.themeMode,
+      accent: accent ?? this.accent,
       density: density ?? this.density,
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+      locationEnabled: locationEnabled ?? this.locationEnabled,
       defaultRetention: defaultRetention ?? this.defaultRetention,
       locale: locale ?? this.locale,
       defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
@@ -1439,6 +1707,11 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
         $SettingsTableTable.$converterthemeMode.toSql(themeMode.value),
       );
     }
+    if (accent.present) {
+      map['accent'] = Variable<int>(
+        $SettingsTableTable.$converteraccent.toSql(accent.value),
+      );
+    }
     if (density.present) {
       map['density'] = Variable<int>(
         $SettingsTableTable.$converterdensity.toSql(density.value),
@@ -1446,6 +1719,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     }
     if (reminderEnabled.present) {
       map['reminder_enabled'] = Variable<bool>(reminderEnabled.value);
+    }
+    if (locationEnabled.present) {
+      map['location_enabled'] = Variable<bool>(locationEnabled.value);
     }
     if (defaultRetention.present) {
       map['default_retention'] = Variable<int>(
@@ -1473,8 +1749,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     return (StringBuffer('SettingsTableCompanion(')
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
+          ..write('accent: $accent, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
+          ..write('locationEnabled: $locationEnabled, ')
           ..write('defaultRetention: $defaultRetention, ')
           ..write('locale: $locale, ')
           ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
@@ -1521,6 +1799,9 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
+      Value<DateTime?> updatedAt,
+      Value<double?> latitude,
+      Value<double?> longitude,
       Value<int> remindAfterDays,
     });
 typedef $$NotesTableUpdateCompanionBuilder =
@@ -1533,6 +1814,9 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<int> customMinutes,
       Value<DateTime?> expiresAt,
       Value<DateTime?> lastSeenAt,
+      Value<DateTime?> updatedAt,
+      Value<double?> latitude,
+      Value<double?> longitude,
       Value<int> remindAfterDays,
     });
 
@@ -1606,6 +1890,21 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<DateTime> get lastSeenAt => $composableBuilder(
     column: $table.lastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1689,6 +1988,21 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get remindAfterDays => $composableBuilder(
     column: $table.remindAfterDays,
     builder: (column) => ColumnOrderings(column),
@@ -1731,6 +2045,15 @@ class $$NotesTableAnnotationComposer
     column: $table.lastSeenAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
 
   GeneratedColumn<int> get remindAfterDays => $composableBuilder(
     column: $table.remindAfterDays,
@@ -1799,6 +2122,9 @@ class $$NotesTableTableManager
                 Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
                 Value<int> remindAfterDays = const Value.absent(),
               }) => NotesCompanion(
                 id: id,
@@ -1809,6 +2135,9 @@ class $$NotesTableTableManager
                 customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
+                updatedAt: updatedAt,
+                latitude: latitude,
+                longitude: longitude,
                 remindAfterDays: remindAfterDays,
               ),
           createCompanionCallback:
@@ -1821,6 +2150,9 @@ class $$NotesTableTableManager
                 Value<int> customMinutes = const Value.absent(),
                 Value<DateTime?> expiresAt = const Value.absent(),
                 Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
                 Value<int> remindAfterDays = const Value.absent(),
               }) => NotesCompanion.insert(
                 id: id,
@@ -1831,6 +2163,9 @@ class $$NotesTableTableManager
                 customMinutes: customMinutes,
                 expiresAt: expiresAt,
                 lastSeenAt: lastSeenAt,
+                updatedAt: updatedAt,
+                latitude: latitude,
+                longitude: longitude,
                 remindAfterDays: remindAfterDays,
               ),
           withReferenceMapper: (p0) => p0
@@ -2179,8 +2514,10 @@ typedef $$SettingsTableTableCreateCompanionBuilder =
     SettingsTableCompanion Function({
       Value<int> id,
       Value<AppThemeMode> themeMode,
+      Value<AppAccent> accent,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
+      Value<bool> locationEnabled,
       Value<Retention> defaultRetention,
       Value<AppLocale> locale,
       Value<int> defaultCustomMinutes,
@@ -2190,8 +2527,10 @@ typedef $$SettingsTableTableUpdateCompanionBuilder =
     SettingsTableCompanion Function({
       Value<int> id,
       Value<AppThemeMode> themeMode,
+      Value<AppAccent> accent,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
+      Value<bool> locationEnabled,
       Value<Retention> defaultRetention,
       Value<AppLocale> locale,
       Value<int> defaultCustomMinutes,
@@ -2218,6 +2557,12 @@ class $$SettingsTableTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnWithTypeConverterFilters<AppAccent, AppAccent, int> get accent =>
+      $composableBuilder(
+        column: $table.accent,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
   ColumnWithTypeConverterFilters<FeedDensity, FeedDensity, int> get density =>
       $composableBuilder(
         column: $table.density,
@@ -2226,6 +2571,11 @@ class $$SettingsTableTableFilterComposer
 
   ColumnFilters<bool> get reminderEnabled => $composableBuilder(
     column: $table.reminderEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get locationEnabled => $composableBuilder(
+    column: $table.locationEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2271,6 +2621,11 @@ class $$SettingsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get accent => $composableBuilder(
+    column: $table.accent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get density => $composableBuilder(
     column: $table.density,
     builder: (column) => ColumnOrderings(column),
@@ -2278,6 +2633,11 @@ class $$SettingsTableTableOrderingComposer
 
   ColumnOrderings<bool> get reminderEnabled => $composableBuilder(
     column: $table.reminderEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get locationEnabled => $composableBuilder(
+    column: $table.locationEnabled,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2317,11 +2677,19 @@ class $$SettingsTableTableAnnotationComposer
   GeneratedColumnWithTypeConverter<AppThemeMode, int> get themeMode =>
       $composableBuilder(column: $table.themeMode, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<AppAccent, int> get accent =>
+      $composableBuilder(column: $table.accent, builder: (column) => column);
+
   GeneratedColumnWithTypeConverter<FeedDensity, int> get density =>
       $composableBuilder(column: $table.density, builder: (column) => column);
 
   GeneratedColumn<bool> get reminderEnabled => $composableBuilder(
     column: $table.reminderEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get locationEnabled => $composableBuilder(
+    column: $table.locationEnabled,
     builder: (column) => column,
   );
 
@@ -2380,8 +2748,10 @@ class $$SettingsTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
+                Value<AppAccent> accent = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
+                Value<bool> locationEnabled = const Value.absent(),
                 Value<Retention> defaultRetention = const Value.absent(),
                 Value<AppLocale> locale = const Value.absent(),
                 Value<int> defaultCustomMinutes = const Value.absent(),
@@ -2389,8 +2759,10 @@ class $$SettingsTableTableTableManager
               }) => SettingsTableCompanion(
                 id: id,
                 themeMode: themeMode,
+                accent: accent,
                 density: density,
                 reminderEnabled: reminderEnabled,
+                locationEnabled: locationEnabled,
                 defaultRetention: defaultRetention,
                 locale: locale,
                 defaultCustomMinutes: defaultCustomMinutes,
@@ -2400,8 +2772,10 @@ class $$SettingsTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
+                Value<AppAccent> accent = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
+                Value<bool> locationEnabled = const Value.absent(),
                 Value<Retention> defaultRetention = const Value.absent(),
                 Value<AppLocale> locale = const Value.absent(),
                 Value<int> defaultCustomMinutes = const Value.absent(),
@@ -2409,8 +2783,10 @@ class $$SettingsTableTableTableManager
               }) => SettingsTableCompanion.insert(
                 id: id,
                 themeMode: themeMode,
+                accent: accent,
                 density: density,
                 reminderEnabled: reminderEnabled,
+                locationEnabled: locationEnabled,
                 defaultRetention: defaultRetention,
                 locale: locale,
                 defaultCustomMinutes: defaultCustomMinutes,

@@ -26,6 +26,7 @@ enum NotKeys {
     static let createdAt = "not_created_at"
     static let count = "not_count"
     static let pro = "not_pro"
+    static let accent = "not_accent"
     static let photo = "not_photo"
 }
 
@@ -41,6 +42,7 @@ struct NotEntry: TimelineEntry {
     let createdAt: Date?
     let count: Int
     let pro: Bool
+    let accentARGB: String
     let image: UIImage?
 
     static let placeholder = NotEntry(
@@ -54,6 +56,7 @@ struct NotEntry: TimelineEntry {
         createdAt: Date().addingTimeInterval(-60 * 60 * 20),
         count: 12,
         pro: true,
+        accentARGB: "FFFF7A55",
         image: nil
     )
 
@@ -68,6 +71,7 @@ struct NotEntry: TimelineEntry {
         createdAt: nil,
         count: 0,
         pro: false,
+        accentARGB: "FFFF7A55",
         image: nil
     )
 
@@ -80,22 +84,64 @@ struct NotEntry: TimelineEntry {
         let left = expiresAt.timeIntervalSince(date)
         if left <= 0 { return NotText.value("remaining.now") }
         if left >= 86_400 {
-            return NotText.format("remaining.days.short", Int(left / 86_400))
+            return NotText.format("remaining.days.short", Int(ceil(left / 86_400)))
         }
         if left >= 3_600 {
-            return NotText.format("remaining.hours.short", Int(left / 3_600))
+            return NotText.format("remaining.hours.short", Int(ceil(left / 3_600)))
         }
         if left >= 60 {
-            return NotText.format("remaining.minutes.short", Int(left / 60))
+            return NotText.format("remaining.minutes.short", Int(ceil(left / 60)))
         }
         return NotText.value("remaining.less_than_minute.short")
     }
 
     /// Tek satırlık kilit ekranı alanına sığan kısa özet.
     var inlineSummary: String {
-        let note = body.isEmpty ? NotText.value("widget.note.untitled") : body
-        if let remaining { return "\(note) · \(remaining)" }
-        return "\(note) · \(time)"
+        // En dar ailede zamanı başa al: uzun bir not kesilse bile widget'ın
+        // yalnızca gövde metninden ibaret olmadığı ilk bakışta anlaşılsın.
+        if let temporalSummary { return "\(temporalSummary) · \(noteText)" }
+        return noteText
+    }
+
+    /// Paylaşılan metin hazır olmadan ilk kare istenirse widget'ın
+    /// yalnızca not gövdesine düşmemesi için tarihleri yerel olarak
+    /// tamamlar. Normal durumda Flutter'ın gönderdiği değerler kullanılır.
+    var noteText: String {
+        let value = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? NotText.value("widget.note.untitled") : value
+    }
+
+    var displayDay: String {
+        let value = day.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.isEmpty else { return value }
+        return createdAt?.formatted(.dateTime.day().month(.abbreviated)) ?? ""
+    }
+
+    var displayTime: String {
+        let value = time.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.isEmpty else { return value }
+        return createdAt?.formatted(date: .omitted, time: .shortened) ?? ""
+    }
+
+    /// "BUGÜN · 14:32" gibi, dil ve bölgeye uyan kayıt damgası.
+    var captureStamp: String {
+        [displayDay, displayTime]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+    }
+
+    /// Kalan ömür, yoksa kaydın yaşı. Kilit ekranında her notun
+    /// yalnızca bir cümle değil, zamanda bir iz olduğunu anlatır.
+    var temporalSummary: String? {
+        if let remaining { return remaining }
+        guard let createdAt else {
+            return displayTime.isEmpty ? nil : displayTime
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        let value = formatter.localizedString(for: createdAt, relativeTo: date)
+        return value.isEmpty ? (displayTime.isEmpty ? nil : displayTime) : value
     }
 
     /// Kaydın süresi dolmuş mu.
@@ -110,6 +156,8 @@ struct NotEntry: TimelineEntry {
 
     /// Ekranda kayıt gösterilecek mi.
     var showsNote: Bool { hasNote && !expired }
+
+    var accent: Color { NotDesign.accent(accentARGB) }
 
     /// Notun ömründen ne kadarının kaldığı: 1 = yeni, 0 = süresi doldu.
     ///
@@ -146,36 +194,44 @@ struct NotProvider: TimelineProvider {
     }
 
     private func load() -> NotEntry {
-        guard let store = UserDefaults(suiteName: NotKeys.appGroup),
-              store.bool(forKey: NotKeys.hasNote)
-        else {
+        guard let store = UserDefaults(suiteName: NotKeys.appGroup) else {
             return .empty
         }
 
-        let epoch = store.integer(forKey: NotKeys.expiresAt)
-        let born = store.integer(forKey: NotKeys.createdAt)
+        let pro = store.bool(forKey: NotKeys.pro)
+        // Entitlement, veri katmanında da sınırdır. Flutter kilitli yayında
+        // alanları zaten temizler; bu maskeleme eski/yarım kalmış paylaşılan
+        // verinin başka bir görünüm yoluyla yeniden kullanılmasını önler.
+        let hasNote = pro && store.bool(forKey: NotKeys.hasNote)
+        let epoch = hasNote ? store.integer(forKey: NotKeys.expiresAt) : 0
+        let born = hasNote ? store.integer(forKey: NotKeys.createdAt) : 0
 
         return NotEntry(
             date: Date(),
-            hasNote: true,
-            noteId: store.integer(forKey: NotKeys.noteId),
-            body: store.string(forKey: NotKeys.body) ?? "",
-            time: store.string(forKey: NotKeys.time) ?? "",
-            day: store.string(forKey: NotKeys.date) ?? "",
+            hasNote: hasNote,
+            noteId: hasNote ? store.integer(forKey: NotKeys.noteId) : 0,
+            body: hasNote ? (store.string(forKey: NotKeys.body) ?? "") : "",
+            time: hasNote ? (store.string(forKey: NotKeys.time) ?? "") : "",
+            day: hasNote ? (store.string(forKey: NotKeys.date) ?? "") : "",
             expiresAt: epoch > 0 ? Date(timeIntervalSince1970: TimeInterval(epoch)) : nil,
             createdAt: born > 0 ? Date(timeIntervalSince1970: TimeInterval(born)) : nil,
-            count: store.integer(forKey: NotKeys.count),
-            pro: store.bool(forKey: NotKeys.pro),
-            image: loadImage(from: store)
+            count: pro ? store.integer(forKey: NotKeys.count) : 0,
+            pro: pro,
+            accentARGB: store.string(forKey: NotKeys.accent) ?? "FFFF7A55",
+            image: hasNote ? loadImage(from: store) : nil
         )
     }
 
     /// Kareyi önce kayıtlı mutlak yoldan, olmazsa grup kapsayıcısındaki
-    /// bilinen adından okur. İkinci yol, uygulama yeniden kurulduğunda kayıtlı
-    /// yolun eskimesine karşı güvence.
+    /// bilinen adından okur. Bir yol hiç yoksa eski sabit dosyaya düşmeyiz;
+    /// Flutter bu anahtarı yeni fotoğraf üretilemediğinde özellikle siliyor.
+    /// Böylece önceki notun karesi yeni notta yeniden görünmez.
     private func loadImage(from store: UserDefaults) -> UIImage? {
-        if let path = store.string(forKey: NotKeys.photo),
-           let image = UIImage(contentsOfFile: path) {
+        guard let path = store.string(forKey: NotKeys.photo), !path.isEmpty else {
+            return nil
+        }
+
+        if let image = UIImage(contentsOfFile: path) {
             return image
         }
 

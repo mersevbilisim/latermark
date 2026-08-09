@@ -44,6 +44,7 @@ class _FocusReticleState extends State<FocusReticle>
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.palette.onPhotoAccent;
     return IgnorePointer(
       child: FadeTransition(
         opacity: _opacity,
@@ -54,14 +55,14 @@ class _FocusReticleState extends State<FocusReticle>
             height: FocusReticle.size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: OnPhoto.ember, width: 1.2),
+              border: Border.all(color: accent, width: 1.2),
             ),
             child: Center(
               child: Container(
                 width: 5,
                 height: 5,
-                decoration: const BoxDecoration(
-                  color: OnPhoto.ember,
+                decoration: BoxDecoration(
+                  color: accent,
                   shape: BoxShape.circle,
                 ),
               ),

@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_palette.dart';
-import '../../../../../shared/widgets/icon_orb.dart';
-import '../../../../../l10n/l10n_context.dart';
 import '../../../../../core/utils/app_format.dart';
+import '../../../../../l10n/l10n_context.dart';
+import '../../../../../shared/widgets/icon_orb.dart';
 
 /// Kaydırıldıkça büyük başlıktan ince bir çubuğa dönüşen üstlük.
 ///
@@ -148,7 +148,7 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
                     size: 38,
                     iconSize: 18,
                     tint: palette.ink,
-                    fill: palette.canvasLift,
+                    fill: palette.glass,
                   ),
                 ],
               ],
@@ -237,30 +237,59 @@ class _TitleOrField extends StatelessWidget {
   }
 }
 
-/// Akıştaki gün ayıracı: küçük kapiteller ve peşinden giden ince bir çizgi.
-class DaySeparator extends StatelessWidget {
-  const DaySeparator({super.key, required this.day});
+/// Akışın editoryal zaman ayıracı.
+///
+/// Bir kart ya da kapsül çizmez. Bölüm adı ile ince kılavuz çizgisi aynı yatay
+/// omurga üzerinde çalışır; böylece uzun bir arşiv rahatça taranabilir ve
+/// fotoğraflarla yarışmaz.
+class AgeSeparator extends StatelessWidget {
+  const AgeSeparator({super.key, required this.label});
 
-  final DateTime day;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 30, 22, 14),
-      child: Row(
-        children: [
-          Text(context.l10n.dayHeader(day), style: palette.overline),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ColoredBox(
-              color: palette.hairline,
-              child: const SizedBox(height: 0.5, width: double.infinity),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final showRule = constraints.maxWidth >= 330 && textScale <= 1.3;
+
+        return Semantics(
+          container: true,
+          header: true,
+          label: label,
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: palette.overline.copyWith(color: palette.inkSoft),
+                    ),
+                  ),
+                  if (showRule) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: ColoredBox(
+                        color: palette.hairline,
+                        child: const SizedBox(height: 0.5),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

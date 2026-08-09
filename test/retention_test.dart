@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:not_app/features/notes/domain/retention.dart';
+import 'package:latermark/features/notes/domain/retention.dart';
 
 void main() {
   group('RetentionChoice', () {

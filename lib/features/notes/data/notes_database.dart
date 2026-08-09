@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../../../core/theme/app_accent.dart';
 import '../../settings/domain/app_locale.dart';
 import '../../settings/domain/app_settings.dart';
 import '../domain/retention.dart';
-import 'search_text.dart';
 
 part 'notes_database.g.dart';
 
@@ -38,6 +38,27 @@ class Notes extends Table {
 
   /// Nota en son ne zaman bakıldığı. Detay ekranında tazelenir.
   DateTimeColumn get lastSeenAt => dateTime().nullable()();
+
+  /// Notun yazısının en son ne zaman değiştirildiği; **hiç düzenlenmediyse
+  /// `null`**.
+  ///
+  /// Göçte eski kayıtlara `createdAt` yazılmıyor. Yazılsaydı arşivdeki her not
+  /// "düzenlenmiş" görünürdü — oysa hiçbiri düzenlenmedi. `null`, "bu kayda
+  /// çekildiğinden beri dokunulmadı" demenin dürüst yolu.
+  ///
+  /// Kaydın **ömrünü etkilemez**: silinme anı her zaman [createdAt]'ten
+  /// hesaplanır, düzenlemek notun ömrünü uzatmaz.
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  /// Karenin çekildiği yerin koordinatları; bilinmiyorsa ikisi de `null`.
+  ///
+  /// **Yer adı saklanmıyor, saklanamaz da.** "41.2607, 29.0421" değerini
+  /// "Uludağ, Bursa"ya çevirmek ters geocoding ister ve hem Apple hem Google
+  /// bunu kendi sunucularında yapar — yani koordinat cihazdan çıkar. Bu
+  /// uygulamanın verdiği söz bunu kaldırmıyor. Koordinat burada durur,
+  /// kullanıcı dokunduğunda haritayı **o** açar.
+  RealColumn get latitude => real().nullable()();
+  RealColumn get longitude => real().nullable()();
 
   /// "Beni bu kadar gün sonra hatırlat." `0` ise hatırlatma yok.
   ///
@@ -115,12 +136,22 @@ class SettingsTable extends Table {
   IntColumn get themeMode =>
       intEnum<AppThemeMode>().withDefault(const Constant(2))();
 
+  /// Küratörlü uygulama vurgu rengi. Turuncu (index 0) eski görünümü korur.
+  IntColumn get accent => intEnum<AppAccent>().withDefault(const Constant(0))();
+
   /// Varsayılan ızgara (index 1): uygulama ilk açıldığında daha çok kayıt
   /// tek bakışta görünsün.
   IntColumn get density =>
       intEnum<FeedDensity>().withDefault(const Constant(1))();
 
   BoolColumn get reminderEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Yeni kayıtlara çekim yeri iliştirilsin mi.
+  ///
+  /// Varsayılan **kapalı**. Gizlilik iddiası olan bir uygulama konum
+  /// toplamaya sessizce başlamaz; anahtar açıldığında izin istenir.
+  BoolColumn get locationEnabled =>
       boolean().withDefault(const Constant(false))();
 
   /// Yeni kayıtların varsayılan saklama süresi.
@@ -149,13 +180,13 @@ class SettingsTable extends Table {
 
 @DriftDatabase(tables: [Notes, NoteSearch, SettingsTable])
 class NotesDatabase extends _$NotesDatabase {
-  NotesDatabase() : super(driftDatabase(name: 'not_app'));
+  NotesDatabase() : super(driftDatabase(name: 'latermark_db'));
 
   /// Test ve önizleme için bellek içi/özel bağlantı.
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 4;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -174,93 +205,18 @@ class NotesDatabase extends _$NotesDatabase {
       await m.createAll();
       await customStatement(_pendingIndex);
     },
+    // `latermark_db` v1 zaten not, arama ve ayar tablolarının güncel temelini
+    // içeriyor. Önceki `not_app` sürüm zincirini burada tekrar yürütmek v1
+    // sütunlarını ikinci kez eklerdi. Bu veritabanının ilk ve tek yükseltmesi
+    // seçilen rengi, mevcut satırı ve varsayılan turuncuyu koruyarak ekler.
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.addColumn(notes, notes.lastSeenAt);
-        await m.createTable(settingsTable);
-      }
-      if (from < 3) {
-        await m.addColumn(notes, notes.remindAfterDays);
-        // Hatırlatma süresi artık genel bir tercih değil, notun kendi alanı.
-        // Sütunu düşürmek tabloyu yeniden kurmayı gerektiriyor.
-        await m.alterTable(
-          TableMigration(
-            settingsTable,
-            newColumns: [settingsTable.defaultRetention],
-          ),
-        );
-      }
+      if (from < 2) await m.addColumn(settingsTable, settingsTable.accent);
+      // Sütun nullable ve geri doldurulmuyor: mevcut kayıtlar düzenlenmedi.
+      if (from < 3) await m.addColumn(notes, notes.updatedAt);
       if (from < 4) {
-        await m.addColumn(settingsTable, settingsTable.locale);
-      }
-      if (from < 5) {
-        await m.addColumn(settingsTable, settingsTable.proUnlocked);
-      }
-      if (from < 6) {
-        await m.addColumn(notes, notes.customMinutes);
-        await m.addColumn(settingsTable, settingsTable.defaultCustomMinutes);
-      }
-      if (from < 7) {
-        // v7'nin OCR sütunu v8'de yan tabloya taşındı. Burada eklenmesinin
-        // sebebi aşağıdaki taşımanın onu okuyabilmesi: 6'dan 8'e atlayan bir
-        // kurulumda sütun hiç var olmasaydı taşıma sorgusu patlardı.
-        await m.database.customStatement(
-          'ALTER TABLE notes ADD COLUMN ocr_text TEXT NULL',
-        );
-      }
-      if (from < 8) {
-        // Okunmuş yazıyı çöpe atmak, kullanıcının tüm arşivini yeniden
-        // taratmak demek — kare başına 1-2 saniye CPU. Sütun düşmeden önce
-        // FK'sız bir ara tabloya alınıyor.
-        await m.database.customStatement(
-          'CREATE TABLE _ocr_carry (note_id INTEGER NOT NULL, text TEXT NOT NULL)',
-        );
-        await m.database.customStatement(
-          'INSERT INTO _ocr_carry (note_id, text) '
-          'SELECT id, ocr_text FROM notes WHERE ocr_text IS NOT NULL',
-        );
-
-        // `notes` yeni tanımıyla yeniden kurulur; `ocrText` böylece düşer.
-        // Yan tablo **sonra** yaratılıyor: rebuild sırasında ona bakan bir
-        // yabancı anahtar bulunmasın.
-        await m.alterTable(TableMigration(notes));
-        await m.createTable(noteSearch);
-        await m.database.customStatement(_pendingIndex);
-
-        // Katlama Dart tarafında yapıldığı için satırlar sayfa sayfa geçiyor;
-        // arşivin tamamını birden belleğe almanın gereği yok.
-        const page = 200;
-        for (var offset = 0; ; offset += page) {
-          final rows = await m.database
-              .customSelect(
-                'SELECT n.id AS id, n.body AS body, c.text AS ocr '
-                'FROM notes n LEFT JOIN _ocr_carry c ON c.note_id = n.id '
-                'ORDER BY n.id LIMIT $page OFFSET $offset',
-              )
-              .get();
-          if (rows.isEmpty) break;
-
-          await m.database.batch(
-            (batch) => batch.insertAll(noteSearch, [
-              for (final row in rows)
-                NoteSearchCompanion.insert(
-                  noteId: Value(row.read<int>('id')),
-                  bodyFolded: Value(SearchText.fold(row.read<String>('body'))),
-                  photoFolded: Value(
-                    switch (row.read<String?>('ocr')) {
-                      final text? => SearchText.fold(
-                        SearchText.normalize(text),
-                      ),
-                      null => null,
-                    },
-                  ),
-                ),
-            ]),
-          );
-          if (rows.length < page) break;
-        }
-
-        await m.database.customStatement('DROP TABLE _ocr_carry');
+        await m.addColumn(notes, notes.latitude);
+        await m.addColumn(notes, notes.longitude);
+        await m.addColumn(settingsTable, settingsTable.locationEnabled);
       }
     },
     beforeOpen: (details) async {

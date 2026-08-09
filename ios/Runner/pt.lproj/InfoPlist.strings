@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "O acesso à câmara permite tirar fotografias para as suas notas.";
 "NSPhotoLibraryUsageDescription" = "O acesso às fotografias permite adicionar imagens da biblioteca às suas notas.";
+"NSLocationWhenInUseUsageDescription" = "O acesso à localização associa à foto o local onde a tirou. A coordenada não sai do seu dispositivo.";

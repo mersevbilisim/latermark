@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -30,8 +31,11 @@ class PurchaseService {
   static const _storeTimeout = Duration(seconds: 6);
   static const _productAttempts = 3;
   static const _retryBackoff = Duration(milliseconds: 700);
+  static const _entitlementChannel = MethodChannel('latermark/purchases');
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  Future<bool?>? _entitlementRefresh;
+  Completer<bool?>? _androidRestoreResult;
 
   /// Mağazadan gelen, kullanıcının ülkesine göre biçimlendirilmiş fiyat.
   ///
@@ -70,6 +74,12 @@ class PurchaseService {
       onError: (Object error) => debugPrint('Satın alma akışı hatası: $error'),
     );
 
+    // Fiyat kataloğu ve ödeme kullanılabilirliği, mevcut hakkı okumaktan ayrı
+    // konular. Özellikle iOS'ta satın alma kısıtlı olsa bile StoreKit 2'nin
+    // doğrulanmış currentEntitlements sonucu stale/elle değiştirilmiş cache'i
+    // düzeltebilir.
+    await _refreshPlatformEntitlement();
+
     try {
       if (!await _store.isAvailable().timeout(_storeTimeout)) {
         // Sessizce dönmek teşhisi imkânsız kılıyordu. Bu satırı görüyorsan
@@ -91,7 +101,6 @@ class PurchaseService {
     );
     debugPrint('[IAP] Mağaza hazır, ürün sorgulanıyor: $productId');
     await _loadProduct();
-    await refreshEntitlement();
   }
 
   Future<void> dispose() async {
@@ -177,18 +186,79 @@ class PurchaseService {
 
   /// Mağazaya "bu ürüne sahip mi" diye sorar.
   ///
-  /// İade edilmiş bir satın alma mağaza tarafından geri alınır ve burada
-  /// kendiliğinden kapanır — arka uç ya da webhook gerekmiyor. Uygulama her
-  /// öne geldiğinde çağrılması bu yüzden yeterli.
+  /// iOS'ta StoreKit 2'nin doğrulanmış `currentEntitlements` dizisi kesin bir
+  /// bool verir; böylece hiç hak olmaması da (boş dizi) yerel cache'i kapatır.
+  /// Android'de restore sorgusunun tam listesi aynı işi görür. Mağaza/kanal
+  /// hatası `false` değildir: son doğrulanmış çevrimdışı cache korunur.
   Future<void> refreshEntitlement() async {
     if (!_supported) return;
+    await checkEntitlement();
+    // Açılıştaki geçici mağaza hatası fiyatı kalıcı olarak boş bırakmasın.
+    if (_product == null) await _loadProduct();
+  }
+
+  /// Yalnızca güncel hakkı doğrular ve kesin sonucu çağırana döndürür.
+  ///
+  /// Widget gibi uygulama dışından gelen Pro eylemleri, açılıştaki yerel
+  /// önbelleği kullanmadan önce bu sonucu bekler. `null`, mağazaya o anda
+  /// ulaşılamadığı ve son doğrulanmış cache'in korunması gerektiği anlamına
+  /// gelir. Eşzamanlı açılış sorgusu varsa aynı future paylaşılır.
+  Future<bool?> checkEntitlement() async {
+    if (!_supported) return null;
+    return _refreshPlatformEntitlement();
+  }
+
+  Future<bool?> _refreshPlatformEntitlement() {
+    final activeRefresh = _entitlementRefresh;
+    if (activeRefresh != null) return activeRefresh;
+
+    final refresh = Platform.isIOS
+        ? _readIosEntitlement()
+        : _readAndroidEntitlement();
+    _entitlementRefresh = refresh;
+    return refresh.whenComplete(() {
+      if (identical(_entitlementRefresh, refresh)) {
+        _entitlementRefresh = null;
+      }
+    });
+  }
+
+  Future<bool?> _readIosEntitlement() async {
     try {
-      // Açılıştaki geçici StoreKit hatası fiyatı kalıcı olarak boş bırakmasın.
-      if (_product == null) await _loadProduct();
-      await _store.restorePurchases();
+      final owned = await _entitlementChannel
+          .invokeMethod<bool>('currentProEntitlement')
+          .timeout(_storeTimeout);
+      if (owned == null) {
+        throw const FormatException('StoreKit hak sonucu boş döndü.');
+      }
+      unlocked.value = owned;
+      return owned;
     } catch (error) {
-      // Ağ yoksa bilinmezlik korunur; önceki değer olduğu gibi kalır.
-      debugPrint('Haklar tazelenemedi: $error');
+      // Kanal/StoreKit doğrulama hatası sahip değil demek değildir. Son kesin
+      // değere ve Drift cache'ine dokunma; çevrimdışı ödeyen kullanıcı düşmez.
+      debugPrint('iOS Pro hakkı doğrulanamadı: $error');
+      return null;
+    }
+  }
+
+  Future<bool?> _readAndroidEntitlement() async {
+    final activeRestore = _androidRestoreResult;
+    if (activeRestore != null) return activeRestore.future;
+
+    final result = Completer<bool?>();
+    _androidRestoreResult = result;
+    try {
+      // Android eklentisi sorgu başarılıysa mevcut satın alımların tamamını,
+      // hiç satın alım yoksa da boş listeyi purchaseStream'e gönderir.
+      await _store.restorePurchases().timeout(_storeTimeout);
+      return await result.future.timeout(_storeTimeout);
+    } catch (error) {
+      debugPrint('Android Pro hakkı doğrulanamadı: $error');
+      return null;
+    } finally {
+      if (identical(_androidRestoreResult, result)) {
+        _androidRestoreResult = null;
+      }
     }
   }
 
@@ -216,7 +286,12 @@ class PurchaseService {
   Future<void> restore() async {
     busy.value = true;
     try {
-      await _store.restorePurchases();
+      if (Platform.isIOS) {
+        // StoreKit restore akışını tetikle; ardından stream'in "boş" olay
+        // üretmesine güvenmeden currentEntitlements ile kesin sonucu al.
+        await _store.restorePurchases();
+      }
+      await _refreshPlatformEntitlement();
     } catch (error) {
       debugPrint('Geri yükleme başarısız: $error');
     }
@@ -225,6 +300,8 @@ class PurchaseService {
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     var owned = false;
+    var hasError = false;
+    final androidRestore = Platform.isAndroid ? _androidRestoreResult : null;
 
     for (final purchase in purchases) {
       switch (purchase.status) {
@@ -236,6 +313,7 @@ class PurchaseService {
           if (purchase.productID == productId) owned = true;
 
         case PurchaseStatus.error:
+          hasError = true;
           debugPrint('Satın alma hatası: ${purchase.error}');
 
         case PurchaseStatus.canceled:
@@ -246,11 +324,40 @@ class PurchaseService {
       // tarafından **otomatik iade edilir**, iOS'ta ise kuyrukta kalıp her
       // açılışta yeniden gelir. Hata durumunda bile çağrılmalı.
       if (purchase.pendingCompletePurchase) {
-        await _store.completePurchase(purchase);
+        try {
+          await _store.completePurchase(purchase);
+        } catch (error) {
+          // Tamamlama/acknowledge hatası satın alımın sahte olduğunu göstermez;
+          // sonraki açılışta tekrar teslim edilir. Hak sonucunu kaybetme.
+          debugPrint('Satın alma tamamlanamadı: $error');
+        }
       }
     }
 
     busy.value = false;
+
+    if (Platform.isIOS) {
+      // StoreKit satın alma sonucu `VerificationResult` taşır; genel Flutter
+      // akışı bunun doğrulanmış olup olmadığını burada garanti etmez. Ürünü
+      // ancak native currentEntitlements sorgusu doğruladıktan sonra aç.
+      if (owned) {
+        final verified = await _refreshPlatformEntitlement();
+        if (verified == true) _purchased.add(null);
+      }
+      return;
+    }
+
+    if (androidRestore != null && !androidRestore.isCompleted) {
+      if (hasError) {
+        // Hatalı liste kesin bir sahiplik cevabı değildir; cache korunur.
+        androidRestore.complete(null);
+      } else {
+        unlocked.value = owned;
+        androidRestore.complete(owned);
+      }
+      return;
+    }
+
     if (owned) {
       unlocked.value = true;
       _purchased.add(null);

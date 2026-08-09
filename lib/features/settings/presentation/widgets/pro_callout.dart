@@ -90,11 +90,13 @@ class _Offer extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Text(
-                    l10n.paywallCta,
-                    style: palette.bodyStrong.copyWith(
-                      color: palette.ember,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      l10n.paywallCta,
+                      style: palette.bodyStrong.copyWith(
+                        color: palette.ember,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -131,22 +133,24 @@ class _Owned extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Künye artık vurgu rengiyle. Nötr griyken bu şerit ayarlar
+            // listesindeki herhangi bir bölüm başlığından ayırt edilmiyordu:
+            // ödemiş kullanıcı sayfayı açtığında ödediğine dair hiçbir iz
+            // görmüyordu.
             _Rule(
               label: '${context.l10n.appTitle} ${context.l10n.proBadge}',
-              tint: palette.ember.withValues(alpha: 0.45),
+              tint: palette.emberGlow,
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const ProBadge(),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    context.l10n.paywallOwnedCount(snapshot.data ?? 0),
-                    style: palette.body.copyWith(color: palette.inkSoft),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 18),
+            // Kilitli hâlde ücretsiz katmanın kapısı neredeyse kapalı bir
+            // diyaframdır; burada aynı diyafram açılıyor. Rozet takmak yerine
+            // zaten kurulu olan sembolü tersine çevirmek, "senin" demenin bu
+            // uygulamaya ait yolu.
+            ProOwnedMark(label: context.l10n.paywallOwned, centered: false),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.paywallOwnedCount(snapshot.data ?? 0),
+              style: palette.body.copyWith(color: palette.inkSoft),
             ),
           ],
         );
@@ -242,8 +246,8 @@ class _Cell extends StatelessWidget {
 /// Bölüm başlığı: küçük kapiteller ve peşinden giden ince çizgi.
 ///
 /// [SettingsSection]'ınkiyle aynı ritim — bu blok sayfaya ait olmalı, üstüne
-/// yapıştırılmış bir reklam gibi durmamalı. Tek fark çizginin kor tonu; kutu
-/// çizmeden "burası diğerleri gibi bir tercih değil" demenin en sessiz yolu.
+/// yapıştırılmış bir reklam gibi durmamalı. Teklif kor tonunu taşır; sahiplik
+/// hâli ise aynı yapıyı nötr mürekkeple kullanır.
 class _Rule extends StatelessWidget {
   const _Rule({required this.label, required this.tint});
 
@@ -258,9 +262,11 @@ class _Rule extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         children: [
-          Text(
-            context.l10n.upper(label),
-            style: palette.overline.copyWith(color: palette.ember),
+          Flexible(
+            child: Text(
+              context.l10n.upper(label),
+              style: palette.overline.copyWith(color: palette.ember),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

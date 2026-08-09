@@ -1,4 +1,9 @@
 "widget.description" = "Son kareni ve notunu gösterir.";
+"widget.capture.name" = "Hızlı Çekim";
+"widget.capture.description" = "Kilit ekranından doğrudan Latermark kamerasına geçer.";
+"widget.capture.action" = "Kamerayı aç";
+"widget.capture.accessibility" = "Latermark kamerasını aç";
+"widget.capture.hint" = "Fotoğraf çekip yeni bir not oluşturmaya başlar.";
 "widget.note.untitled" = "Notsuz kayıt";
 "widget.empty.title" = "Dokun ve çek";
 "widget.empty.subtitle" = "İlk notun burada görünecek";

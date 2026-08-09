@@ -1,2 +1,3 @@
 "NSCameraUsageDescription" = "ノート用の写真を撮るためにカメラを使用します。";
 "NSPhotoLibraryUsageDescription" = "写真ライブラリの画像をノートに追加するために使用します。";
+"NSLocationWhenInUseUsageDescription" = "位置情報へのアクセスにより、撮影した場所を写真に記録します。座標は端末内に留まります。";

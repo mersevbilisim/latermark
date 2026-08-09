@@ -1,4 +1,9 @@
 "widget.description" = "Shows your latest frame and note.";
+"widget.capture.name" = "Quick Capture";
+"widget.capture.description" = "Opens the Latermark camera directly from your Lock Screen.";
+"widget.capture.action" = "Open camera";
+"widget.capture.accessibility" = "Open the Latermark camera";
+"widget.capture.hint" = "Take a photo and continue with a new note.";
 "widget.note.untitled" = "Untitled note";
 "widget.empty.title" = "Tap to capture";
 "widget.empty.subtitle" = "Your first note will appear here";

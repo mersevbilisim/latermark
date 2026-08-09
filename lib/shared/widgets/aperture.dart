@@ -126,10 +126,7 @@ class _AperturePainter extends CustomPainter {
 
     // 1) Bıçakların gövdesi. Arkadaki kor parıltısını büyük ölçüde kapatır;
     // aksi halde metal yerine sisli bir bulut gibi görünür.
-    canvas.drawPath(
-      blades,
-      Paint()..color = bladeBase.withValues(alpha: 0.88),
-    );
+    canvas.drawPath(blades, Paint()..color = bladeBase.withValues(alpha: 0.88));
 
     final tint = edgeTint ?? OnPhoto.flash;
 
@@ -305,7 +302,11 @@ class _ApertureButtonState extends State<ApertureButton>
           builder: (context, _) {
             final pressed = AppMotion.ease.transform(_press.value);
             final breath = Curves.easeInOut.transform(_breath.value);
-            final resting = lerpDouble(1.0, 0.92, widget.breathing ? breath : 0)!;
+            final resting = lerpDouble(
+              1.0,
+              0.92,
+              widget.breathing ? breath : 0,
+            )!;
             final openness = lerpDouble(resting, 0.14, pressed)!;
             final twist = -(2 * math.pi / _bladeCount) * 0.5 * pressed;
 
@@ -358,16 +359,20 @@ class _Bloom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return IgnorePointer(
       child: Opacity(
         opacity: opacity.clamp(0.0, 1.0),
         child: Container(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(
-              colors: [OnPhoto.emberGlow, Color(0x00FF7A55)],
+              colors: [
+                palette.onPhotoAccentGlow,
+                palette.onPhotoAccent.withValues(alpha: 0),
+              ],
               stops: [0.25, 1.0],
             ),
           ),
@@ -385,14 +390,18 @@ class _Core extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.palette.onPhotoAccent;
     return IgnorePointer(
       child: Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: RadialGradient(
-            colors: [Color(0x59FF7A55), Color(0x00FF7A55)],
+            colors: [
+              accent.withValues(alpha: 0.35),
+              accent.withValues(alpha: 0),
+            ],
             stops: [0.0, 1.0],
           ),
         ),

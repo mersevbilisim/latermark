@@ -1,3 +1,4 @@
+import '../core/theme/app_accent.dart';
 import '../features/notes/domain/retention.dart';
 import '../features/settings/domain/app_locale.dart';
 import '../features/settings/domain/app_settings.dart';
@@ -26,8 +27,9 @@ extension RetentionLabels on Retention {
 
 extension RetentionChoiceLabels on RetentionChoice {
   /// Seçimin okunur hâli. Özel sürede sayının kendisi yazılır.
-  String label(L10n l10n) =>
-      retention.isCustom ? formatMinutes(l10n, customMinutes) : retention.label(l10n);
+  String label(L10n l10n) => retention.isCustom
+      ? formatMinutes(l10n, customMinutes)
+      : retention.label(l10n);
 }
 
 /// Dakikayı en büyük tam birime yuvarlayarak yazar: `6 saat`, `3 gün`,
@@ -44,6 +46,17 @@ extension ThemeModeLabels on AppThemeMode {
     AppThemeMode.system => l10n.themeSystem,
     AppThemeMode.light => l10n.themeLight,
     AppThemeMode.dark => l10n.themeDark,
+  };
+}
+
+extension AccentLabels on AppAccent {
+  String label(L10n l10n) => switch (this) {
+    AppAccent.orange => l10n.accentOrange,
+    AppAccent.blue => l10n.accentBlue,
+    AppAccent.violet => l10n.accentViolet,
+    AppAccent.pink => l10n.accentPink,
+    AppAccent.green => l10n.accentGreen,
+    AppAccent.gold => l10n.accentGold,
   };
 }
 

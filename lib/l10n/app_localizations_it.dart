@@ -15,6 +15,9 @@ class L10nIt extends L10n {
   String get actionSave => 'Salva';
 
   @override
+  String get composeSaving => 'Salvataggio';
+
+  @override
   String get actionCancel => 'Annulla';
 
   @override
@@ -28,6 +31,12 @@ class L10nIt extends L10n {
 
   @override
   String get actionEdit => 'Modifica';
+
+  @override
+  String get actionMore => 'Altro';
+
+  @override
+  String get openPhotoSemantic => 'Apri la foto a schermo intero';
 
   @override
   String get actionRetry => 'Riprova';
@@ -53,7 +62,7 @@ class L10nIt extends L10n {
       count,
       locale: localeName,
       other: '$count risultati',
-      one: '1 risultato',
+      one: '$count risultato',
     );
     return '$_temp0';
   }
@@ -69,6 +78,27 @@ class L10nIt extends L10n {
 
   @override
   String get notesTitle => 'Note';
+
+  @override
+  String get dateGroupToday => 'Oggi';
+
+  @override
+  String get dateGroupYesterday => 'Ieri';
+
+  @override
+  String get dateGroupPastWeek => 'Ultimi 7 giorni';
+
+  @override
+  String get dateGroupPastMonth => 'Ultimo mese';
+
+  @override
+  String get dateGroupPastThreeMonths => 'Ultimi 3 mesi';
+
+  @override
+  String get dateGroupPastYear => 'Ultimo anno';
+
+  @override
+  String get dateGroupOlder => 'Più di un anno fa';
 
   @override
   String noteCount(int count) {
@@ -204,6 +234,24 @@ class L10nIt extends L10n {
   String get composeHint => 'Perché hai scattato questa foto?';
 
   @override
+  String get composeReminderDescription =>
+      'Ritrova questo scatto nel giorno che scegli.';
+
+  @override
+  String get composeLocationDescription =>
+      'Associa la tua posizione attuale solo a questo scatto.';
+
+  @override
+  String get composeLocationResolving => 'Rilevamento della posizione…';
+
+  @override
+  String get composeLocationReady => 'La posizione è pronta per questo scatto.';
+
+  @override
+  String get composeLocationPermissionRequired =>
+      'È richiesto il permesso per la posizione.';
+
+  @override
   String get composeAnotherPhoto => 'Scegli un’altra foto';
 
   @override
@@ -217,6 +265,37 @@ class L10nIt extends L10n {
 
   @override
   String get reminderLabel => 'Ricordamelo';
+
+  @override
+  String get addedLabel => 'Data di aggiunta';
+
+  @override
+  String get lastUpdatedLabel => 'Ultima modifica';
+
+  @override
+  String get locationLabel => 'Posizione';
+
+  @override
+  String get locationAddLabel => 'Aggiungi posizione';
+
+  @override
+  String get locationBlocked =>
+      'L\'aggiunta della posizione dipende dal tuo permesso. Consenti l\'accesso alla posizione per registrare dove è stata scattata la foto.';
+
+  @override
+  String get compassNorth => 'N';
+
+  @override
+  String get compassSouth => 'S';
+
+  @override
+  String get compassEast => 'E';
+
+  @override
+  String get compassWest => 'O';
+
+  @override
+  String get toastMapFailed => 'Impossibile aprire Mappe';
 
   @override
   String get reminderSuffixActive => 'giorni da oggi';
@@ -318,6 +397,49 @@ class L10nIt extends L10n {
   String get legalTerms => 'Condizioni d’uso';
 
   @override
+  String get yourDataTitle => 'Latermark e i tuoi dati';
+
+  @override
+  String get yourDataSubtitle =>
+      'La tua privacy conta. E la trattiamo con il rispetto che merita.';
+
+  @override
+  String get yourDataSafetyQuestion => 'I miei dati sono al sicuro?';
+
+  @override
+  String get yourDataSafetyAnswer =>
+      'Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli.';
+
+  @override
+  String get yourDataLocationQuestion =>
+      'Perché Latermark richiede l’accesso alla posizione?';
+
+  @override
+  String get yourDataLocationAnswer =>
+      'L’autorizzazione viene richiesta solo se scegli di aggiungere un luogo a una nota o a un ricordo. La posizione resta associata solo a quell’elemento, senza tracciamento in background. Passa all’app Mappe solo se decidi di aprire la mappa.';
+
+  @override
+  String get yourDataPhotosQuestion => 'Come viene usato l’accesso alle foto?';
+
+  @override
+  String get yourDataPhotosAnswer =>
+      'Serve solo a permetterti di scegliere un’immagine dalla libreria invece di scattarne una nuova. Latermark importa unicamente l’immagine selezionata e non richiede una connessione a internet.';
+
+  @override
+  String get yourDataRemindersQuestion => 'Come funzionano i promemoria?';
+
+  @override
+  String get yourDataRemindersAnswer =>
+      'Vengono programmati e mostrati localmente sul tuo dispositivo. Nessun server esterno li invia o li attiva.';
+
+  @override
+  String get yourDataDeletionQuestion => 'Cosa succede se elimino l’app?';
+
+  @override
+  String get yourDataDeletionAnswer =>
+      'Note, immagini importate e posizioni salvate in Latermark vengono eliminate definitivamente. Le foto nella tua libreria e i dati delle altre app restano intatti.';
+
+  @override
   String get legalOpenFailed => 'Impossibile aprire il link.';
 
   @override
@@ -344,6 +466,31 @@ class L10nIt extends L10n {
 
   @override
   String get themeDark => 'Scuro';
+
+  @override
+  String get appColorTitle => 'Colore dell’app';
+
+  @override
+  String get appColorDescription =>
+      'Scegli il colore principale per controlli ed elementi in evidenza.';
+
+  @override
+  String get accentOrange => 'Arancione';
+
+  @override
+  String get accentBlue => 'Blu';
+
+  @override
+  String get accentViolet => 'Viola';
+
+  @override
+  String get accentPink => 'Rosa';
+
+  @override
+  String get accentGreen => 'Verde';
+
+  @override
+  String get accentGold => 'Oro';
 
   @override
   String get retentionTitle => 'Eliminazione automatica';
@@ -612,6 +759,9 @@ class L10nIt extends L10n {
       'Nessun abbonamento. Paghi una volta, Pro resta tuo.';
 
   @override
+  String get paywallOwned => 'Latermark Pro è tuo.';
+
+  @override
   String get paywallFeatureNoSubscription => 'Nessun abbonamento';
 
   @override
@@ -702,4 +852,10 @@ class L10nIt extends L10n {
   @override
   String get photoLibraryUsageDescription =>
       'L’accesso a Foto serve per aggiungere alle note le immagini della tua libreria.';
+
+  @override
+  String get actionShare => 'Condividi';
+
+  @override
+  String get shareNoteSemantic => 'Condividi foto e nota';
 }

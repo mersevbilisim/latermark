@@ -16,9 +16,11 @@ extension AppFormat on L10n {
   /// Yerele göre saat: `14:32` ya da `2:32 PM`.
   String time(DateTime at) => DateFormat.jm(localeName).format(at);
 
+  /// Yerele göre takvim tarihi: `8 Ağustos 2026` ya da `August 8, 2026`.
+  String calendarDate(DateTime at) => DateFormat.yMMMMd(localeName).format(at);
+
   /// `6 Ağustos 2026 · 14:32`
-  String stamp(DateTime at) =>
-      '${DateFormat.yMMMMd(localeName).format(at)} · ${time(at)}';
+  String stamp(DateTime at) => '${calendarDate(at)} · ${time(at)}';
 
   /// Akıştaki gün ayıracı: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
   String dayHeader(DateTime at, {DateTime? now}) {

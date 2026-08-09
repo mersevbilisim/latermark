@@ -1,4 +1,9 @@
 "widget.description" = "Zeigt deine neueste Aufnahme und Notiz.";
+"widget.capture.name" = "Schnellaufnahme";
+"widget.capture.description" = "Öffnet die Latermark-Kamera direkt vom Sperrbildschirm.";
+"widget.capture.action" = "Kamera öffnen";
+"widget.capture.accessibility" = "Latermark-Kamera öffnen";
+"widget.capture.hint" = "Nimm ein Foto auf und fahre mit einer neuen Notiz fort.";
 "widget.note.untitled" = "Ohne Notiz";
 "widget.empty.title" = "Tippen und aufnehmen";
 "widget.empty.subtitle" = "Deine erste Notiz erscheint hier";

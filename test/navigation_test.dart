@@ -7,18 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:not_app/app/app.dart';
-import 'package:not_app/features/notes/data/notes_database.dart';
-import 'package:not_app/features/notes/data/notes_repository.dart';
-import 'package:not_app/features/notes/data/photo_store.dart';
-import 'package:not_app/features/settings/data/settings_repository.dart';
-import 'package:not_app/features/notes/domain/retention.dart';
-import 'package:not_app/features/notes/presentation/compose/compose_page.dart';
-import 'package:not_app/features/notes/presentation/detail/note_detail_page.dart';
-import 'package:not_app/features/notes/presentation/home/widgets/note_card.dart';
-import 'package:not_app/features/notes/presentation/home/widgets/shutter_dock.dart';
-import 'package:not_app/features/settings/domain/app_settings.dart';
-import 'package:not_app/features/settings/domain/app_locale.dart';
+import 'package:latermark/app/app.dart';
+import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/data/notes_repository.dart';
+import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/settings/data/settings_repository.dart';
+import 'package:latermark/features/notes/domain/retention.dart';
+import 'package:latermark/features/notes/presentation/compose/compose_page.dart';
+import 'package:latermark/features/notes/presentation/detail/note_detail_page.dart';
+import 'package:latermark/features/notes/presentation/home/widgets/note_card.dart';
+import 'package:latermark/features/notes/presentation/home/widgets/shutter_dock.dart';
+import 'package:latermark/features/settings/domain/app_settings.dart';
+import 'package:latermark/features/settings/domain/app_locale.dart';
 
 /// 1×1 saydam PNG — çözülebilir gerçek bir görsel olması yeterli.
 final _pixel = base64Decode(
@@ -34,7 +34,7 @@ void main() {
   setUpAll(() => initializeDateFormatting('tr_TR'));
 
   setUp(() async {
-    sandbox = await Directory.systemTemp.createTemp('not_app_nav');
+    sandbox = await Directory.systemTemp.createTemp('latermark_nav');
     database = NotesDatabase.forExecutor(NativeDatabase.memory());
     repository = NotesRepository(
       database: database,
@@ -237,8 +237,25 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(NoteDetailPage), findsOneWidget);
-    expect(find.text('Araba burada — P10'), findsOneWidget);
-    expect(find.text('Düzenle'), findsOneWidget);
+    // Rota opak olmadığı için ana akış hâlâ ağaçta: aynı metin arkadaki kartta
+    // da duruyor. Aranan şey detayın kendi kopyası.
+    expect(
+      find.descendant(
+        of: find.byType(NoteDetailPage),
+        matching: find.text('Araba burada — P10'),
+      ),
+      findsOneWidget,
+    );
+
+    // Üç eylem de alt şeritte görünür durur; hiçbiri menüye saklanmaz.
+    expect(find.byKey(const ValueKey('detail-action-share')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detail-action-edit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detail-action-delete')), findsOneWidget);
+
+    // Düzenleme ayrıca okunan satırın kendisine dokunarak da açılır.
+    await tester.tap(find.byKey(const ValueKey('detail-note-copy')));
+    await settle(tester);
+    expect(find.text('Kaydet'), findsOneWidget);
 
     await disposeTree(tester);
   });
@@ -281,10 +298,12 @@ void main() {
     await tester.tap(find.byType(NoteCard));
     await settle(tester);
 
+    // Kart bir bakışlık kısa biçimi ("3g") taşıyor; detay tam cümleyi.
     expect(
-      find.textContaining('3 Gün · 2 gün 23 saat sonra silinecek'),
+      find.text('2 GÜN 23 SAAT SONRA SİLİNECEK'),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('detail-life-edge')), findsOneWidget);
 
     await disposeTree(tester);
   });

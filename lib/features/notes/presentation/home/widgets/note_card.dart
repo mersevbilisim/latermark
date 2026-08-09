@@ -7,6 +7,7 @@ import '../../../../../shared/widgets/life_rule.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
+import '../../../domain/note_reminder.dart';
 import 'note_photo.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../core/utils/app_format.dart';
@@ -56,6 +57,7 @@ class NoteCard extends StatelessWidget {
     this.scale = CardScale.full,
     this.aspect,
     this.now,
+    required this.remindersActive,
   });
 
   final Note note;
@@ -74,16 +76,38 @@ class NoteCard extends StatelessWidget {
   /// Testlerde zamanı sabitlemek için.
   final DateTime? now;
 
+  /// Hem Pro hakkı hem uygulama içi ana şalter açıkken `true`.
+  ///
+  /// Notta eski bir gün değeri bulunması tek başına sistemde çalışan bir
+  /// bildirim olduğu anlamına gelmez; künye yalnızca gerçekten etkin olan
+  /// hatırlatmaları göstermeli.
+  final bool remindersActive;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final l10n = context.l10n;
     final hasBody = note.body.isNotEmpty;
+    final reference = now ?? DateTime.now();
+    final reminderAt = remindersActive
+        ? pendingReminderAt(
+            createdAt: note.createdAt,
+            remindAfterDays: note.remindAfterDays,
+            expiresAt: note.expiresAt,
+            now: reference,
+          )
+        : null;
+    final semanticLabel = [
+      hasBody ? note.body : l10n.noteWithoutBody,
+      if (reminderAt != null)
+        '${l10n.reminderLabel}: ${l10n.stamp(reminderAt)}',
+    ].join('. ');
 
     return Pressable(
       onPressed: onTap,
       onLongPressed: onLongPress,
       scale: 0.985,
-      semanticLabel: hasBody ? note.body : context.l10n.noteWithoutBody,
+      semanticLabel: semanticLabel,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -128,7 +152,12 @@ class NoteCard extends StatelessWidget {
             SizedBox(height: scale.isCompact ? 5 : 7),
           ],
 
-          _Meta(note: note, scale: scale, now: now),
+          _Meta(
+            note: note,
+            scale: scale,
+            reference: reference,
+            reminderAt: reminderAt,
+          ),
         ],
       ),
     );
@@ -148,11 +177,17 @@ class NoteCard extends StatelessWidget {
 /// duran bir nesneydi ve kareyi kirletiyordu; çizgi künyenin devamı — bir şey
 /// okumana gerek kalmadan ne kadar kaldığını görüyorsun.
 class _Meta extends StatelessWidget {
-  const _Meta({required this.note, required this.scale, this.now});
+  const _Meta({
+    required this.note,
+    required this.scale,
+    required this.reference,
+    this.reminderAt,
+  });
 
   final Note note;
   final CardScale scale;
-  final DateTime? now;
+  final DateTime reference;
+  final DateTime? reminderAt;
 
   @override
   Widget build(BuildContext context) {
@@ -169,53 +204,158 @@ class _Meta extends StatelessWidget {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
 
+    final Widget primary;
     if (expiresAt == null) {
-      return Text(context.l10n.time(note.createdAt), style: style);
-    }
+      primary = Text(context.l10n.time(note.createdAt), style: style);
+    } else {
+      final left = lifeFraction(note.createdAt, expiresAt, reference);
+      // Son beşte birinde kalan süre öne çıkar; öncesinde zamanla eşit sessizlikte.
+      final urgent = left <= 0.2;
 
-    final reference = now ?? DateTime.now();
-    final left = lifeFraction(note.createdAt, expiresAt, reference);
-    // Son beşte birinde kalan süre öne çıkar; öncesinde zamanla eşit sessizlikte.
-    final urgent = left <= 0.2;
-
-    final stamp = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: context.l10n.time(note.createdAt)),
-          const TextSpan(text: '   ·   '),
-          TextSpan(
-            text: context.l10n.remainingShort(expiresAt, now: reference),
-            style: urgent
-                ? TextStyle(color: palette.ember, fontWeight: FontWeight.w600)
-                : null,
-          ),
-        ],
-      ),
-      style: style,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-
-    // Izgarada kutu dar: künye ile iz yan yana sığmıyor ve satır taşıyor.
-    // Orada iz alt satıra iner, tam genişlikte uzanır.
-    if (scale.isCompact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          stamp,
-          const SizedBox(height: 7),
-          LifeRule(left: left),
-        ],
+      final stamp = Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: context.l10n.time(note.createdAt)),
+            const TextSpan(text: '   ·   '),
+            TextSpan(
+              text: context.l10n.remainingShort(expiresAt, now: reference),
+              style: urgent
+                  ? TextStyle(color: palette.ember, fontWeight: FontWeight.w600)
+                  : null,
+            ),
+          ],
+        ),
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       );
+
+      // Izgarada kutu dar: künye ile iz yan yana sığmıyor ve satır taşıyor.
+      // Orada iz alt satıra iner, tam genişlikte uzanır.
+      primary = scale.isCompact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                stamp,
+                const SizedBox(height: 7),
+                LifeRule(left: left),
+              ],
+            )
+          : Row(
+              children: [
+                Flexible(child: stamp),
+                const SizedBox(width: 10),
+                Expanded(child: LifeRule(left: left)),
+              ],
+            );
     }
 
-    return Row(
+    final at = reminderAt;
+    if (at == null) return primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Flexible(child: stamp),
-        const SizedBox(width: 10),
-        Expanded(child: LifeRule(left: left)),
+        primary,
+        SizedBox(height: scale.isCompact ? 6 : 7),
+        _ReminderNotch(
+          key: ValueKey('reminder-notch-${note.id}'),
+          at: at,
+          reference: reference,
+          compact: scale.isCompact,
+        ),
       ],
     );
   }
+}
+
+/// Yaklaşan hatırlatmanın kontakt baskı künyesindeki küçük hedef çentiği.
+///
+/// Bildirim zili, kapsül veya fotoğraf üstü rozet kullanmaz. Kısa nötr iz
+/// geleceği, dik vurgu çentiği ise notun tekrar görüneceği anı anlatır. Ömür
+/// çizgisinden akraba bir dil taşır ama sabit ve kısa olduğu için silinme
+/// ilerlemesiyle karışmaz.
+class _ReminderNotch extends StatelessWidget {
+  const _ReminderNotch({
+    super.key,
+    required this.at,
+    required this.reference,
+    required this.compact,
+  });
+
+  final DateTime at;
+  final DateTime reference;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return ExcludeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            context.l10n.remainingShort(at, now: reference),
+            style: TextStyle(
+              fontFamily: AppType.fontFamily,
+              fontSize: compact ? 10.5 : 11,
+              height: 1,
+              fontWeight: FontWeight.w600,
+              color: palette.inkSoft,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: 7),
+          SizedBox(
+            width: compact ? 27 : 32,
+            height: 9,
+            child: CustomPaint(
+              painter: _ReminderNotchPainter(
+                track: palette.hairlineBright,
+                mark: palette.ember,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReminderNotchPainter extends CustomPainter {
+  const _ReminderNotchPainter({required this.track, required this.mark});
+
+  final Color track;
+  final Color mark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = size.height / 2;
+    final x = size.width - 2;
+
+    canvas.drawLine(
+      Offset(0, y),
+      Offset(x, y),
+      Paint()
+        ..color = track
+        ..strokeWidth = 1
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      Offset(x, 1),
+      Offset(x, size.height - 1),
+      Paint()
+        ..color = mark
+        ..strokeWidth = 1.25
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(Offset(x, y), 1.35, Paint()..color = mark);
+  }
+
+  @override
+  bool shouldRepaint(_ReminderNotchPainter old) =>
+      old.track != track || old.mark != mark;
 }

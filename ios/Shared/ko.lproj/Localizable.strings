@@ -1,4 +1,9 @@
 "widget.description" = "최근 사진과 노트를 보여줍니다.";
+"widget.capture.name" = "빠른 촬영";
+"widget.capture.description" = "잠금 화면에서 Latermark 카메라를 바로 엽니다.";
+"widget.capture.action" = "카메라 열기";
+"widget.capture.accessibility" = "Latermark 카메라 열기";
+"widget.capture.hint" = "사진을 찍고 새 노트를 계속 작성합니다.";
 "widget.note.untitled" = "메모 없음";
 "widget.empty.title" = "눌러서 촬영";
 "widget.empty.subtitle" = "첫 노트가 여기에 표시됩니다";

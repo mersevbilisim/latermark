@@ -39,6 +39,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access lets you capture photos for your notes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location access lets Latermark tag a photo with where you took it. The coordinate stays on your device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo access lets you add images from your library to your notes.</string>
 	<key>UIApplicationSceneManifest</key>

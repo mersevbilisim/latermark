@@ -1,4 +1,9 @@
 "widget.description" = "Affiche votre dernière capture et sa note.";
+"widget.capture.name" = "Capture rapide";
+"widget.capture.description" = "Ouvre directement l’appareil photo Latermark depuis l’écran verrouillé.";
+"widget.capture.action" = "Ouvrir l’appareil";
+"widget.capture.accessibility" = "Ouvrir l’appareil photo Latermark";
+"widget.capture.hint" = "Prenez une photo, puis poursuivez avec une nouvelle note.";
 "widget.note.untitled" = "Sans note";
 "widget.empty.title" = "Touchez pour capturer";
 "widget.empty.subtitle" = "Votre première note apparaîtra ici";
