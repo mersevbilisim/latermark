@@ -103,8 +103,14 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     if (repository != _repository) {
       _repository = repository;
       _note = repository.watchNote(widget.noteId);
-      unawaited(repository.markSeen(widget.noteId));
-      unawaited(context.reminders.dismissNote(widget.noteId));
+      final reminders = context.reminders;
+      unawaited(() async {
+        // `cancel(id:)` native tekrarın bekleyen kaydını da kaldırabilir.
+        // Önce tepsiyi temizleyip sonra not akışını yayınlamak, sync'in kaydı
+        // eksik görüp tek seferde yeniden kurmasını garanti eder.
+        await reminders.dismissNote(widget.noteId);
+        await repository.markSeen(widget.noteId);
+      }());
     }
 
     if (!_entranceStarted) {
@@ -362,8 +368,9 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     final preferences = AppScope.preferences(context);
     final reminderAt = preferences.proUnlocked && preferences.reminderEnabled
         ? pendingReminderAt(
-            createdAt: note.createdAt,
+            anchorAt: note.reminderAnchorAt ?? note.createdAt,
             remindAfterDays: note.remindAfterDays,
+            repeats: note.remindRepeats,
             expiresAt: note.expiresAt,
             now: DateTime.now(),
           )

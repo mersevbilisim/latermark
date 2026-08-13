@@ -67,6 +67,28 @@ class Notes extends Table {
   /// bildirim alıyordu. Üstelik iOS aynı anda yalnızca 64 bekleyen bildirim
   /// tutar — otomatik kurulum o sınırı sessizce aşıyordu.
   IntColumn get remindAfterDays => integer().withDefault(const Constant(0))();
+
+  /// Hatırlatma sayacının başladığı an.
+  ///
+  /// Karenin [createdAt] damgasından ayrıdır: galeriden eski bir fotoğraf
+  /// alınabilir veya yıllar önceki bir nota bugün hatırlatma eklenebilir.
+  /// Kullanıcının yazdığı "30 gün", ayarlandığı andan itibaren sayar.
+  /// Aralık ya da tekrar kipi değiştirilmedikçe bu damga korunur; uygulamayı
+  /// açmak geri sayımı başa sarmaz.
+  DateTimeColumn get reminderAnchorAt => dateTime().nullable()();
+
+  /// Hatırlatma [remindAfterDays] günde bir tekrarlansın mı.
+  ///
+  /// `false` iken kayıt tek bir kez, [reminderAnchorAt] +
+  /// [remindAfterDays] anında hatırlatılır. `true` iken aynı aralık,
+  /// kullanıcı kapatana ya da not silinene kadar sistem tarafında tekrar
+  /// eder.
+  ///
+  /// Ayrı bir "tekrar aralığı" sütunu yok, olması da gerekmiyor: kullanıcı tek
+  /// bir sayı veriyor ve o sayı iki modda da aynı şeyi söylüyor. İkinci bir
+  /// sütun, ikisinin birbirinden kayabildiği bir durum yaratırdı.
+  BoolColumn get remindRepeats =>
+      boolean().withDefault(const Constant(false))();
 }
 
 /// Aramanın beslendiği yan tablo. **Arayüz bu tabloyu hiç okumaz.**
@@ -186,7 +208,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -217,6 +239,17 @@ class NotesDatabase extends _$NotesDatabase {
         await m.addColumn(notes, notes.latitude);
         await m.addColumn(notes, notes.longitude);
         await m.addColumn(settingsTable, settingsTable.locationEnabled);
+      }
+      // Varsayılan `false`: mevcut hatırlatmaların hepsi tek atışlıktı ve öyle
+      // kalır. Tekrar, kullanıcının açıkça isteyeceği yeni bir şey.
+      if (from < 5) await m.addColumn(notes, notes.remindRepeats);
+      if (from < 6) {
+        await m.addColumn(notes, notes.reminderAnchorAt);
+        // v5'in dörtlü pencere programı native, kalıcı tekrara dönüşüyor.
+        // O programın kesin başlangıç damgası yoktu; mevcut tekrarlı
+        // hatırlatmalar için dönüşüm anı yeni, dürüst başlangıçtır.
+        await (update(notes)..where((note) => note.remindRepeats.equals(true)))
+            .write(NotesCompanion(reminderAnchorAt: Value(DateTime.now())));
       }
     },
     beforeOpen: (details) async {

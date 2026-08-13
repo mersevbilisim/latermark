@@ -177,6 +177,34 @@ void main() {
     await disposeTree(tester);
   });
 
+  testWidgets('yedekleme ayarlarda tek ve sakin bir giriş olarak görünür', (
+    tester,
+  ) async {
+    useSurface(tester, const Size(320, 568), textScale: 1.3);
+    await pumpSettingsPage(tester, locale: AppLocale.turkish);
+
+    final settingsScroll = find.descendant(
+      of: find.byType(CustomScrollView),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-backup')),
+      240,
+      scrollable: settingsScroll,
+    );
+
+    expect(find.text('YEDEKLEME'), findsOneWidget);
+    expect(find.text('Yedekleme işlemleri'), findsOneWidget);
+    expect(find.byKey(const Key('settings-backup')), findsOneWidget);
+    expect(find.byKey(const Key('settings-backup-create')), findsNothing);
+    expect(find.byKey(const Key('settings-backup-restore')), findsNothing);
+    expect(find.text('Yedek al'), findsNothing);
+    expect(find.text('Yedeği geri yükle'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await disposeTree(tester);
+  });
+
   testWidgets('veriler baglantisi yerel aciklama sayfasini acar', (
     tester,
   ) async {
@@ -192,6 +220,8 @@ void main() {
       240,
       scrollable: settingsScroll,
     );
+    await tester.ensureVisible(find.text('Latermark ve Verileriniz'));
+    await tester.pump();
     await tester.tap(find.text('Latermark ve Verileriniz'));
     await tester.pumpAndSettle();
 
@@ -254,14 +284,30 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.byType(ListView), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
+
+    final surface = tester.widget<DecoratedBox>(
+      find.byKey(const Key('language-sheet-surface')),
+    );
+    final decoration = surface.decoration as BoxDecoration;
+    expect(decoration.borderRadius, isNull);
+
+    final languageScroll = find.descendant(
+      of: find.byType(ListView),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Français'),
+      60,
+      scrollable: languageScroll,
+    );
+    expect(find.byKey(const Key('language-selected-rule')), findsOneWidget);
+    expect(find.byKey(const Key('language-selected-mark')), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Italiano'),
       120,
-      scrollable: find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
-      ),
+      scrollable: languageScroll,
     );
     await tester.tap(find.text('Italiano'));
     await tester.pumpAndSettle();

@@ -285,6 +285,184 @@ class L10nJa extends L10n {
   String get reminderSuffixOff => '日 — オフ';
 
   @override
+  String get backupSectionTitle => 'バックアップ';
+
+  @override
+  String get backupManageTitle => 'バックアップ管理';
+
+  @override
+  String get backupManageDescription => '暗号化したコピーの作成や、既存のバックアップの復元ができます。';
+
+  @override
+  String get backupCreateTitle => 'バックアップを作成';
+
+  @override
+  String get backupCreateDescription => 'この端末のすべてを、暗号化された1つのファイルに。';
+
+  @override
+  String get backupRestoreTitle => 'バックアップから復元';
+
+  @override
+  String get backupRestoreDescription => 'ここにあるすべてをバックアップファイルで置き換えます。';
+
+  @override
+  String get backupPasswordTitle => 'パスワードを設定';
+
+  @override
+  String get backupPasswordSubtitle => 'このパスワードがバックアップを開く唯一の鍵です。';
+
+  @override
+  String get backupPasswordLabel => 'パスワード';
+
+  @override
+  String get backupPasswordRepeat => 'パスワードを再入力';
+
+  @override
+  String get backupPasswordMismatch => '2つのパスワードが一致しません。';
+
+  @override
+  String backupPasswordShort(int count) {
+    return '$count文字以上にしてください。';
+  }
+
+  @override
+  String get backupStrengthWeak => '弱い';
+
+  @override
+  String get backupStrengthFair => '普通';
+
+  @override
+  String get backupStrengthStrong => '強い';
+
+  @override
+  String get backupLossWarning => 'このパスワードを忘れると、このバックアップは二度と開けなくなることを理解しました。';
+
+  @override
+  String get backupActionCreate => 'バックアップを作成';
+
+  @override
+  String get backupPhasePreparing => '準備中';
+
+  @override
+  String get backupPhaseKey => '鍵を生成中';
+
+  @override
+  String get backupPhaseWriting => '暗号化中';
+
+  @override
+  String get backupPhaseReading => '復号中';
+
+  @override
+  String get backupPhaseVerifying => '検証中';
+
+  @override
+  String get backupPhaseApplying => '復元中';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done / $total';
+  }
+
+  @override
+  String get backupReadyTitle => 'バックアップができました';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '$notes件のメモと$photos枚の写真を暗号化しました。';
+  }
+
+  @override
+  String get backupActionSave => '保存または共有';
+
+  @override
+  String get backupPickFile => 'ファイルを選択';
+
+  @override
+  String get backupUnlockTitle => 'パスワードを入力';
+
+  @override
+  String get backupUnlockSubtitle => 'このバックアップを作成したときに設定したパスワード。';
+
+  @override
+  String get backupFoundTitle => 'バックアップが見つかりました';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return 'メモ$notes件、写真$photos枚';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return '$when に作成';
+  }
+
+  @override
+  String get backupReplaceWarning => '復元すると、この端末のすべてのメモと写真が置き換えられます。元に戻せません。';
+
+  @override
+  String get backupReplaceAcknowledge => '現在のデータが削除されることを理解しました。';
+
+  @override
+  String get backupActionRestore => '復元';
+
+  @override
+  String get backupRestoredTitle => 'すべて戻りました。';
+
+  @override
+  String get backupErrorWrongPassword => 'パスワードが違います。';
+
+  @override
+  String get backupErrorNotABackup => 'これはLatermarkのバックアップではありません。';
+
+  @override
+  String get backupErrorCorrupt => 'このファイルは破損しているか不完全です。';
+
+  @override
+  String get backupErrorUnsupported =>
+      'このバックアップは、より新しいバージョンのLatermarkで作成されました。';
+
+  @override
+  String get backupErrorGeneric => '問題が発生しました。もう一度お試しください。';
+
+  @override
+  String get paywallFeatureBackup => '暗号化バックアップ';
+
+  @override
+  String get paywallFeatureBackupDetail => 'メモと写真を新しい端末へ。';
+
+  @override
+  String get reminderSuffixRepeating => '日ごと';
+
+  @override
+  String get reminderRepeatToggle => 'リマインダーを繰り返す';
+
+  @override
+  String get reminderRepeatOnce => '1回だけ通知します。';
+
+  @override
+  String get reminderRepeatNeedsInterval => '先に日数を入力してください。';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days日ごとに通知します。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days日ごと · 次回 $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked => '通知がオフです。記録は保存され、通知を許可するとリマインダーが作動します。';
 
   @override

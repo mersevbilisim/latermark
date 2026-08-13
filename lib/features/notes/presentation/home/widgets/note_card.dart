@@ -91,8 +91,9 @@ class NoteCard extends StatelessWidget {
     final reference = now ?? DateTime.now();
     final reminderAt = remindersActive
         ? pendingReminderAt(
-            createdAt: note.createdAt,
+            anchorAt: note.reminderAnchorAt ?? note.createdAt,
             remindAfterDays: note.remindAfterDays,
+            repeats: note.remindRepeats,
             expiresAt: note.expiresAt,
             now: reference,
           )
@@ -100,7 +101,8 @@ class NoteCard extends StatelessWidget {
     final semanticLabel = [
       hasBody ? note.body : l10n.noteWithoutBody,
       if (reminderAt != null)
-        '${l10n.reminderLabel}: ${l10n.stamp(reminderAt)}',
+        '${l10n.reminderLabel}: '
+            '${l10n.reminderValue(at: reminderAt, repeats: note.remindRepeats, everyDays: note.remindAfterDays)}',
     ].join('. ');
 
     return Pressable(
@@ -263,6 +265,7 @@ class _Meta extends StatelessWidget {
         _ReminderNotch(
           key: ValueKey('reminder-notch-${note.id}'),
           at: at,
+          repeats: note.remindRepeats,
           reference: reference,
           compact: scale.isCompact,
         ),
@@ -281,11 +284,17 @@ class _ReminderNotch extends StatelessWidget {
   const _ReminderNotch({
     super.key,
     required this.at,
+    required this.repeats,
     required this.reference,
     required this.compact,
   });
 
   final DateTime at;
+
+  /// Tekrarlayan hatırlatmada çentiğin önüne küçük bir dönüş izi gelir:
+  /// gösterilen an bir son değil, sıradaki uğrak.
+  final bool repeats;
+
   final DateTime reference;
   final bool compact;
 
@@ -297,6 +306,14 @@ class _ReminderNotch extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (repeats) ...[
+            Icon(
+              Icons.repeat_rounded,
+              size: compact ? 10.5 : 11.5,
+              color: palette.inkSoft,
+            ),
+            const SizedBox(width: 4),
+          ],
           Text(
             context.l10n.remainingShort(at, now: reference),
             style: TextStyle(

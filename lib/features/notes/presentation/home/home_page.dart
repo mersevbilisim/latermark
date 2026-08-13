@@ -240,6 +240,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _drainSharedImports() async {
     if (_drainingSharedImports || !mounted || _repository == null) return;
+    final reviewPrompts = context.reviewPrompts;
     _drainingSharedImports = true;
 
     try {
@@ -255,6 +256,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               retention: const RetentionChoice.off(),
               createdAt: shared.createdAt,
             );
+            if (reviewPrompts != null) {
+              unawaited(reviewPrompts.recordSuccessfulSave());
+            }
             await SharedImportBridge.complete(shared.id);
             if (mounted) showToast(context, context.l10n.toastSharedPhotoAdded);
           } catch (_) {

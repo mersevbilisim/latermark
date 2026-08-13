@@ -303,6 +303,195 @@ class L10nEn extends L10n {
   String get reminderSuffixOff => 'days — off';
 
   @override
+  String get backupSectionTitle => 'Backup';
+
+  @override
+  String get backupManageTitle => 'Backup operations';
+
+  @override
+  String get backupManageDescription =>
+      'Create an encrypted copy or bring an existing backup back.';
+
+  @override
+  String get backupCreateTitle => 'Create a backup';
+
+  @override
+  String get backupCreateDescription =>
+      'Everything on this device, sealed into one encrypted file.';
+
+  @override
+  String get backupRestoreTitle => 'Restore a backup';
+
+  @override
+  String get backupRestoreDescription =>
+      'Replace everything here with a backup file.';
+
+  @override
+  String get backupPasswordTitle => 'Choose a password';
+
+  @override
+  String get backupPasswordSubtitle =>
+      'This password is the only key to your backup.';
+
+  @override
+  String get backupPasswordLabel => 'Password';
+
+  @override
+  String get backupPasswordRepeat => 'Repeat password';
+
+  @override
+  String get backupPasswordMismatch => 'The two passwords don’t match.';
+
+  @override
+  String backupPasswordShort(int count) {
+    return 'Use at least $count characters.';
+  }
+
+  @override
+  String get backupStrengthWeak => 'Weak';
+
+  @override
+  String get backupStrengthFair => 'Fair';
+
+  @override
+  String get backupStrengthStrong => 'Strong';
+
+  @override
+  String get backupLossWarning =>
+      'I understand that if I lose this password, this backup can never be opened.';
+
+  @override
+  String get backupActionCreate => 'Create backup';
+
+  @override
+  String get backupPhasePreparing => 'Preparing';
+
+  @override
+  String get backupPhaseKey => 'Deriving key';
+
+  @override
+  String get backupPhaseWriting => 'Encrypting';
+
+  @override
+  String get backupPhaseReading => 'Decrypting';
+
+  @override
+  String get backupPhaseVerifying => 'Verifying';
+
+  @override
+  String get backupPhaseApplying => 'Restoring';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done of $total';
+  }
+
+  @override
+  String get backupReadyTitle => 'Your backup is ready';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '$notes notes and $photos photos, encrypted.';
+  }
+
+  @override
+  String get backupActionSave => 'Save or share';
+
+  @override
+  String get backupPickFile => 'Choose a file';
+
+  @override
+  String get backupUnlockTitle => 'Enter the password';
+
+  @override
+  String get backupUnlockSubtitle =>
+      'The password you chose when this backup was created.';
+
+  @override
+  String get backupFoundTitle => 'Backup found';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return '$notes notes, $photos photos';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return 'Created $when';
+  }
+
+  @override
+  String get backupReplaceWarning =>
+      'Restoring replaces every note and frame on this device. This cannot be undone.';
+
+  @override
+  String get backupReplaceAcknowledge =>
+      'I understand my current data will be deleted.';
+
+  @override
+  String get backupActionRestore => 'Restore';
+
+  @override
+  String get backupRestoredTitle => 'Everything is back.';
+
+  @override
+  String get backupErrorWrongPassword => 'Wrong password.';
+
+  @override
+  String get backupErrorNotABackup => 'This isn’t a Latermark backup.';
+
+  @override
+  String get backupErrorCorrupt => 'This file is damaged or incomplete.';
+
+  @override
+  String get backupErrorUnsupported =>
+      'This backup was made by a newer version of Latermark.';
+
+  @override
+  String get backupErrorGeneric => 'Something went wrong. Try again.';
+
+  @override
+  String get paywallFeatureBackup => 'Encrypted backup';
+
+  @override
+  String get paywallFeatureBackupDetail =>
+      'Take your notes and frames to a new phone.';
+
+  @override
+  String get reminderSuffixRepeating => 'days · repeating';
+
+  @override
+  String get reminderRepeatToggle => 'Repeat reminder';
+
+  @override
+  String get reminderRepeatOnce => 'Reminds once.';
+
+  @override
+  String get reminderRepeatNeedsInterval => 'Enter the number of days first.';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Reminds every $days days.',
+      one: 'Reminds every day.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Every $days days · next $when',
+      one: 'Every day · next $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked =>
       'Notifications are off. This frame will still be saved; its reminder will begin working once you allow notifications.';
 

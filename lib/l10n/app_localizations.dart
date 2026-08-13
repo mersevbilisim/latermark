@@ -640,6 +640,312 @@ abstract class L10n {
   /// **'days — off'**
   String get reminderSuffixOff;
 
+  /// No description provided for @backupSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup'**
+  String get backupSectionTitle;
+
+  /// No description provided for @backupManageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup operations'**
+  String get backupManageTitle;
+
+  /// No description provided for @backupManageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an encrypted copy or bring an existing backup back.'**
+  String get backupManageDescription;
+
+  /// No description provided for @backupCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a backup'**
+  String get backupCreateTitle;
+
+  /// No description provided for @backupCreateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything on this device, sealed into one encrypted file.'**
+  String get backupCreateDescription;
+
+  /// No description provided for @backupRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore a backup'**
+  String get backupRestoreTitle;
+
+  /// No description provided for @backupRestoreDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace everything here with a backup file.'**
+  String get backupRestoreDescription;
+
+  /// No description provided for @backupPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a password'**
+  String get backupPasswordTitle;
+
+  /// No description provided for @backupPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This password is the only key to your backup.'**
+  String get backupPasswordSubtitle;
+
+  /// No description provided for @backupPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get backupPasswordLabel;
+
+  /// No description provided for @backupPasswordRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat password'**
+  String get backupPasswordRepeat;
+
+  /// No description provided for @backupPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two passwords don’t match.'**
+  String get backupPasswordMismatch;
+
+  /// No description provided for @backupPasswordShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least {count} characters.'**
+  String backupPasswordShort(int count);
+
+  /// No description provided for @backupStrengthWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get backupStrengthWeak;
+
+  /// No description provided for @backupStrengthFair.
+  ///
+  /// In en, this message translates to:
+  /// **'Fair'**
+  String get backupStrengthFair;
+
+  /// No description provided for @backupStrengthStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get backupStrengthStrong;
+
+  /// No description provided for @backupLossWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand that if I lose this password, this backup can never be opened.'**
+  String get backupLossWarning;
+
+  /// No description provided for @backupActionCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create backup'**
+  String get backupActionCreate;
+
+  /// No description provided for @backupPhasePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing'**
+  String get backupPhasePreparing;
+
+  /// No description provided for @backupPhaseKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Deriving key'**
+  String get backupPhaseKey;
+
+  /// No description provided for @backupPhaseWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypting'**
+  String get backupPhaseWriting;
+
+  /// No description provided for @backupPhaseReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypting'**
+  String get backupPhaseReading;
+
+  /// No description provided for @backupPhaseVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying'**
+  String get backupPhaseVerifying;
+
+  /// No description provided for @backupPhaseApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring'**
+  String get backupPhaseApplying;
+
+  /// No description provided for @backupItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String backupItems(int done, int total);
+
+  /// No description provided for @backupReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your backup is ready'**
+  String get backupReadyTitle;
+
+  /// No description provided for @backupReadySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{notes} notes and {photos} photos, encrypted.'**
+  String backupReadySubtitle(int notes, int photos);
+
+  /// No description provided for @backupActionSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save or share'**
+  String get backupActionSave;
+
+  /// No description provided for @backupPickFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a file'**
+  String get backupPickFile;
+
+  /// No description provided for @backupUnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the password'**
+  String get backupUnlockTitle;
+
+  /// No description provided for @backupUnlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The password you chose when this backup was created.'**
+  String get backupUnlockSubtitle;
+
+  /// No description provided for @backupFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup found'**
+  String get backupFoundTitle;
+
+  /// No description provided for @backupFoundCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{notes} notes, {photos} photos'**
+  String backupFoundCounts(int notes, int photos);
+
+  /// No description provided for @backupFoundDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {when}'**
+  String backupFoundDate(String when);
+
+  /// No description provided for @backupReplaceWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring replaces every note and frame on this device. This cannot be undone.'**
+  String get backupReplaceWarning;
+
+  /// No description provided for @backupReplaceAcknowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand my current data will be deleted.'**
+  String get backupReplaceAcknowledge;
+
+  /// No description provided for @backupActionRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get backupActionRestore;
+
+  /// No description provided for @backupRestoredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is back.'**
+  String get backupRestoredTitle;
+
+  /// No description provided for @backupErrorWrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password.'**
+  String get backupErrorWrongPassword;
+
+  /// No description provided for @backupErrorNotABackup.
+  ///
+  /// In en, this message translates to:
+  /// **'This isn’t a Latermark backup.'**
+  String get backupErrorNotABackup;
+
+  /// No description provided for @backupErrorCorrupt.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is damaged or incomplete.'**
+  String get backupErrorCorrupt;
+
+  /// No description provided for @backupErrorUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup was made by a newer version of Latermark.'**
+  String get backupErrorUnsupported;
+
+  /// No description provided for @backupErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get backupErrorGeneric;
+
+  /// No description provided for @paywallFeatureBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted backup'**
+  String get paywallFeatureBackup;
+
+  /// No description provided for @paywallFeatureBackupDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Take your notes and frames to a new phone.'**
+  String get paywallFeatureBackupDetail;
+
+  /// No description provided for @reminderSuffixRepeating.
+  ///
+  /// In en, this message translates to:
+  /// **'days · repeating'**
+  String get reminderSuffixRepeating;
+
+  /// No description provided for @reminderRepeatToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat reminder'**
+  String get reminderRepeatToggle;
+
+  /// No description provided for @reminderRepeatOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminds once.'**
+  String get reminderRepeatOnce;
+
+  /// No description provided for @reminderRepeatNeedsInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the number of days first.'**
+  String get reminderRepeatNeedsInterval;
+
+  /// No description provided for @reminderRepeatSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, one{Reminds every day.} other{Reminds every {days} days.}}'**
+  String reminderRepeatSummary(int days);
+
+  /// No description provided for @reminderRepeatingValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, one{Every day · next {when}} other{Every {days} days · next {when}}}'**
+  String reminderRepeatingValue(int days, String when);
+
   /// No description provided for @reminderBlocked.
   ///
   /// In en, this message translates to:

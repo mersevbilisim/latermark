@@ -127,6 +127,118 @@
   "toastMapFailed": "Could not open Maps",
   "reminderSuffixActive": "days from now",
   "reminderSuffixOff": "days — off",
+  "backupSectionTitle": "Backup",
+  "backupManageTitle": "Backup operations",
+  "backupManageDescription": "Create an encrypted copy or bring an existing backup back.",
+  "backupCreateTitle": "Create a backup",
+  "backupCreateDescription": "Everything on this device, sealed into one encrypted file.",
+  "backupRestoreTitle": "Restore a backup",
+  "backupRestoreDescription": "Replace everything here with a backup file.",
+  "backupPasswordTitle": "Choose a password",
+  "backupPasswordSubtitle": "This password is the only key to your backup.",
+  "backupPasswordLabel": "Password",
+  "backupPasswordRepeat": "Repeat password",
+  "backupPasswordMismatch": "The two passwords don’t match.",
+  "backupPasswordShort": "Use at least {count} characters.",
+  "@backupPasswordShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupStrengthWeak": "Weak",
+  "backupStrengthFair": "Fair",
+  "backupStrengthStrong": "Strong",
+  "backupLossWarning": "I understand that if I lose this password, this backup can never be opened.",
+  "backupActionCreate": "Create backup",
+  "backupPhasePreparing": "Preparing",
+  "backupPhaseKey": "Deriving key",
+  "backupPhaseWriting": "Encrypting",
+  "backupPhaseReading": "Decrypting",
+  "backupPhaseVerifying": "Verifying",
+  "backupPhaseApplying": "Restoring",
+  "backupItems": "{done} of {total}",
+  "@backupItems": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "backupReadyTitle": "Your backup is ready",
+  "backupReadySubtitle": "{notes} notes and {photos} photos, encrypted.",
+  "@backupReadySubtitle": {
+    "placeholders": {
+      "notes": {
+        "type": "int"
+      },
+      "photos": {
+        "type": "int"
+      }
+    }
+  },
+  "backupActionSave": "Save or share",
+  "backupPickFile": "Choose a file",
+  "backupUnlockTitle": "Enter the password",
+  "backupUnlockSubtitle": "The password you chose when this backup was created.",
+  "backupFoundTitle": "Backup found",
+  "backupFoundCounts": "{notes} notes, {photos} photos",
+  "@backupFoundCounts": {
+    "placeholders": {
+      "notes": {
+        "type": "int"
+      },
+      "photos": {
+        "type": "int"
+      }
+    }
+  },
+  "backupFoundDate": "Created {when}",
+  "@backupFoundDate": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "backupReplaceWarning": "Restoring replaces every note and frame on this device. This cannot be undone.",
+  "backupReplaceAcknowledge": "I understand my current data will be deleted.",
+  "backupActionRestore": "Restore",
+  "backupRestoredTitle": "Everything is back.",
+  "backupErrorWrongPassword": "Wrong password.",
+  "backupErrorNotABackup": "This isn’t a Latermark backup.",
+  "backupErrorCorrupt": "This file is damaged or incomplete.",
+  "backupErrorUnsupported": "This backup was made by a newer version of Latermark.",
+  "backupErrorGeneric": "Something went wrong. Try again.",
+  "paywallFeatureBackup": "Encrypted backup",
+  "paywallFeatureBackupDetail": "Take your notes and frames to a new phone.",
+  "reminderSuffixRepeating": "days · repeating",
+  "reminderRepeatToggle": "Repeat reminder",
+  "reminderRepeatOnce": "Reminds once.",
+  "reminderRepeatNeedsInterval": "Enter the number of days first.",
+  "reminderRepeatSummary": "{days, plural, one{Reminds every day.} other{Reminds every {days} days.}}",
+  "@reminderRepeatSummary": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "reminderRepeatingValue": "{days, plural, one{Every day · next {when}} other{Every {days} days · next {when}}}",
+  "@reminderRepeatingValue": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "reminderBlocked": "Notifications are off. This frame will still be saved; its reminder will begin working once you allow notifications.",
   "editNoteSemantic": "Edit note",
   "editSheetHeader": "EDIT NOTE",

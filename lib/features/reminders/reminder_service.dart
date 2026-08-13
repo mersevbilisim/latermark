@@ -35,12 +35,27 @@ class ReminderService {
   Future<void>? _initialization;
   int? _pendingNoteId;
 
-  /// Bildirim kimlikleri not kimlikleriyle birebir aynı; böylece bir notu
-  /// yeniden planlamak eskisini kendiliğinden değiştirir.
-  static const _channelId = 'latermark_reminders';
+  /// v2, 64 kimliklik oluşum aralığını ve native süresiz tekrarları kullanır.
+  /// Kanal kimliği Android'de aktif bir bildirimin eski (/8) ya da yeni (/64)
+  /// kimlik şemasıyla çözülmesini de sağlar.
+  static const _channelId = 'latermark_reminders_v2';
+  static const _legacyChannelId = 'latermark_reminders';
+  static const _legacyOccurrenceSpan = 8;
 
   bool get _supported =>
       _supportedOverride ?? (!kIsWeb && (Platform.isIOS || Platform.isAndroid));
+
+  /// Eklentinin hangi platform uygulamasını çözeceği.
+  ///
+  /// `Platform.isIOS` yerine bunu kullanmak şart:
+  /// `resolvePlatformSpecificImplementation` dallanmasını
+  /// [defaultTargetPlatform] üzerinden yapıyor. İkisi gerçek cihazda hep aynı
+  /// şeyi söylüyor, ama ayrıştıkları yerde izin sorgusu var olmayan bir
+  /// uygulamaya sorup sessizce "izin yok" cevabı üretir — ve o cevap bütün
+  /// programı iptal eder.
+  static bool get _isIos => defaultTargetPlatform == TargetPlatform.iOS;
+
+  static bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;
 
   /// Bildirim dokunuşlarını not kimliği olarak dinler.
   ///
@@ -117,7 +132,7 @@ class ReminderService {
     await initialize();
 
     try {
-      if (Platform.isIOS) {
+      if (_isIos) {
         final granted = await _plugin
             .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin
@@ -145,7 +160,7 @@ class ReminderService {
     await initialize();
 
     try {
-      if (Platform.isIOS) {
+      if (_isIos) {
         final options = await _plugin
             .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin
@@ -177,65 +192,75 @@ class ReminderService {
     }
   }
 
-  /// Bekleyen hatırlatma programını baştan kurar.
+  /// Veritabanındaki isteklerle işletim sistemindeki programı uzlaştırır.
   ///
-  /// Tek tek zaman karşılaştırmak yerine bekleyen istekleri yenilemek, notların
-  /// düzenlenmesi ve saat değişikliklerinde programı deterministik tutar.
-  /// Daha önce teslim edilmiş geçerli bildirimler burada korunur; yalnız
-  /// silinmiş notların hayalet bildirimleri ayıklanır.
+  /// Aynı kalan native tekrar iptal edilip yeniden kurulmaz; uygulamayı açmak
+  /// "30 gün" sayacını başa saramaz. Silinen, kapatılan veya aralığı değişen
+  /// kayıtlar kaldırılır ve yalnızca yeni program eklenir.
   Future<void> sync(List<Note> notes, AppSettings settings, L10n l10n) async {
     if (!_supported) return;
     await initialize();
 
     try {
-      // Ana şalter kapatıldığında hem bekleyen hem de daha önce teslim edilmiş
-      // Latermark bildirimleri temizlenir. Açıkken ise yalnız bekleyen programı
-      // yeniden kurarız; okunmamış, teslim edilmiş başka bir not bildirimi sırf
-      // veritabanında bir şey değişti diye tepsiden kaybolmamalı.
-      // Mağaza hakkı ana şalterden bağımsız bir güvenlik sınırıdır. Eski bir
-      // ayar satırı `reminderEnabled=true` taşısa bile iade/geri alma sonrası
-      // Pro yoksa bekleyen ve teslim edilmiş Latermark bildirimleri kalmaz.
       if (!settings.proUnlocked || !settings.reminderEnabled) {
         await _plugin.cancelAll();
         return;
       }
 
-      await _plugin.cancelAllPendingNotifications();
-      await _removeOrphanedDeliveredNotifications(notes);
+      final now = tz.TZDateTime.now(tz.UTC);
+      final byId = {for (final note in notes) note.id: note};
+      final schedule = reminderSchedule(
+        requests: [
+          for (final note in notes)
+            ReminderRequest(
+              noteId: note.id,
+              anchorAt: note.reminderAnchorAt ?? note.createdAt,
+              remindAfterDays: note.remindAfterDays,
+              repeats: note.remindRepeats,
+              expiresAt: note.expiresAt,
+            ),
+        ],
+        now: now,
+      );
+
+      final desired = <int, _DesiredReminder>{};
+      for (final reminder in schedule) {
+        final note = byId[reminder.noteId];
+        if (note == null) continue;
+        desired[reminder.notificationId] = _DesiredReminder(
+          reminder: reminder,
+          note: note,
+          payload: _payload(reminder, note),
+        );
+      }
+
+      // Hatırlatması kapatılan ve silinen notların tepsiye ulaşmış satırları
+      // da gider. Tek atışını teslim etmiş, hâlâ açık bir not korunur.
+      await _removeObsoleteDeliveredNotifications(notes);
+
+      final existing = <int>{};
+      final pending = await _plugin.pendingNotificationRequests();
+      for (final request in pending) {
+        // Başka bir bildirim türü ileride aynı eklentiyi kullanırsa ona
+        // dokunma. Eski `note/<id>` payload'ları ise bir kereliğine v2'ye
+        // dönüştürülmek üzere iptal edilir.
+        if (noteIdFromReminderPayload(request.payload) == null) continue;
+
+        final target = desired[request.id];
+        if (target != null && target.payload == request.payload) {
+          existing.add(request.id);
+          continue;
+        }
+        await _plugin.cancel(id: request.id);
+      }
+
+      // İzin kapalıyken eski/hayalet kayıtlar yukarıda temizlenir ama yeni
+      // kayıt kurulmaz. Kullanıcı sistem ayarından dönünce sync yeniden koşar.
       if (!await hasPermission()) return;
 
-      final now = tz.TZDateTime.now(tz.UTC);
-
-      for (final note in notes) {
-        final pendingAt = pendingReminderAt(
-          createdAt: note.createdAt,
-          remindAfterDays: note.remindAfterDays,
-          expiresAt: note.expiresAt,
-          now: now,
-        );
-        if (pendingAt == null) continue;
-        final at = tz.TZDateTime.from(pendingAt.toUtc(), tz.UTC);
-
-        await _plugin.zonedSchedule(
-          id: note.id,
-          scheduledDate: at,
-          title: _title(note, l10n),
-          body: _body(note, l10n),
-          payload: 'note/${note.id}',
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          notificationDetails: NotificationDetails(
-            android: AndroidNotificationDetails(
-              _channelId,
-              l10n.notificationChannelName,
-              channelDescription: l10n.notificationChannelDescription,
-              importance: Importance.defaultImportance,
-              priority: Priority.defaultPriority,
-              // Android dokunulduğunda kendi satırını tepsiden anında siler.
-              autoCancel: true,
-            ),
-            iOS: const DarwinNotificationDetails(),
-          ),
-        );
+      for (final entry in desired.entries) {
+        if (existing.contains(entry.key)) continue;
+        await _schedule(entry.value, l10n);
       }
     } on PlatformException catch (error) {
       // İzin yoksa veya tam zamanlı alarm hakkı verilmemişse sessizce geç.
@@ -243,21 +268,71 @@ class ReminderService {
     }
   }
 
-  /// İlgili notun sistem tepsisindeki teslim edilmiş bildirimini kaldırır.
+  Future<void> _schedule(_DesiredReminder desired, L10n l10n) async {
+    final reminder = desired.reminder;
+    final note = desired.note;
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        l10n.notificationChannelName,
+        channelDescription: l10n.notificationChannelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        autoCancel: true,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+
+    final interval = reminder.repeatInterval;
+    if (interval != null) {
+      await _plugin.periodicallyShowWithDuration(
+        id: reminder.notificationId,
+        repeatDurationInterval: interval,
+        // Native tekrar aynı kalan programda yeniden kurulmaz; aksi hâlde
+        // uygulamayı açmak sayacı başa sarardı. Bu nedenle metin de not
+        // gövdesinin eski bir kopyasını taşımak yerine zamansız/genel kalır.
+        // Dokununca açılan not her zaman veritabanındaki güncel gövdedir.
+        title: l10n.notificationTitle,
+        body: l10n.notificationBodyNoBody,
+        payload: desired.payload,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        notificationDetails: details,
+      );
+      return;
+    }
+
+    await _plugin.zonedSchedule(
+      id: reminder.notificationId,
+      scheduledDate: tz.TZDateTime.from(reminder.at.toUtc(), tz.UTC),
+      title: _title(note, l10n),
+      body: _body(note, l10n),
+      payload: desired.payload,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      notificationDetails: details,
+    );
+  }
+
+  /// İlgili notun sistem tepsisindeki teslim edilmiş bildirimlerini kaldırır.
   ///
   /// Önce aktif listeyi okumamız bilinçli: `cancel(id:)` bekleyen isteği de
   /// kaldırır. Kullanıcı hatırlatma tarihi gelmeden nota kendi kendine bakarsa
-  /// gelecekte istediği hatırlatmayı yanlışlıkla iptal etmemeliyiz.
+  /// gelecekte istediği hatırlatmayı yanlışlıkla iptal etmemeliyiz. Tekrarlayan
+  /// bir notta bu ayrım daha da önemli: sıradaki oluşumlar bekliyor olacak ve
+  /// notu bir kez açmak tekrarı bitirmemeli.
+  ///
+  /// Teslim edilmiş birden çok oluşum tepside birikmiş olabilir; hepsi kapanır.
   Future<void> dismissNote(int noteId) async {
     if (!_supported || _disposed || noteId <= 0) return;
     await initialize();
 
     try {
       final active = await _plugin.getActiveNotifications();
-      final delivered = active.any(
-        (notification) => _noteIdOf(notification) == noteId,
-      );
-      if (delivered) await _plugin.cancel(id: noteId);
+      for (final notification in active) {
+        final id = notification.id;
+        if (id != null && _noteIdOf(notification) == noteId) {
+          await _plugin.cancel(id: id);
+        }
+      }
     } on PlatformException catch (error) {
       debugPrint('Not bildirimi kapatılamadı: $error');
     }
@@ -266,21 +341,45 @@ class ReminderService {
   /// Uygulama kapalıyken süresi dolup silinen bir nota ait teslim edilmiş
   /// bildirimi de geride bırakma. Geçerli notların okunmamış bildirimlerine
   /// dokunulmaz; onlar kullanıcı notu açana kadar tepside kalabilir.
-  Future<void> _removeOrphanedDeliveredNotifications(List<Note> notes) async {
-    final noteIds = notes.map((note) => note.id).toSet();
+  Future<void> _removeObsoleteDeliveredNotifications(List<Note> notes) async {
+    final noteIds = {
+      for (final note in notes)
+        if (note.remindAfterDays > 0) note.id,
+    };
     final active = await _plugin.getActiveNotifications();
 
     for (final notification in active) {
+      final id = notification.id;
       final noteId = _noteIdOf(notification);
-      if (noteId != null && !noteIds.contains(noteId)) {
-        await _plugin.cancel(id: noteId);
+      if (id != null && noteId != null && !noteIds.contains(noteId)) {
+        await _plugin.cancel(id: id);
       }
     }
   }
 
-  int? _noteIdOf(ActiveNotification notification) => Platform.isAndroid
-      ? (notification.channelId == _channelId ? notification.id : null)
-      : noteIdFromReminderPayload(notification.payload);
+  /// Tepsideki bir bildirimin hangi nota ait olduğu.
+  ///
+  /// iOS payload'dan okur. Android'de payload aktif bildirim listesinde
+  /// taşınmadığı için kimlik aralığından geri hesaplanır — bu yüzden
+  /// [reminderNotificationId] ile üretilmemiş kimlikler (bu sürümden önce
+  /// planlanmış, hâlâ tepside duran bir bildirim) bir kereliğine yanlış nota
+  /// eşlenebilir. En kötü sonucu tepside fazladan bir satır kalması; dokunma
+  /// yönlendirmesi payload üzerinden yürüdüğü için doğru notu açmaya devam
+  /// eder ve bir sonraki temizlikte kendini toparlar.
+  int? _noteIdOf(ActiveNotification notification) {
+    if (!_isAndroid) {
+      return noteIdFromReminderPayload(notification.payload);
+    }
+    final id = notification.id;
+    if (id == null) return null;
+    if (notification.channelId == _channelId) {
+      return noteIdFromNotificationId(id);
+    }
+    if (notification.channelId == _legacyChannelId) {
+      return id ~/ _legacyOccurrenceSpan;
+    }
+    return null;
+  }
 
   Future<void> cancelAll() async {
     if (!_supported || !_ready) return;
@@ -305,12 +404,53 @@ class ReminderService {
       note.body.isEmpty ? l10n.notificationBodyNoBody : note.body;
 }
 
-/// Yalnızca bu servisin ürettiği `note/<pozitif kimlik>` biçimini kabul eder.
+String _payload(ScheduledReminder reminder, Note note) {
+  if (reminder.repeatsIndefinitely) {
+    final anchor = note.reminderAnchorAt ?? note.createdAt;
+    return 'note/${note.id}/v2/every/${note.remindAfterDays}/'
+        '${anchor.toUtc().millisecondsSinceEpoch}';
+  }
+  return 'note/${note.id}/v2/at/'
+      '${reminder.at.toUtc().millisecondsSinceEpoch}';
+}
+
+final class _DesiredReminder {
+  const _DesiredReminder({
+    required this.reminder,
+    required this.note,
+    required this.payload,
+  });
+
+  final ScheduledReminder reminder;
+  final Note note;
+  final String payload;
+}
+
+/// Bu servisin ürettiği legacy veya sürümlü `note/<pozitif kimlik>/...`
+/// payload'ını not kimliğine çevirir.
 int? noteIdFromReminderPayload(String? payload) {
   if (payload == null) return null;
   final segments = payload.split('/');
-  if (segments.length != 2 || segments.first != 'note') return null;
+  if (segments.length < 2 || segments.first != 'note') return null;
 
-  final noteId = int.tryParse(segments.last);
-  return noteId != null && noteId > 0 ? noteId : null;
+  final noteId = int.tryParse(segments[1]);
+  if (noteId == null || noteId <= 0) return null;
+  if (segments.length == 2) return noteId;
+
+  final validV2At =
+      segments.length == 5 &&
+      segments[2] == 'v2' &&
+      segments[3] == 'at' &&
+      int.tryParse(segments[4]) != null;
+  final everyDays = segments.length == 6 && segments[3] == 'every'
+      ? int.tryParse(segments[4])
+      : null;
+  final validV2Every =
+      segments.length == 6 &&
+      segments[2] == 'v2' &&
+      segments[3] == 'every' &&
+      everyDays != null &&
+      everyDays > 0 &&
+      int.tryParse(segments[5]) != null;
+  return validV2At || validV2Every ? noteId : null;
 }

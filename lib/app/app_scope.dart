@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import '../features/home_widget/home_widget_bridge.dart';
+import '../features/backup/data/backup_service.dart';
 import '../features/notes/data/notes_database.dart';
 import '../features/notes/data/notes_repository.dart';
 import '../features/notes/data/location_service.dart';
 import '../features/notes/data/ocr_service.dart';
 import '../features/paywall/data/purchase_service.dart';
 import '../features/reminders/reminder_service.dart';
+import '../features/review/review_prompt_service.dart';
 import '../features/settings/data/settings_repository.dart';
 import '../features/settings/domain/app_settings.dart';
 import '../l10n/app_localizations.dart';
@@ -27,11 +29,15 @@ class AppScope extends StatefulWidget {
     super.key,
     required this.notes,
     required this.settings,
+    this.backups,
+    this.reviewPrompts,
     required this.child,
   });
 
   final NotesRepository notes;
   final SettingsRepository settings;
+  final BackupService? backups;
+  final ReviewPromptService? reviewPrompts;
   final Widget child;
 
   static NotesRepository of(BuildContext context) => _scope(context).notes;
@@ -161,6 +167,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     unawaited(_notesSub?.cancel());
     unawaited(_widgets?.dispose());
     unawaited(_reminders.dispose());
+    widget.reviewPrompts?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -262,6 +269,8 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     return _RepositoryScope(
       notes: widget.notes,
       settings: widget.settings,
+      backups: widget.backups,
+      reviewPrompts: widget.reviewPrompts,
       reminders: _reminders,
       location: _location,
       purchases: _purchases,
@@ -275,6 +284,8 @@ class _RepositoryScope extends InheritedWidget {
   const _RepositoryScope({
     required this.notes,
     required this.settings,
+    required this.backups,
+    required this.reviewPrompts,
     required this.reminders,
     required this.location,
     required this.purchases,
@@ -284,6 +295,8 @@ class _RepositoryScope extends InheritedWidget {
 
   final NotesRepository notes;
   final SettingsRepository settings;
+  final BackupService? backups;
+  final ReviewPromptService? reviewPrompts;
   final ReminderService reminders;
   final LocationService location;
   final PurchaseService purchases;
@@ -300,6 +313,23 @@ class _RepositoryScope extends InheritedWidget {
 extension ReminderAccess on BuildContext {
   ReminderService get reminders =>
       dependOnInheritedWidgetOfExactType<_RepositoryScope>()!.reminders;
+}
+
+extension BackupAccess on BuildContext {
+  BackupService get backups {
+    final service =
+        dependOnInheritedWidgetOfExactType<_RepositoryScope>()!.backups;
+    assert(service != null, 'BackupService, AppScope içine bağlanmadı.');
+    return service!;
+  }
+}
+
+/// Başarılı yeni kayıtların ardından ölçülü değerlendirme isteği için erişim.
+/// Test/önizleme ağaçlarında servis bağlanmayabilir; not kaydı bundan bağımsız
+/// kalır.
+extension ReviewPromptAccess on BuildContext {
+  ReviewPromptService? get reviewPrompts =>
+      dependOnInheritedWidgetOfExactType<_RepositoryScope>()?.reviewPrompts;
 }
 
 /// Konum servisine erişim.

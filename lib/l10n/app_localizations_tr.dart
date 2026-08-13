@@ -296,6 +296,193 @@ class L10nTr extends L10n {
   String get reminderSuffixOff => 'gün — kapalı';
 
   @override
+  String get backupSectionTitle => 'Yedekleme';
+
+  @override
+  String get backupManageTitle => 'Yedekleme işlemleri';
+
+  @override
+  String get backupManageDescription =>
+      'Şifreli bir kopya oluştur veya mevcut bir yedeği geri getir.';
+
+  @override
+  String get backupCreateTitle => 'Yedek al';
+
+  @override
+  String get backupCreateDescription =>
+      'Bu cihazdaki her şey, tek bir şifreli dosyada.';
+
+  @override
+  String get backupRestoreTitle => 'Yedeği geri yükle';
+
+  @override
+  String get backupRestoreDescription =>
+      'Buradaki her şeyi bir yedek dosyasıyla değiştir.';
+
+  @override
+  String get backupPasswordTitle => 'Bir parola seç';
+
+  @override
+  String get backupPasswordSubtitle => 'Bu parola yedeğinin tek anahtarı.';
+
+  @override
+  String get backupPasswordLabel => 'Parola';
+
+  @override
+  String get backupPasswordRepeat => 'Parolayı tekrarla';
+
+  @override
+  String get backupPasswordMismatch => 'İki parola aynı değil.';
+
+  @override
+  String backupPasswordShort(int count) {
+    return 'En az $count karakter kullan.';
+  }
+
+  @override
+  String get backupStrengthWeak => 'Zayıf';
+
+  @override
+  String get backupStrengthFair => 'Orta';
+
+  @override
+  String get backupStrengthStrong => 'Güçlü';
+
+  @override
+  String get backupLossWarning =>
+      'Bu parolayı kaybedersem bu yedeğin bir daha açılamayacağını anlıyorum.';
+
+  @override
+  String get backupActionCreate => 'Yedek al';
+
+  @override
+  String get backupPhasePreparing => 'Hazırlanıyor';
+
+  @override
+  String get backupPhaseKey => 'Anahtar türetiliyor';
+
+  @override
+  String get backupPhaseWriting => 'Şifreleniyor';
+
+  @override
+  String get backupPhaseReading => 'Çözülüyor';
+
+  @override
+  String get backupPhaseVerifying => 'Doğrulanıyor';
+
+  @override
+  String get backupPhaseApplying => 'Geri yükleniyor';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done / $total';
+  }
+
+  @override
+  String get backupReadyTitle => 'Yedeğin hazır';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '$notes not ve $photos kare şifrelendi.';
+  }
+
+  @override
+  String get backupActionSave => 'Kaydet veya paylaş';
+
+  @override
+  String get backupPickFile => 'Dosya seç';
+
+  @override
+  String get backupUnlockTitle => 'Parolayı gir';
+
+  @override
+  String get backupUnlockSubtitle => 'Bu yedeği alırken seçtiğin parola.';
+
+  @override
+  String get backupFoundTitle => 'Yedek bulundu';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return '$notes not, $photos kare';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return '$when tarihinde alınmış';
+  }
+
+  @override
+  String get backupReplaceWarning =>
+      'Geri yükleme bu cihazdaki her notu ve kareyi siler. Bunun geri dönüşü yok.';
+
+  @override
+  String get backupReplaceAcknowledge =>
+      'Mevcut verilerimin silineceğini anlıyorum.';
+
+  @override
+  String get backupActionRestore => 'Geri yükle';
+
+  @override
+  String get backupRestoredTitle => 'Her şey geri geldi.';
+
+  @override
+  String get backupErrorWrongPassword => 'Parola yanlış.';
+
+  @override
+  String get backupErrorNotABackup => 'Bu bir Latermark yedeği değil.';
+
+  @override
+  String get backupErrorCorrupt => 'Bu dosya bozuk ya da eksik.';
+
+  @override
+  String get backupErrorUnsupported =>
+      'Bu yedek Latermark’ın daha yeni bir sürümüyle alınmış.';
+
+  @override
+  String get backupErrorGeneric => 'Bir şeyler ters gitti. Tekrar dene.';
+
+  @override
+  String get paywallFeatureBackup => 'Şifreli yedek';
+
+  @override
+  String get paywallFeatureBackupDetail =>
+      'Notlarını ve karelerini yeni telefona taşı.';
+
+  @override
+  String get reminderSuffixRepeating => 'günde bir';
+
+  @override
+  String get reminderRepeatToggle => 'Hatırlatmayı tekrarla';
+
+  @override
+  String get reminderRepeatOnce => 'Bir kez hatırlatılır.';
+
+  @override
+  String get reminderRepeatNeedsInterval => 'Önce gün sayısını gir.';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Her $days günde bir hatırlatılır.',
+      one: 'Her gün hatırlatılır.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Her $days günde bir · sonraki $when',
+      one: 'Her gün · sonraki $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked =>
       'Bildirimler kapalı. Kayıt yine de saklanır; izin verdiğinde hatırlatma çalışmaya başlar.';
 

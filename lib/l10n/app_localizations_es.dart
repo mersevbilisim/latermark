@@ -304,6 +304,196 @@ class L10nEs extends L10n {
   String get reminderSuffixOff => 'días — desactivado';
 
   @override
+  String get backupSectionTitle => 'Copia de seguridad';
+
+  @override
+  String get backupManageTitle => 'Gestionar copias';
+
+  @override
+  String get backupManageDescription =>
+      'Crea una copia cifrada o restaura una copia existente.';
+
+  @override
+  String get backupCreateTitle => 'Crear una copia';
+
+  @override
+  String get backupCreateDescription =>
+      'Todo lo de este dispositivo, sellado en un archivo cifrado.';
+
+  @override
+  String get backupRestoreTitle => 'Restaurar una copia';
+
+  @override
+  String get backupRestoreDescription =>
+      'Reemplaza todo lo de aquí con un archivo de copia.';
+
+  @override
+  String get backupPasswordTitle => 'Elige una contraseña';
+
+  @override
+  String get backupPasswordSubtitle =>
+      'Esta contraseña es la única llave de tu copia.';
+
+  @override
+  String get backupPasswordLabel => 'Contraseña';
+
+  @override
+  String get backupPasswordRepeat => 'Repite la contraseña';
+
+  @override
+  String get backupPasswordMismatch => 'Las dos contraseñas no coinciden.';
+
+  @override
+  String backupPasswordShort(int count) {
+    return 'Usa al menos $count caracteres.';
+  }
+
+  @override
+  String get backupStrengthWeak => 'Débil';
+
+  @override
+  String get backupStrengthFair => 'Media';
+
+  @override
+  String get backupStrengthStrong => 'Fuerte';
+
+  @override
+  String get backupLossWarning =>
+      'Entiendo que si pierdo esta contraseña, esta copia no podrá abrirse nunca.';
+
+  @override
+  String get backupActionCreate => 'Crear copia';
+
+  @override
+  String get backupPhasePreparing => 'Preparando';
+
+  @override
+  String get backupPhaseKey => 'Derivando clave';
+
+  @override
+  String get backupPhaseWriting => 'Cifrando';
+
+  @override
+  String get backupPhaseReading => 'Descifrando';
+
+  @override
+  String get backupPhaseVerifying => 'Verificando';
+
+  @override
+  String get backupPhaseApplying => 'Restaurando';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done de $total';
+  }
+
+  @override
+  String get backupReadyTitle => 'Tu copia está lista';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '$notes notas y $photos fotos, cifradas.';
+  }
+
+  @override
+  String get backupActionSave => 'Guardar o compartir';
+
+  @override
+  String get backupPickFile => 'Elegir un archivo';
+
+  @override
+  String get backupUnlockTitle => 'Introduce la contraseña';
+
+  @override
+  String get backupUnlockSubtitle =>
+      'La contraseña que elegiste al crear esta copia.';
+
+  @override
+  String get backupFoundTitle => 'Copia encontrada';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return '$notes notas, $photos fotos';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return 'Creada el $when';
+  }
+
+  @override
+  String get backupReplaceWarning =>
+      'Restaurar reemplaza todas las notas y fotos de este dispositivo. No se puede deshacer.';
+
+  @override
+  String get backupReplaceAcknowledge =>
+      'Entiendo que mis datos actuales se borrarán.';
+
+  @override
+  String get backupActionRestore => 'Restaurar';
+
+  @override
+  String get backupRestoredTitle => 'Todo ha vuelto.';
+
+  @override
+  String get backupErrorWrongPassword => 'Contraseña incorrecta.';
+
+  @override
+  String get backupErrorNotABackup => 'Esto no es una copia de Latermark.';
+
+  @override
+  String get backupErrorCorrupt => 'Este archivo está dañado o incompleto.';
+
+  @override
+  String get backupErrorUnsupported =>
+      'Esta copia se hizo con una versión más reciente de Latermark.';
+
+  @override
+  String get backupErrorGeneric => 'Algo salió mal. Inténtalo de nuevo.';
+
+  @override
+  String get paywallFeatureBackup => 'Copia cifrada';
+
+  @override
+  String get paywallFeatureBackupDetail =>
+      'Lleva tus notas y fotos a un teléfono nuevo.';
+
+  @override
+  String get reminderSuffixRepeating => 'días · se repite';
+
+  @override
+  String get reminderRepeatToggle => 'Repetir recordatorio';
+
+  @override
+  String get reminderRepeatOnce => 'Se recuerda una vez.';
+
+  @override
+  String get reminderRepeatNeedsInterval =>
+      'Introduce primero el número de días.';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Se recuerda cada $days días.',
+      one: 'Se recuerda cada día.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Cada $days días · siguiente $when',
+      one: 'Cada día · siguiente $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked =>
       'Las notificaciones están desactivadas. La captura se guardará igualmente; el recordatorio empezará a funcionar cuando las permitas.';
 

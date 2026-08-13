@@ -110,7 +110,13 @@ class SettingsRepository {
       // not akışına downgrade transaction'ı tamamlandığında yayın yapar.
       await _db
           .update(_db.notes)
-          .write(const NotesCompanion(remindAfterDays: Value(0)));
+          .write(
+            const NotesCompanion(
+              remindAfterDays: Value(0),
+              reminderAnchorAt: Value(null),
+              remindRepeats: Value(false),
+            ),
+          );
 
       await _write(
         SettingsTableCompanion(

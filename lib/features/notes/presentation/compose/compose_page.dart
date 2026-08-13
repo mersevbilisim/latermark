@@ -62,6 +62,7 @@ class _ComposePageState extends State<ComposePage> {
 
   /// Hatırlatma gün sayısı. Sıfır = kapalı, ve varsayılan bu.
   int _remindAfterDays = 0;
+  bool _remindRepeats = false;
 
   /// Konum anahtarı. Varsayılanı ayarlardaki son tercih besler; yalnızca
   /// kamerayla çekilen karede anlamlı.
@@ -153,10 +154,12 @@ class _ComposePageState extends State<ComposePage> {
     // not yazılmaz.
     final body = _text.text;
     final remindAfterDays = _remindAfterDays;
+    final remindRepeats = _remindRepeats;
     final wantsLocation = _wantsLocation && _locationEnabled;
     setState(() => _savePhase = ComposeSavePhase.saving);
 
     final repository = AppScope.of(context);
+    final reviewPrompts = context.reviewPrompts;
     final navigator = Navigator.of(context);
 
     try {
@@ -180,9 +183,13 @@ class _ComposePageState extends State<ComposePage> {
           customMinutes: settings.defaultCustomMinutes,
         ),
         remindAfterDays: remindAfterDays,
+        remindRepeats: remindRepeats,
         createdAt: _capturedAt,
         location: location,
       );
+      if (reviewPrompts != null) {
+        unawaited(reviewPrompts.recordSuccessfulSave());
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _savePhase = ComposeSavePhase.idle);
@@ -300,9 +307,12 @@ class _ComposePageState extends State<ComposePage> {
                       children: [
                         ReminderControl(
                           days: _remindAfterDays,
+                          repeats: _remindRepeats,
                           prominent: true,
                           onChanged: (value) =>
                               setState(() => _remindAfterDays = value),
+                          onRepeatsChanged: (value) =>
+                              setState(() => _remindRepeats = value),
                         ),
                         if (_wantsLocation) ...[
                           Padding(

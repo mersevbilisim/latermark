@@ -20,13 +20,20 @@ class ReminderControl extends StatefulWidget {
     super.key,
     required this.days,
     required this.onChanged,
+    this.repeats = false,
+    this.onRepeatsChanged,
     this.prominent = false,
   });
 
-  /// Kaç gün sonra hatırlatılacağı. `0` ise hatırlatma yok.
+  /// Hatırlatma aralığı (gün). `0` ise hatırlatma yok.
   final int days;
 
   final ValueChanged<int> onChanged;
+
+  /// Hatırlatma bu aralıkta tekrarlansın mı.
+  final bool repeats;
+
+  final ValueChanged<bool>? onRepeatsChanged;
 
   /// Compose'ta açıklamalı metadata label'ını kullanır. Düzenleme panelindeki
   /// daha sıkışık satır geriye dönük olarak aynı kalır.
@@ -74,10 +81,12 @@ class _ReminderControlState extends State<ReminderControl> {
   Widget build(BuildContext context) {
     return ReminderField(
       days: widget.days,
+      repeats: widget.repeats,
       blocked: _blocked,
       locked: !AppScope.preferences(context).proUnlocked,
       prominent: widget.prominent,
       onChanged: _onChanged,
+      onRepeatsChanged: widget.onRepeatsChanged,
       onLockedTap: () => showPaywall(context, reason: PaywallReason.reminder),
       onOpenSystemSettings: () => context.reminders.openSystemSettings(),
     );

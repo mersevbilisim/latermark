@@ -33,7 +33,7 @@ Future<void> showPaywall(BuildContext context, {PaywallReason? reason}) async {
 ///
 /// Ekranın tepesine o kapıya özel bir açıklama koymak için: kullanıcı neden
 /// buraya geldiğini bilmeli. Bağlamsız bir satış ekranı reklam gibi okunur.
-enum PaywallReason { noteLimit, reminder, widget, customRetention }
+enum PaywallReason { noteLimit, reminder, widget, customRetention, backup }
 
 class _PaywallHost extends StatefulWidget {
   const _PaywallHost({

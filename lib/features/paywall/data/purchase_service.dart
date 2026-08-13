@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'debug_entitlement.dart';
+
 /// Mağaza bağlantısı: fiyat, satın alma ve geri yükleme.
 ///
 /// Ürün **tek seferlik** (non-consumable). Bu, sunucusuz çalışmayı mümkün
@@ -65,6 +67,9 @@ class PurchaseService {
 
   /// Açılışta bir kez çağrılır.
   Future<void> start() async {
+    // Debug anahtarı açıksa hak daha ilk kareden önce açılır; mağaza akışını
+    // yine de kurmanın anlamı yok, cevabı zaten kullanılmayacak.
+    if (_debugEntitlement() != null) return;
     if (!_supported) return;
 
     // Akış dinlemesi sorgudan *önce* kurulmalı: uygulama kapalıyken tamamlanan
@@ -191,6 +196,7 @@ class PurchaseService {
   /// Android'de restore sorgusunun tam listesi aynı işi görür. Mağaza/kanal
   /// hatası `false` değildir: son doğrulanmış çevrimdışı cache korunur.
   Future<void> refreshEntitlement() async {
+    if (_debugEntitlement() != null) return;
     if (!_supported) return;
     await checkEntitlement();
     // Açılıştaki geçici mağaza hatası fiyatı kalıcı olarak boş bırakmasın.
@@ -204,11 +210,39 @@ class PurchaseService {
   /// ulaşılamadığı ve son doğrulanmış cache'in korunması gerektiği anlamına
   /// gelir. Eşzamanlı açılış sorgusu varsa aynı future paylaşılır.
   Future<bool?> checkEntitlement() async {
+    final forced = _debugEntitlement();
+    if (forced != null) return forced;
     if (!_supported) return null;
     return _refreshPlatformEntitlement();
   }
 
+  /// Geliştirme anahtarı açıksa mağazayı atlayan kesin cevap; kapalıysa `null`.
+  ///
+  /// Cevap dönerken [unlocked] da tazeleniyor: hakkı okuyan her yol (açılış,
+  /// öne gelme, widget'tan gelen Pro eylemi) buradan geçtiği için tek noktada
+  /// uzlaştırmak, "bir yerde açık bir yerde kapalı" durumunu imkânsız kılıyor.
+  bool? _debugEntitlement() {
+    if (!DebugEntitlement.forced) return null;
+    unlocked.value = true;
+    return true;
+  }
+
+  /// Debug derlemesinde Pro hakkını mağazayı atlayarak açar veya kapatır.
+  ///
+  /// Kapatırken son mağaza cevabı da unutuluyor (`null`). `false` yazmak yanlış
+  /// olurdu: gerçekten satın almış bir cihazda bu, bir sonraki ayar yayınında
+  /// hakkın kapalı olarak önbelleğe alınması demekti. `null` "bilinmiyor"
+  /// demek; bir sonraki [refreshEntitlement] gerçek cevabı yine getirir.
+  Future<void> setDebugPro(bool value) async {
+    if (!DebugEntitlement.available) return;
+    await DebugEntitlement.set(value);
+    unlocked.value = value ? true : null;
+  }
+
   Future<bool?> _refreshPlatformEntitlement() {
+    final forced = _debugEntitlement();
+    if (forced != null) return Future<bool?>.value(forced);
+
     final activeRefresh = _entitlementRefresh;
     if (activeRefresh != null) return activeRefresh;
 

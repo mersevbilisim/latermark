@@ -285,6 +285,183 @@ class L10nKo extends L10n {
   String get reminderSuffixOff => '일 — 끔';
 
   @override
+  String get backupSectionTitle => '백업';
+
+  @override
+  String get backupManageTitle => '백업 관리';
+
+  @override
+  String get backupManageDescription => '암호화된 사본을 만들거나 기존 백업을 복원합니다.';
+
+  @override
+  String get backupCreateTitle => '백업 만들기';
+
+  @override
+  String get backupCreateDescription => '이 기기의 모든 것을 암호화된 파일 하나에 담습니다.';
+
+  @override
+  String get backupRestoreTitle => '백업 복원';
+
+  @override
+  String get backupRestoreDescription => '여기 있는 모든 것을 백업 파일로 바꿉니다.';
+
+  @override
+  String get backupPasswordTitle => '비밀번호 설정';
+
+  @override
+  String get backupPasswordSubtitle => '이 비밀번호가 백업을 여는 유일한 열쇠입니다.';
+
+  @override
+  String get backupPasswordLabel => '비밀번호';
+
+  @override
+  String get backupPasswordRepeat => '비밀번호 다시 입력';
+
+  @override
+  String get backupPasswordMismatch => '두 비밀번호가 일치하지 않습니다.';
+
+  @override
+  String backupPasswordShort(int count) {
+    return '$count자 이상 사용하세요.';
+  }
+
+  @override
+  String get backupStrengthWeak => '약함';
+
+  @override
+  String get backupStrengthFair => '보통';
+
+  @override
+  String get backupStrengthStrong => '강함';
+
+  @override
+  String get backupLossWarning => '이 비밀번호를 잃어버리면 이 백업을 다시는 열 수 없다는 것을 이해합니다.';
+
+  @override
+  String get backupActionCreate => '백업 만들기';
+
+  @override
+  String get backupPhasePreparing => '준비 중';
+
+  @override
+  String get backupPhaseKey => '키 생성 중';
+
+  @override
+  String get backupPhaseWriting => '암호화 중';
+
+  @override
+  String get backupPhaseReading => '복호화 중';
+
+  @override
+  String get backupPhaseVerifying => '확인 중';
+
+  @override
+  String get backupPhaseApplying => '복원 중';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done / $total';
+  }
+
+  @override
+  String get backupReadyTitle => '백업이 준비되었습니다';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '메모 $notes개와 사진 $photos장을 암호화했습니다.';
+  }
+
+  @override
+  String get backupActionSave => '저장 또는 공유';
+
+  @override
+  String get backupPickFile => '파일 선택';
+
+  @override
+  String get backupUnlockTitle => '비밀번호 입력';
+
+  @override
+  String get backupUnlockSubtitle => '이 백업을 만들 때 설정한 비밀번호입니다.';
+
+  @override
+  String get backupFoundTitle => '백업을 찾았습니다';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return '메모 $notes개, 사진 $photos장';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return '$when에 생성됨';
+  }
+
+  @override
+  String get backupReplaceWarning => '복원하면 이 기기의 모든 메모와 사진이 대체됩니다. 되돌릴 수 없습니다.';
+
+  @override
+  String get backupReplaceAcknowledge => '현재 데이터가 삭제된다는 것을 이해합니다.';
+
+  @override
+  String get backupActionRestore => '복원';
+
+  @override
+  String get backupRestoredTitle => '모두 돌아왔습니다.';
+
+  @override
+  String get backupErrorWrongPassword => '비밀번호가 틀렸습니다.';
+
+  @override
+  String get backupErrorNotABackup => 'Latermark 백업이 아닙니다.';
+
+  @override
+  String get backupErrorCorrupt => '이 파일은 손상되었거나 불완전합니다.';
+
+  @override
+  String get backupErrorUnsupported => '이 백업은 더 새로운 버전의 Latermark로 만들어졌습니다.';
+
+  @override
+  String get backupErrorGeneric => '문제가 발생했습니다. 다시 시도하세요.';
+
+  @override
+  String get paywallFeatureBackup => '암호화 백업';
+
+  @override
+  String get paywallFeatureBackupDetail => '메모와 사진을 새 휴대폰으로 옮기세요.';
+
+  @override
+  String get reminderSuffixRepeating => '일마다';
+
+  @override
+  String get reminderRepeatToggle => '알림 반복';
+
+  @override
+  String get reminderRepeatOnce => '한 번만 알려줘요.';
+
+  @override
+  String get reminderRepeatNeedsInterval => '먼저 일수를 입력하세요.';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days일마다 알려줘요.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days일마다 · 다음 $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked =>
       '알림이 꺼져 있습니다. 기록은 그대로 저장되며, 알림을 허용하면 리마인더가 작동합니다.';
 

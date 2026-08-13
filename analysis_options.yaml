@@ -1,1 +1,8 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Yerel paket bağımlılığının kendi örnek/test uygulamaları, Latermark'ın
+    # bağımlılık grafiğinde olmayan geliştirme paketleri ister.
+    - third_party/flutter_local_notifications/example/**
+    - third_party/flutter_local_notifications/test/**

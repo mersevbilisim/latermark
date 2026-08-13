@@ -42,6 +42,61 @@ class PhotoStore {
   /// Kayıtlı bir dosya adını okunabilir [File] nesnesine çevirir.
   File fileFor(String name) => File(p.join(_directory.path, name));
 
+  /// Geri yüklenen kareleri hazırlar ve klasörleri atomik olarak değiştirir.
+  ///
+  /// Geçici klasör başka bir dosya sisteminde olabilir. Bu yüzden yeni kareler
+  /// önce `captures` ile **aynı ebeveynde** bir kardeş klasöre kopyalanır;
+  /// mevcut klasöre o tamamlanmadan dokunulmaz. Sonra iki kısa `rename` ile
+  /// eski depo kenara, yeni depo yerine alınır.
+  ///
+  /// Dönen işlem DB yazımı başarılı olursa [PhotoStoreReplacement.commit],
+  /// hata verirse [PhotoStoreReplacement.rollback] çağrılmadan bırakılamaz.
+  Future<PhotoStoreReplacement> beginReplaceAllFrom(Directory staging) async {
+    final token =
+        '${DateTime.now().microsecondsSinceEpoch}-'
+        '${_random.nextInt(0xFFFFFF).toRadixString(16)}';
+    final incoming = Directory('${_directory.path}.incoming-$token');
+    final previous = Directory('${_directory.path}.previous-$token');
+    await incoming.create();
+
+    try {
+      if (staging.existsSync()) {
+        await for (final entity in staging.list(followLinks: false)) {
+          if (entity is! File) continue;
+          final name = p.basename(entity.path);
+          await entity.copy(p.join(incoming.path, name));
+        }
+      }
+
+      final hadPrevious = _directory.existsSync();
+      if (hadPrevious) await _directory.rename(previous.path);
+      try {
+        await incoming.rename(_directory.path);
+      } catch (_) {
+        if (hadPrevious && previous.existsSync() && !_directory.existsSync()) {
+          await previous.rename(_directory.path);
+        }
+        rethrow;
+      }
+
+      return PhotoStoreReplacement._(
+        current: _directory,
+        previous: previous,
+        hadPrevious: hadPrevious,
+        token: token,
+      );
+    } catch (_) {
+      if (incoming.existsSync()) {
+        try {
+          await incoming.delete(recursive: true);
+        } on FileSystemException {
+          // Asıl hatayı koru; bu yalnız tamamlanmamış bir kardeş klasör.
+        }
+      }
+      rethrow;
+    }
+  }
+
   /// Kamera çıktısını kalıcı klasöre taşır ve saklanacak dosya adını döner.
   ///
   /// Kare **önce** kaydediliyor, sonra küçültülüyor. Sıra böyle: sıkıştırma
@@ -117,5 +172,66 @@ class PhotoStore {
     final salt = _random.nextInt(0xFFFF).toRadixString(16).padLeft(4, '0');
     final safeExtension = extension.isEmpty ? '.jpg' : extension;
     return '$stamp-$salt$safeExtension';
+  }
+}
+
+/// Fotoğraf klasörü değişiminin DB transaction'ıyla birlikte tamamlanan ikinci
+/// yarısı. Yalnız [PhotoStore] üretir.
+final class PhotoStoreReplacement {
+  PhotoStoreReplacement._({
+    required this._current,
+    required this._previous,
+    required this._hadPrevious,
+    required this._token,
+  });
+
+  final Directory _current;
+  final Directory _previous;
+  final bool _hadPrevious;
+  final String _token;
+  bool _closed = false;
+
+  /// DB yeni kayıtları başarıyla aldı; eski kareler artık gereksiz.
+  Future<void> commit() async {
+    if (_closed) return;
+    _closed = true;
+    if (!_previous.existsSync()) return;
+    try {
+      await _previous.delete(recursive: true);
+    } on FileSystemException {
+      // Yeni veri eksiksiz yerinde. Eski kardeş klasör yalnız disk artığıdır;
+      // geri yüklemeyi başarısız göstermemeli.
+    }
+  }
+
+  /// DB yazımı başarısız oldu; yeni kareleri kenara alıp eskileri geri koyar.
+  Future<void> rollback() async {
+    if (_closed) return;
+    _closed = true;
+    final failed = Directory('${_current.path}.failed-$_token');
+
+    if (_current.existsSync()) await _current.rename(failed.path);
+    try {
+      if (_hadPrevious && _previous.existsSync()) {
+        await _previous.rename(_current.path);
+      } else {
+        await _current.create(recursive: true);
+      }
+    } catch (_) {
+      // Eskiyi geri alamadıysak en azından az önce kenara koyduğumuz, doğrulanmış
+      // yeni klasörü tekrar görünür yapmayı dene; depo boş kalmasın.
+      if (!_current.existsSync() && failed.existsSync()) {
+        await failed.rename(_current.path);
+      }
+      rethrow;
+    }
+
+    if (failed.existsSync()) {
+      try {
+        await failed.delete(recursive: true);
+      } on FileSystemException {
+        // Eski depo geri döndü; başarısız yeni kopya yalnız disk artığıdır.
+      }
+    }
   }
 }

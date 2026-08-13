@@ -106,10 +106,12 @@ class NotesRepository {
     required String body,
     required RetentionChoice retention,
     int remindAfterDays = 0,
+    bool remindRepeats = false,
     DateTime? createdAt,
     NoteLocation? location,
   }) async {
     final stamp = createdAt ?? DateTime.now();
+    final reminderAnchor = DateTime.now();
     final imageName = await _store.persist(capture);
     final text = body.trim();
 
@@ -127,6 +129,8 @@ class NotesRepository {
       final effectiveReminder = isPro && remindAfterDays > 0
           ? remindAfterDays
           : 0;
+      // Tekrar, hatırlatmanın bir kipi: hatırlatma yoksa tekrar da yok.
+      final effectiveRepeats = effectiveReminder > 0 && remindRepeats;
       final id = await _db
           .into(_db.notes)
           .insert(
@@ -138,6 +142,10 @@ class NotesRepository {
               customMinutes: Value(effectiveRetention.customMinutes),
               expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
               remindAfterDays: Value(effectiveReminder),
+              reminderAnchorAt: Value(
+                effectiveReminder > 0 ? reminderAnchor : null,
+              ),
+              remindRepeats: Value(effectiveRepeats),
               // Koordinat Pro kilidine takılmıyor: konum bir ücretli özellik
               // değil, kaydın bir alanı.
               latitude: Value(location?.latitude),
@@ -169,25 +177,37 @@ class NotesRepository {
     Note note, {
     required String body,
     required int remindAfterDays,
+    bool remindRepeats = false,
   }) {
     final text = body.trim();
 
     return _db.transaction(() async {
       final isPro = await _isProUnlocked();
       final reminder = isPro && remindAfterDays > 0 ? remindAfterDays : 0;
+      final repeats = reminder > 0 && remindRepeats;
+      final reminderChanged =
+          reminder != note.remindAfterDays || repeats != note.remindRepeats;
+      final reminderAnchor = reminder == 0
+          ? null
+          : reminderChanged
+          ? DateTime.now()
+          : note.reminderAnchorAt;
 
       // Damga yalnızca gerçekten bir şey değiştiyse vurulur. Düzenleme
       // ekranını açıp hiçbir şeye dokunmadan kaydetmek notu "düzenlenmiş"
       // yapmamalı; aksi hâlde damga zamanla anlamını yitirirdi.
-      final changed = text != note.body || reminder != note.remindAfterDays;
+      final changed =
+          text != note.body ||
+          reminder != note.remindAfterDays ||
+          repeats != note.remindRepeats;
 
       await (_db.update(_db.notes)..where((t) => t.id.equals(note.id))).write(
         NotesCompanion(
           body: Value(text),
           remindAfterDays: Value(reminder),
-          updatedAt: changed
-              ? Value(DateTime.now())
-              : const Value.absent(),
+          reminderAnchorAt: Value(reminderAnchor),
+          remindRepeats: Value(repeats),
+          updatedAt: changed ? Value(DateTime.now()) : const Value.absent(),
         ),
       );
 
@@ -335,7 +355,8 @@ class NotesRepository {
 
   /// Nota bakıldığını işaretler.
   ///
-  /// Hatırlatıcı bu damgadan sayar; kaydı açmak hatırlatmayı ileri atar.
+  /// Hatırlatma sayacı bundan bağımsız [Note.reminderAnchorAt] alanında
+  /// tutulur; nota bakmak kullanıcının seçtiği aralığı değiştirmez.
   Future<void> markSeen(int id) {
     final query = _db.update(_db.notes)..where((t) => t.id.equals(id));
     return query.write(NotesCompanion(lastSeenAt: Value(DateTime.now())));

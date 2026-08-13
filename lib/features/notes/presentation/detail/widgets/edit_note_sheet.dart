@@ -79,6 +79,7 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
   );
   late final FocusNode _focus = FocusNode();
   late int _remindAfterDays = widget.note.remindAfterDays;
+  late bool _remindRepeats = widget.note.remindRepeats;
 
   @override
   void initState() {
@@ -115,7 +116,8 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
 
   bool get _hasChanges =>
       _text.text != widget.note.body ||
-      _remindAfterDays != widget.note.remindAfterDays;
+      _remindAfterDays != widget.note.remindAfterDays ||
+      _remindRepeats != widget.note.remindRepeats;
 
   Future<bool> _persist({required bool closeEditor}) async {
     if (widget.controller.isSaving) return false;
@@ -132,6 +134,7 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
         widget.note,
         body: _text.text,
         remindAfterDays: _remindAfterDays,
+        remindRepeats: _remindRepeats,
       );
     } catch (_) {
       if (!mounted) return false;
@@ -240,8 +243,11 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
             // bir sebep yok.
             child: ReminderControl(
               days: _remindAfterDays,
+              repeats: _remindRepeats,
               prominent: true,
               onChanged: (value) => setState(() => _remindAfterDays = value),
+              onRepeatsChanged: (value) =>
+                  setState(() => _remindRepeats = value),
             ),
           ),
           // Sabit alt eylem rayı içeriğin üstünde yüzmez. Bu pay, kısa notta

@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -10,6 +11,8 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/icon_orb.dart';
+import '../../../shared/widgets/pro_badge.dart';
+import '../../backup/presentation/backup_page.dart';
 import '../../notes/domain/retention.dart';
 import '../../../l10n/enum_labels.dart';
 import '../../../l10n/l10n_context.dart';
@@ -19,10 +22,10 @@ import '../domain/app_settings.dart';
 import 'widgets/pro_callout.dart';
 import 'widgets/settings_pieces.dart';
 import '../../../shared/widgets/pressable.dart';
-import '../../../core/theme/app_shape.dart';
 import '../../paywall/presentation/paywall_host.dart';
 import '../../notes/presentation/widgets/retention_selector.dart';
 import '../../../core/utils/legal_links.dart';
+import '../../paywall/data/debug_entitlement.dart';
 import 'your_data_page.dart';
 
 /// Ayarlar.
@@ -262,6 +265,35 @@ class _SettingsPageState extends State<SettingsPage>
                   ],
                 ),
 
+                SettingsSection(
+                  title: context.l10n.backupSectionTitle,
+                  children: [
+                    Pressable(
+                      key: const Key('settings-backup'),
+                      onPressed: _openBackupHub,
+                      scale: .995,
+                      semanticLabel: context.l10n.backupManageTitle,
+                      child: SettingsRow(
+                        title: context.l10n.backupManageTitle,
+                        description: context.l10n.backupManageDescription,
+                        trailing: settings.proUnlocked
+                            ? Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 18,
+                                color: palette.inkFaint,
+                              )
+                            : const ProGateMark(),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // `kDebugMode` release'de derleme zamanı sabiti `false`; koşul
+                // ölü kod olduğu için _DebugSection ikiliye hiç girmiyor.
+                // Sürüm çıkarken elle kaldırılacak bir şey yok.
+                if (kDebugMode && DebugEntitlement.available)
+                  const _DebugSection(),
+
                 const SizedBox(height: 48),
                 const _YourDataLink(),
                 const SizedBox(height: 10),
@@ -304,6 +336,94 @@ class _SettingsPageState extends State<SettingsPage>
       actionLabel: context.l10n.openSettingsShort,
       onAction: _openSettingsForEnable,
     );
+  }
+
+  Future<void> _openBackupHub() async {
+    if (!AppScope.preferences(context).proUnlocked) {
+      await showPaywall(context, reason: PaywallReason.backup);
+      return;
+    }
+
+    final mode = await showBackupActionsSheet(context);
+    if (mode == null || !mounted) return;
+    await _openBackup(mode);
+  }
+
+  Future<void> _openBackup(BackupMode mode) async {
+    if (mode == BackupMode.create) {
+      await Navigator.of(
+        context,
+      ).push(AppRoutes.lift(const BackupPage.create()));
+      return;
+    }
+
+    try {
+      final file = await pickLatermarkBackup();
+      if (file == null || !mounted) return;
+      await Navigator.of(
+        context,
+      ).push(AppRoutes.lift(BackupPage.restore(file: file)));
+    } catch (error, stackTrace) {
+      // Native eklenti/UTI değişikliklerinden sonra yalnız hot restart yapan
+      // geliştirme kurulumlarında gerçek sebebi konsolda görünür tutar.
+      // Release kullanıcıya platform ayrıntısı sızdırmaz.
+      debugPrint('Backup file picker failed: $error\n$stackTrace');
+      if (!mounted) return;
+      showToast(context, context.l10n.backupErrorGeneric, error: true);
+    }
+  }
+}
+
+/// Yalnızca debug derlemesinde görünen geliştirme bölümü.
+///
+/// Metinleri çevrilmiyor: dokuz dile bir geliştirme anahtarı için anahtar
+/// eklemek sözlüğü kullanıcının hiç görmeyeceği satırlarla şişirirdi.
+class _DebugSection extends StatefulWidget {
+  const _DebugSection();
+
+  @override
+  State<_DebugSection> createState() => _DebugSectionState();
+}
+
+class _DebugSectionState extends State<_DebugSection> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsSection(
+      title: 'Debug',
+      children: [
+        SettingsRow(
+          title: 'Pro (debug)',
+          description:
+              'Mağazayı atlar; hak elle açılır. '
+              'Kapatmak gerçek downgrade temizliğini çalıştırır.',
+          trailing: InkSwitch(
+            value: DebugEntitlement.forced,
+            semanticLabel: 'Pro (debug)',
+            onChanged: _busy ? (_) {} : _toggle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Sıra önemli: önce anahtar, sonra veritabanı.
+  ///
+  /// Kapatırken [PurchaseService.setDebugPro] son mağaza cevabını da unutuyor;
+  /// bunu yapmadan yazılan `proUnlocked = false`, AppScope'un önbelleği bir
+  /// sonraki ayar yayınında eski `true` değeriyle hakkı geri açardı.
+  Future<void> _toggle(bool value) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    final purchases = context.purchases;
+    final settings = AppScope.settingsOf(context);
+    await purchases.setDebugPro(value);
+    await settings.setProUnlocked(value);
+
+    if (!mounted) return;
+    setState(() => _busy = false);
   }
 }
 
@@ -586,9 +706,10 @@ class _LegalLinks extends StatelessWidget {
 
 /// Dil seçimi paneli.
 ///
-/// Ayarlar ekranında dokuz satır yan yana durunca sayfa okunmaz hâle geliyordu.
-/// Seçim, iOS'un kendi kalıbındaki gibi ayrı bir yüzeye taşındı: satırda
-/// yürürlükteki dil görünür, dokunulduğunda liste açılır.
+/// Ayarlar ekranında on satır yan yana durunca sayfa okunmaz hâle geliyordu.
+/// Seçim ayrı bir yüzeye taşındı; fakat yüzey, standart bir Material seçim
+/// listesi yerine Latermark'ın baskı/editoryal dilini sürdüren bir indeks gibi
+/// davranıyor.
 Future<void> showLanguageSheet(
   BuildContext context, {
   required AppLocale value,
@@ -597,7 +718,7 @@ Future<void> showLanguageSheet(
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.6),
+    barrierColor: Colors.black.withValues(alpha: 0.68),
     isScrollControlled: true,
     builder: (context) => _LanguageSheet(value: value, onChanged: onChanged),
   );
@@ -613,78 +734,277 @@ class _LanguageSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final media = MediaQuery.of(context);
-    final maxHeight =
-        media.size.height - media.padding.top - media.padding.bottom - 12;
+    final maxHeight = media.size.height - media.padding.top - 12;
+    final compact = maxHeight < 520;
+    final current = AppLocale.values.indexOf(value) + 1;
+    final total = AppLocale.values.length;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.padding.bottom),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: DecoratedBox(
-          decoration: ShapeDecoration(
-            color: palette.canvasLift,
-            shape: RoundedSuperellipseBorder(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppShape.panel),
-              ),
-              side: BorderSide(color: palette.hairlineBright, width: 0.5),
-            ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: DecoratedBox(
+        key: const Key('language-sheet-surface'),
+        decoration: BoxDecoration(
+          color: palette.canvasLift,
+          border: Border(
+            top: BorderSide(color: palette.hairlineBright, width: 0.5),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
-                child: Text(context.l10n.languageTitle, style: palette.title),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Tam genişlikte renk bandı yerine kısa bir kalibrasyon izi:
+            // vurgu rengi imza olarak kalır, dekorasyona dönüşmez.
+            SizedBox(
+              height: 2,
+              child: Stack(
+                children: [
+                  PositionedDirectional(
+                    start: 22,
+                    top: 0,
+                    bottom: 0,
+                    width: 38,
+                    child: ColoredBox(color: palette.ember),
+                  ),
+                ],
               ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.only(bottom: 14),
-                  children: [
-                    for (final option in AppLocale.values)
-                      Pressable(
-                        onPressed: () {
-                          onChanged(option);
-                          Navigator.of(context).pop();
-                        },
-                        scale: 0.995,
-                        semanticLabel: option.label(context.l10n),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 22,
-                            vertical: 13,
-                          ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                compact ? 16 : 20,
+                14,
+                compact ? 15 : 20,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ExcludeSemantics(
                           child: Row(
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Text(
-                                  option.label(context.l10n),
-                                  style: option == value
-                                      ? palette.bodyStrong
-                                      : palette.body.copyWith(
-                                          color: palette.inkSoft,
-                                        ),
+                                  'LATERMARK',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.fade,
+                                  softWrap: false,
+                                  style: palette.overline,
                                 ),
                               ),
-                              if (option == value)
-                                Icon(
-                                  Icons.check_rounded,
-                                  size: 18,
-                                  color: palette.ember,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ColoredBox(
+                                  color: palette.hairline,
+                                  child: const SizedBox(height: 0.5),
                                 ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                '${_twoDigits(current)} / '
+                                '${_twoDigits(total)}',
+                                style: palette.overline.copyWith(
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
                             ],
                           ),
                         ),
+                        SizedBox(height: compact ? 11 : 15),
+                        Text(
+                          context.l10n.languageTitle,
+                          style: palette.display.copyWith(fontSize: 30),
+                        ),
+                        if (!compact) ...[
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            child: Text(
+                              context.l10n.languageDescription,
+                              style: palette.label.copyWith(
+                                color: palette.inkSoft,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Pressable(
+                    onPressed: () => Navigator.of(context).pop(),
+                    scale: 0.88,
+                    semanticLabel: context.l10n.actionClose,
+                    child: ExcludeSemantics(
+                      child: SizedBox.square(
+                        dimension: 44,
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 20,
+                              color: palette.inkSoft,
+                            ),
+                          ),
+                        ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            ColoredBox(
+              color: palette.hairlineBright,
+              child: const SizedBox(height: 0.5),
+            ),
+            Flexible(
+              child: ListView(
+                key: const Key('language-options'),
+                shrinkWrap: true,
+                padding: EdgeInsets.only(bottom: media.padding.bottom + 8),
+                children: [
+                  for (var index = 0; index < AppLocale.values.length; index++)
+                    _LanguageOption(
+                      option: AppLocale.values[index],
+                      selected: AppLocale.values[index] == value,
+                      isLast: index == AppLocale.values.length - 1,
+                      onPressed: () {
+                        onChanged(AppLocale.values[index]);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+}
+
+/// Dil satırı bir kart değil, katalog girdisi: dil kodu taramayı
+/// kolaylaştırır; ince cetvel ritmi kurar; seçim yalnızca kısa bir kor
+/// çizgisi ve küçük kareyle belirtilir.
+class _LanguageOption extends StatelessWidget {
+  const _LanguageOption({
+    required this.option,
+    required this.selected,
+    required this.isLast,
+    required this.onPressed,
+  });
+
+  final AppLocale option;
+  final bool selected;
+  final bool isLast;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Semantics(
+      selected: selected,
+      child: Pressable(
+        key: ValueKey('language-option-${option.name}'),
+        onPressed: onPressed,
+        scale: 0.995,
+        semanticLabel: option.label(context.l10n),
+        child: Stack(
+          children: [
+            if (selected)
+              PositionedDirectional(
+                start: 0,
+                top: 15,
+                bottom: 15,
+                width: 2,
+                child: ColoredBox(
+                  key: const Key('language-selected-rule'),
+                  color: palette.ember,
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(22, 15, 22, 15),
+              child: Row(
+                children: [
+                  ExcludeSemantics(
+                    child: SizedBox(
+                      width: 58,
+                      child: Text(
+                        _code,
+                        style: palette.overline.copyWith(
+                          color: selected ? palette.ember : palette.inkFaint,
+                          letterSpacing: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      option.label(context.l10n),
+                      style: palette.body.copyWith(
+                        color: palette.ink,
+                        fontSize: 17,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        letterSpacing: selected ? -0.25 : -0.1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox.square(
+                    dimension: 16,
+                    child: selected
+                        ? DecoratedBox(
+                            key: const Key('language-selected-mark'),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: palette.ember,
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: ColoredBox(
+                                color: palette.ember,
+                                child: const SizedBox.square(dimension: 6),
+                              ),
+                            ),
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+            if (!isLast)
+              PositionedDirectional(
+                start: 22,
+                end: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  color: palette.hairline,
+                  child: const SizedBox(height: 0.5),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String get _code {
+    if (option == AppLocale.system) return 'AUTO';
+    final locale = option.locale!;
+    final language = locale.languageCode.toUpperCase();
+    final country = locale.countryCode;
+    return country == null ? language : '$language·$country';
   }
 }

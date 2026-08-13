@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/utils/app_format.dart';
 import '../../../../../core/utils/map_link.dart';
+import '../../../../../l10n/app_localizations.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../shared/widgets/app_toast.dart';
 import '../../../../../shared/widgets/aperture.dart';
@@ -257,6 +258,14 @@ class _Colophon extends StatelessWidget {
   final DateTime? reminderAt;
   final DateTime? now;
 
+  /// Hatırlatma satırının metni. Sesli okuma etiketi ile görünen satır aynı
+  /// cümleyi kurmalı; ikisi de buradan geçiyor.
+  String _reminderValue(L10n l10n) => l10n.reminderValue(
+    at: reminderAt!,
+    repeats: note.remindRepeats,
+    everyDays: note.remindAfterDays,
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -289,7 +298,7 @@ class _Colophon extends StatelessWidget {
           '${l10n.lastUpdatedLabel}: ${l10n.stamp(updatedAt)}',
         if (expiresAt != null) l10n.remainingLong(expiresAt, now: reference),
         if (reminderAt != null)
-          '${l10n.reminderLabel}: ${l10n.stamp(reminderAt!)}',
+          '${l10n.reminderLabel}: ${_reminderValue(l10n)}',
       ].join('. '),
       child: ExcludeSemantics(
         // Künye notun hizasından bağımsız: her zaman ortalı. Kaydın imza
@@ -352,7 +361,7 @@ class _Colophon extends StatelessWidget {
         _MetaLine(
           key: const ValueKey('detail-reminder-line'),
           label: l10n.reminderLabel,
-          value: l10n.stamp(reminderAt!),
+          value: _reminderValue(l10n),
           accent: true,
         ),
 

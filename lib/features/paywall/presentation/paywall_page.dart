@@ -332,6 +332,7 @@ class _Features extends StatelessWidget {
         l10n.paywallFeatureCustomRetentionDetail,
       ),
       (l10n.paywallFeatureReminders, l10n.paywallFeatureRemindersDetail),
+      (l10n.paywallFeatureBackup, l10n.paywallFeatureBackupDetail),
       (l10n.paywallFeatureWidget, l10n.paywallFeatureWidgetDetail),
     ];
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../../core/theme/app_palette.dart';
+import '../../../../../core/utils/app_format.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../../../shared/widgets/pro_badge.dart';
@@ -16,11 +17,18 @@ import 'note_option_label.dart';
 /// Kontrol tek satır ve tek alan. Buraya ikinci bir süre seçicisi koymak
 /// (otomatik silme gibi) iki benzer görünüp zıt iş yapan kontrol üretirdi;
 /// saklama süresi bu yüzden Ayarlar'a taşındı.
+///
+/// Tekrar, rakamın yanına sıkıştırılmış anonim bir simge değil; ana
+/// alanın hemen altında ne olacağını cümleyle söyleyen bir kip satırıdır.
+/// Böylece "3" + tekrar seçimi, açıkken doğrudan "Her 3 günde bir
+/// hatırlatılır" diye okunur.
 class ReminderField extends StatefulWidget {
   const ReminderField({
     super.key,
     required this.days,
     required this.onChanged,
+    this.repeats = false,
+    this.onRepeatsChanged,
     this.blocked = false,
     this.locked = false,
     this.onOpenSystemSettings,
@@ -28,10 +36,17 @@ class ReminderField extends StatefulWidget {
     this.prominent = false,
   });
 
-  /// Kaç gün sonra hatırlatılacağı. `0` ise hatırlatma yok.
+  /// Hatırlatma aralığı (gün). `0` ise hatırlatma yok.
+  ///
+  /// [repeats] kapalıyken "kaç gün sonra", açıkken "kaç günde bir".
   final int days;
 
   final ValueChanged<int> onChanged;
+
+  /// Hatırlatma bu aralıkta tekrarlansın mı.
+  final bool repeats;
+
+  final ValueChanged<bool>? onRepeatsChanged;
 
   /// Bildirim izni yokken `true`. Kullanıcı süre verse bile bildirim
   /// gönderilemeyeceği için bunu sessizce yutmak yerine söylüyoruz.
@@ -85,7 +100,7 @@ class _ReminderFieldState extends State<ReminderField> {
     if (_focus.hasFocus) return;
     if (_controller.text.isEmpty) {
       _controller.text = '0';
-      widget.onChanged(0);
+      _onDaysChanged(0);
     }
   }
 
@@ -98,7 +113,16 @@ class _ReminderFieldState extends State<ReminderField> {
         offset: _controller.text.length,
       );
     }
-    widget.onChanged(clamped);
+    _onDaysChanged(clamped);
+  }
+
+  /// Süre sıfırlanınca tekrar da kendiliğinden kapanır.
+  ///
+  /// "Sıfır günde bir" diye bir şey yok; açık kalmış bir tekrar bayrağı, süre
+  /// yeniden verildiğinde kullanıcının istemediği bir kipi geri getirirdi.
+  void _onDaysChanged(int value) {
+    widget.onChanged(value);
+    if (value == 0 && widget.repeats) widget.onRepeatsChanged?.call(false);
   }
 
   @override
@@ -163,17 +187,29 @@ class _ReminderFieldState extends State<ReminderField> {
           ),
         ),
         const SizedBox(width: 10),
-        Text(
-          active
-              ? context.l10n.reminderSuffixActive
-              : context.l10n.reminderSuffixOff,
-          style: palette.caption.copyWith(color: palette.inkFaint),
+        // Son ek esnek: tekrar kipinin metni "gün sonra"dan uzun ve dile göre
+        // daha da uzuyor ("Tage · wiederholt"). Sabit bıraksaydık dar ekran ve
+        // büyük yazı ölçeğinin birleştiği yerde satır taşardı; kısalması,
+        // rakamın ekrandan taşmasına yeğdir.
+        Flexible(
+          child: Text(
+            switch ((active, widget.repeats)) {
+              (false, _) => context.l10n.reminderSuffixOff,
+              (true, true) => context.l10n.reminderSuffixRepeating,
+              (true, false) => context.l10n.reminderSuffixActive,
+            },
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: palette.caption.copyWith(color: palette.inkFaint),
+          ),
         ),
       ],
     );
 
+    final Widget reminderRow;
     if (widget.prominent) {
-      return NoteOptionRow(
+      reminderRow = NoteOptionRow(
+        wideControl: true,
         label: NoteOptionLabel(
           icon: Icons.notifications_none_rounded,
           title: context.l10n.reminderLabel,
@@ -182,19 +218,167 @@ class _ReminderFieldState extends State<ReminderField> {
         ),
         trailing: trailing,
       );
+    } else {
+      reminderRow = Row(
+        children: [
+          Text(
+            context.l10n.reminderLabel,
+            style: palette.label.copyWith(
+              color: active ? palette.ink : palette.inkSoft,
+            ),
+          ),
+          const Spacer(),
+          trailing,
+        ],
+      );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.reminderLabel,
-          style: palette.label.copyWith(
-            color: active ? palette.ink : palette.inkSoft,
+        reminderRow,
+        const SizedBox(height: 12),
+        _RepeatControl(
+          days: widget.days,
+          repeats: widget.repeats,
+          enabled: active,
+          onChanged: widget.onRepeatsChanged,
+        ),
+      ],
+    );
+  }
+}
+
+/// Hatırlatmanın kipini açıkça söyleyen satır: bir kez mi, her X
+/// günde bir mi.
+///
+/// Simge yalnızca yön buldurur; anlamı başlık, durum ve dinamik cümle taşır.
+/// Kart, pill veya platform switch'i yok: tek bir cetvel ve tipografik durum
+/// işareti Latermark'ın editoryal dilinde kalır.
+class _RepeatControl extends StatelessWidget {
+  const _RepeatControl({
+    required this.days,
+    required this.repeats,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final int days;
+  final bool repeats;
+  final bool enabled;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final live = enabled && onChanged != null;
+    final selected = enabled && repeats;
+    final detail = !enabled
+        ? context.l10n.reminderRepeatNeedsInterval
+        : selected
+        ? context.l10n.reminderRepeatSummary(days)
+        : context.l10n.reminderRepeatOnce;
+    final state = context.l10n.upper(
+      selected ? context.l10n.flashOn : context.l10n.flashOff,
+    );
+
+    return Semantics(
+      button: true,
+      enabled: live,
+      toggled: selected,
+      label: '${context.l10n.reminderRepeatToggle}. $detail',
+      child: ExcludeSemantics(
+        child: Pressable(
+          key: const Key('reminder-repeat-control'),
+          onPressed: live ? () => onChanged!(!selected) : null,
+          scale: 0.99,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: palette.hairlineBright, width: 0.5),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(0, 11, 0, 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 28,
+                    child: Icon(
+                      Icons.repeat_rounded,
+                      size: 19,
+                      color: switch ((live, selected)) {
+                        (false, _) => palette.inkGhost,
+                        (true, true) => palette.ember,
+                        (true, false) => palette.inkFaint,
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.reminderRepeatToggle,
+                          style: palette.label.copyWith(
+                            color: live ? palette.ink : palette.inkFaint,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          detail,
+                          key: const Key('reminder-repeat-detail'),
+                          style: palette.caption.copyWith(
+                            color: selected ? palette.ember : palette.inkFaint,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        state,
+                        style: palette.overline.copyWith(
+                          color: selected ? palette.ember : palette.inkFaint,
+                          letterSpacing: 1.25,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox.square(
+                        dimension: 16,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: selected
+                                  ? palette.ember
+                                  : palette.hairlineBright,
+                            ),
+                          ),
+                          child: selected
+                              ? Center(
+                                  child: ColoredBox(
+                                    color: palette.ember,
+                                    child: const SizedBox.square(dimension: 6),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        const Spacer(),
-        trailing,
-      ],
+      ),
     );
   }
 }
@@ -264,6 +448,9 @@ class _LockedField extends StatelessWidget {
       child: ExcludeSemantics(
         child: prominent
             ? NoteOptionRow(
+                // Kilitli hâl de aynı yerleşimi kullanır; Pro açıldığında
+                // satırın yeri değişmesin.
+                wideControl: true,
                 label: NoteOptionLabel(
                   icon: Icons.notifications_none_rounded,
                   title: context.l10n.reminderLabel,

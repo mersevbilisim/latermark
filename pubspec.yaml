@@ -1,7 +1,7 @@
 name: latermark
 description: "Fotoğraf çek, iki kelime yaz, unut."
 publish_to: "none"
-version: 1.0.0+3
+version: 1.0.1+4
 
 environment:
   sdk: ^3.12.2
@@ -11,7 +11,11 @@ dependencies:
   cross_file: ^0.3.5+4
   drift: ^2.34.3
   drift_flutter: ^0.3.1
-  flutter_local_notifications: ^22.2.0
+  # Upstream Android modeli özel tekrar süresini 32-bit `Integer` olarak
+  # okuyor; 30 ve 365 gün gibi geçerli aralıklar bu sınırı aşıyor. Paket yerel
+  # tutulup alan 64-bit'e çıkarıldı (bkz. vendored Java modelindeki not).
+  flutter_local_notifications:
+    path: third_party/flutter_local_notifications
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -25,8 +29,11 @@ dependencies:
   image_picker: ^1.2.3
   flutter_staggered_grid_view: ^0.7.0
   in_app_purchase: ^3.3.0
+  in_app_review: ^2.0.12
   url_launcher: ^6.3.2
   share_plus: ^13.3.0
+  cryptography: ^2.9.0
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -82,10 +82,27 @@ class NoteOptionLabel extends StatelessWidget {
 
 /// Label ile mevcut seçim alanını uzun dil ve Dynamic Type'a göre yerleştirir.
 class NoteOptionRow extends StatelessWidget {
-  const NoteOptionRow({super.key, required this.label, required this.trailing});
+  const NoteOptionRow({
+    super.key,
+    required this.label,
+    required this.trailing,
+    this.wideControl = false,
+  });
 
   final Widget label;
   final Widget trailing;
+
+  /// Kontrol, etiketle yan yana sığmayacak kadar geniş.
+  ///
+  /// Hatırlatma alanı böyle: sayı ile zaman eki tek başına dar olsa da,
+  /// açıklamalı etiketin yanında telefon eninde okunur alan bırakmıyor.
+  /// Kontrolün genişliğini ölçüp karar veremiyoruz — satır `IntrinsicHeight`
+  /// içinde, `LayoutBuilder` orada geçersiz. O yüzden bunu çağıran söylüyor.
+  final bool wideControl;
+
+  /// Geniş kontrolün yan yana durabilmesi için gereken satır genişliği:
+  /// Kontrol + 14 px ara + etikete okunur bir 180 px.
+  static const _wideControlThreshold = 394.0;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +114,12 @@ class NoteOptionRow extends StatelessWidget {
     // deterministik hem de o geçersiz ölçüm döngüsünü tamamen kaldırır.
     final availableWidth = media.size.width - 44;
     final textScale = media.textScaler.scale(1);
-    final stacked = availableWidth < 300 || textScale > 1.25;
+    // Geniş kontrolde tek ölçüt telefon genişliği değil: etiketin okunur
+    // kalması. 200 px'lik bir kontrol, ancak tablet enindeki bir satırda
+    // etiketle yan yana durabilir.
+    final stacked =
+        availableWidth < (wideControl ? _wideControlThreshold : 300) ||
+        textScale > 1.25;
 
     if (stacked) {
       return Column(
@@ -115,7 +137,14 @@ class NoteOptionRow extends StatelessWidget {
       children: [
         Expanded(child: label),
         const SizedBox(width: 14),
-        trailing,
+        // Kontrol satırın yarısından fazlasını yiyemez. Row, esnek olmayan
+        // çocuğu sınırsız genişlikle ölçüyor; kontrol büyüdükçe etiket
+        // sıkışıp kendi içinde taşıyordu. Sınır, kontrolün kendi esnek
+        // parçalarını da devreye sokar.
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: availableWidth * 0.6),
+          child: trailing,
+        ),
       ],
     );
   }

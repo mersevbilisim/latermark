@@ -4,6 +4,8 @@ import '../core/theme/app_palette.dart';
 import '../l10n/app_localizations.dart';
 import '../core/theme/app_theme.dart';
 import '../features/notes/data/notes_repository.dart';
+import '../features/backup/data/backup_service.dart';
+import '../features/review/review_prompt_service.dart';
 import '../features/notes/presentation/home/home_page.dart';
 import '../features/settings/data/settings_repository.dart';
 import 'app_scope.dart';
@@ -12,10 +14,18 @@ import '../l10n/l10n_context.dart';
 /// Uygulamanın kökü: tema, dil ve depo bağlaması. Ekranlara ait hiçbir mantık
 /// burada durmaz.
 class LatermarkApp extends StatelessWidget {
-  const LatermarkApp({super.key, required this.notes, required this.settings});
+  const LatermarkApp({
+    super.key,
+    required this.notes,
+    required this.settings,
+    this.backups,
+    this.reviewPrompts,
+  });
 
   final NotesRepository notes;
   final SettingsRepository settings;
+  final BackupService? backups;
+  final ReviewPromptService? reviewPrompts;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +35,8 @@ class LatermarkApp extends StatelessWidget {
     return AppScope(
       notes: notes,
       settings: settings,
+      backups: backups,
+      reviewPrompts: reviewPrompts,
       child: Builder(
         builder: (context) {
           final preferences = AppScope.preferences(context);

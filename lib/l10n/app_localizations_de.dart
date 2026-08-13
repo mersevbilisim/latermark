@@ -305,6 +305,198 @@ class L10nDe extends L10n {
   String get reminderSuffixOff => 'Tage — aus';
 
   @override
+  String get backupSectionTitle => 'Backup';
+
+  @override
+  String get backupManageTitle => 'Backups verwalten';
+
+  @override
+  String get backupManageDescription =>
+      'Erstelle eine verschlüsselte Kopie oder stelle ein vorhandenes Backup wieder her.';
+
+  @override
+  String get backupCreateTitle => 'Backup erstellen';
+
+  @override
+  String get backupCreateDescription =>
+      'Alles auf diesem Gerät, versiegelt in einer verschlüsselten Datei.';
+
+  @override
+  String get backupRestoreTitle => 'Backup wiederherstellen';
+
+  @override
+  String get backupRestoreDescription =>
+      'Alles hier durch eine Backup-Datei ersetzen.';
+
+  @override
+  String get backupPasswordTitle => 'Passwort wählen';
+
+  @override
+  String get backupPasswordSubtitle =>
+      'Dieses Passwort ist der einzige Schlüssel zu deinem Backup.';
+
+  @override
+  String get backupPasswordLabel => 'Passwort';
+
+  @override
+  String get backupPasswordRepeat => 'Passwort wiederholen';
+
+  @override
+  String get backupPasswordMismatch => 'Die Passwörter stimmen nicht überein.';
+
+  @override
+  String backupPasswordShort(int count) {
+    return 'Mindestens $count Zeichen verwenden.';
+  }
+
+  @override
+  String get backupStrengthWeak => 'Schwach';
+
+  @override
+  String get backupStrengthFair => 'Mittel';
+
+  @override
+  String get backupStrengthStrong => 'Stark';
+
+  @override
+  String get backupLossWarning =>
+      'Mir ist klar: Verliere ich dieses Passwort, lässt sich dieses Backup nie mehr öffnen.';
+
+  @override
+  String get backupActionCreate => 'Backup erstellen';
+
+  @override
+  String get backupPhasePreparing => 'Wird vorbereitet';
+
+  @override
+  String get backupPhaseKey => 'Schlüssel wird abgeleitet';
+
+  @override
+  String get backupPhaseWriting => 'Wird verschlüsselt';
+
+  @override
+  String get backupPhaseReading => 'Wird entschlüsselt';
+
+  @override
+  String get backupPhaseVerifying => 'Wird geprüft';
+
+  @override
+  String get backupPhaseApplying => 'Wird wiederhergestellt';
+
+  @override
+  String backupItems(int done, int total) {
+    return '$done von $total';
+  }
+
+  @override
+  String get backupReadyTitle => 'Dein Backup ist fertig';
+
+  @override
+  String backupReadySubtitle(int notes, int photos) {
+    return '$notes Notizen und $photos Aufnahmen, verschlüsselt.';
+  }
+
+  @override
+  String get backupActionSave => 'Sichern oder teilen';
+
+  @override
+  String get backupPickFile => 'Datei wählen';
+
+  @override
+  String get backupUnlockTitle => 'Passwort eingeben';
+
+  @override
+  String get backupUnlockSubtitle =>
+      'Das Passwort, das du beim Erstellen dieses Backups gewählt hast.';
+
+  @override
+  String get backupFoundTitle => 'Backup gefunden';
+
+  @override
+  String backupFoundCounts(int notes, int photos) {
+    return '$notes Notizen, $photos Aufnahmen';
+  }
+
+  @override
+  String backupFoundDate(String when) {
+    return 'Erstellt am $when';
+  }
+
+  @override
+  String get backupReplaceWarning =>
+      'Beim Wiederherstellen werden alle Notizen und Aufnahmen auf diesem Gerät ersetzt. Das lässt sich nicht rückgängig machen.';
+
+  @override
+  String get backupReplaceAcknowledge =>
+      'Mir ist klar, dass meine aktuellen Daten gelöscht werden.';
+
+  @override
+  String get backupActionRestore => 'Wiederherstellen';
+
+  @override
+  String get backupRestoredTitle => 'Alles ist zurück.';
+
+  @override
+  String get backupErrorWrongPassword => 'Falsches Passwort.';
+
+  @override
+  String get backupErrorNotABackup => 'Das ist kein Latermark-Backup.';
+
+  @override
+  String get backupErrorCorrupt =>
+      'Diese Datei ist beschädigt oder unvollständig.';
+
+  @override
+  String get backupErrorUnsupported =>
+      'Dieses Backup stammt aus einer neueren Version von Latermark.';
+
+  @override
+  String get backupErrorGeneric =>
+      'Etwas ist schiefgelaufen. Versuch es erneut.';
+
+  @override
+  String get paywallFeatureBackup => 'Verschlüsseltes Backup';
+
+  @override
+  String get paywallFeatureBackupDetail =>
+      'Nimm Notizen und Aufnahmen mit aufs neue Handy.';
+
+  @override
+  String get reminderSuffixRepeating => 'Tage · wiederholt';
+
+  @override
+  String get reminderRepeatToggle => 'Erinnerung wiederholen';
+
+  @override
+  String get reminderRepeatOnce => 'Einmalige Erinnerung.';
+
+  @override
+  String get reminderRepeatNeedsInterval =>
+      'Zuerst die Anzahl der Tage eingeben.';
+
+  @override
+  String reminderRepeatSummary(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Erinnerung alle $days Tage.',
+      one: 'Tägliche Erinnerung.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reminderRepeatingValue(int days, String when) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Alle $days Tage · nächste $when',
+      one: 'Täglich · nächste $when',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get reminderBlocked =>
       'Mitteilungen sind deaktiviert. Die Aufnahme wird trotzdem gesichert; die Erinnerung wird aktiv, sobald du Mitteilungen erlaubst.';
 

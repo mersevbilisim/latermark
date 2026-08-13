@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/reminders/reminder_service.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
@@ -21,12 +22,14 @@ void main() {
     late List<MethodCall> calls;
     late Map<String, Object?> launchDetails;
     late List<Map<String, Object?>> activeNotifications;
+    late List<Map<String, Object?>> pendingNotifications;
 
     setUp(() {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       calls = <MethodCall>[];
       launchDetails = <String, Object?>{'notificationLaunchedApp': false};
       activeNotifications = <Map<String, Object?>>[];
+      pendingNotifications = <Map<String, Object?>>[];
       messenger.setMockMethodCallHandler(channel, (call) async {
         calls.add(call);
         if (call.method == 'initialize') return true;
@@ -38,6 +41,30 @@ void main() {
         }
         if (call.method == 'getActiveNotifications') {
           return activeNotifications;
+        }
+        if (call.method == 'pendingNotificationRequests') {
+          return pendingNotifications;
+        }
+        if (call.method == 'zonedSchedule' ||
+            call.method == 'periodicallyShowWithDuration') {
+          final arguments = (call.arguments as Map).cast<String, Object?>();
+          final id = arguments['id']! as int;
+          pendingNotifications.removeWhere((item) => item['id'] == id);
+          pendingNotifications.add(<String, Object?>{
+            'id': id,
+            'title': arguments['title'],
+            'body': arguments['body'],
+            'payload': arguments['payload'],
+          });
+        }
+        if (call.method == 'cancel') {
+          pendingNotifications.removeWhere(
+            (item) => item['id'] == call.arguments,
+          );
+        }
+        if (call.method == 'cancelAll' ||
+            call.method == 'cancelAllPendingNotifications') {
+          pendingNotifications.clear();
         }
         return null;
       });
@@ -144,7 +171,7 @@ void main() {
       await service.dispose();
     });
 
-    test('senkron yalnız bekleyen programı yeniler', () async {
+    test('senkron bekleyen programı topluca silmez', () async {
       final service = ReminderService(supported: true);
       await service.initialize();
       calls.clear();
@@ -158,6 +185,10 @@ void main() {
 
       expect(
         calls.where((call) => call.method == 'cancelAllPendingNotifications'),
+        isEmpty,
+      );
+      expect(
+        calls.where((call) => call.method == 'pendingNotificationRequests'),
         hasLength(1),
       );
       expect(calls.where((call) => call.method == 'cancelAll'), isEmpty);
@@ -176,6 +207,7 @@ void main() {
         retention: Retention.off,
         customMinutes: 0,
         remindAfterDays: 1,
+        remindRepeats: false,
       );
 
       calls.clear();
@@ -188,6 +220,204 @@ void main() {
       expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
       await service.dispose();
     });
+
+    test('süresiz tekrarlayan not native tek kayıt olarak planlanır', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final note = Note(
+        id: 40,
+        imageName: '40.jpg',
+        body: 'Her gün',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 1,
+        remindRepeats: true,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final periodic = calls.where(
+        (call) => call.method == 'periodicallyShowWithDuration',
+      );
+      expect(periodic, hasLength(1));
+      final arguments = periodic.single.arguments as Map;
+      expect(arguments['id'], reminderNotificationId(40, 0));
+      expect(arguments['repeatIntervalMilliseconds'], 86400000);
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+      await service.dispose();
+    });
+
+    test('uygulama yeniden senkron olunca native tekrar başa sarmaz', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final note = Note(
+        id: 401,
+        imageName: '401.jpg',
+        body: 'Her 30 günde bir',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 30,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        hasLength(1),
+      );
+      await service.dispose();
+    });
+
+    test('365 günlük tekrar 64-bit milisaniye aralığıyla kurulur', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final note = Note(
+        id: 402,
+        imageName: '402.jpg',
+        body: 'Her yıl',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 365,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final call = calls.singleWhere(
+        (item) => item.method == 'periodicallyShowWithDuration',
+      );
+      expect(
+        (call.arguments as Map)['repeatIntervalMilliseconds'],
+        const Duration(days: 365).inMilliseconds,
+      );
+      await service.dispose();
+    });
+
+    test('otomatik silinen tekrar native değil sonlu kurulur', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final note = Note(
+        id: 403,
+        imageName: '403.jpg',
+        body: 'Süreli',
+        createdAt: anchor,
+        retention: Retention.custom,
+        customMinutes: 4 * 24 * 60,
+        expiresAt: anchor.add(const Duration(days: 4)),
+        remindAfterDays: 1,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        isEmpty,
+      );
+      expect(
+        calls.where((call) => call.method == 'zonedSchedule'),
+        hasLength(3),
+      );
+      await service.dispose();
+    });
+
+    test('tekrar kapalıyken tek bir oluşum planlanır', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final note = Note(
+        id: 41,
+        imageName: '41.jpg',
+        body: 'Bir kez',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 1,
+        remindRepeats: false,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(
+        calls.where((call) => call.method == 'zonedSchedule'),
+        hasLength(1),
+      );
+      await service.dispose();
+    });
+
+    test(
+      'tekrarlayan notun teslim edilmiş oluşumlarının hepsi kapanır',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        calls.clear();
+        // Kullanıcı iki turu da kaçırmış: ikisi de tepside duruyor.
+        activeNotifications = <Map<String, Object?>>[
+          <String, Object?>{
+            'id': reminderNotificationId(42, 0),
+            'payload': 'note/42',
+          },
+          <String, Object?>{
+            'id': reminderNotificationId(42, 1),
+            'payload': 'note/42',
+          },
+        ];
+
+        await service.dismissNote(42);
+
+        expect(
+          calls
+              .where((call) => call.method == 'cancel')
+              .map((call) => call.arguments),
+          [reminderNotificationId(42, 0), reminderNotificationId(42, 1)],
+        );
+        await service.dispose();
+      },
+    );
 
     test(
       'geçerli teslim edilmiş bildirim korunur, hayalet olan silinir',
@@ -205,7 +435,11 @@ void main() {
           createdAt: DateTime(2026),
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 0,
+          // Teslim edilmiş tek atış hâlâ kullanıcı açana kadar geçerli.
+          // `0` olsaydı kullanıcı hatırlatmayı kapatmış demekti ve tepsiden
+          // de kaldırılması gerekirdi.
+          remindAfterDays: 1,
+          remindRepeats: false,
         );
 
         calls.clear();
@@ -227,6 +461,118 @@ void main() {
             (call) => call.method == 'cancel' && call.arguments == 31,
           ),
           hasLength(1),
+        );
+        await service.dispose();
+      },
+    );
+
+    test(
+      'silinen notun bekleyen ve teslim edilmiş bildirimi kapanır',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final id = reminderNotificationId(52, 0);
+        activeNotifications = <Map<String, Object?>>[
+          <String, Object?>{'id': id, 'payload': 'note/52'},
+        ];
+        pendingNotifications = <Map<String, Object?>>[
+          <String, Object?>{'id': id, 'payload': 'note/52/v2/every/30/1000'},
+        ];
+
+        calls.clear();
+        await service.sync(
+          const [],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        expect(
+          calls.where(
+            (call) => call.method == 'cancel' && call.arguments == id,
+          ),
+          isNotEmpty,
+        );
+        expect(pendingNotifications, isEmpty);
+        await service.dispose();
+      },
+    );
+
+    test('hatırlatma kapatılınca tepsideki eski satır da kapanır', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final id = reminderNotificationId(53, 0);
+      activeNotifications = <Map<String, Object?>>[
+        <String, Object?>{'id': id, 'payload': 'note/53'},
+      ];
+      final note = Note(
+        id: 53,
+        imageName: '53.jpg',
+        body: 'Kapalı',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 0,
+        remindRepeats: false,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(
+        calls.where((call) => call.method == 'cancel' && call.arguments == id),
+        hasLength(1),
+      );
+      await service.dispose();
+    });
+
+    test(
+      'aralık düzenlenince eski tekrar sökülüp yeni aralık kurulur',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now();
+        final id = reminderNotificationId(54, 0);
+        pendingNotifications = <Map<String, Object?>>[
+          <String, Object?>{'id': id, 'payload': 'note/54/v2/every/3/1000'},
+        ];
+        final note = Note(
+          id: 54,
+          imageName: '54.jpg',
+          body: 'Yeni aralık',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 30,
+          reminderAnchorAt: anchor,
+          remindRepeats: true,
+        );
+
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        expect(
+          calls.where(
+            (call) => call.method == 'cancel' && call.arguments == id,
+          ),
+          hasLength(1),
+        );
+        final periodic = calls.singleWhere(
+          (call) => call.method == 'periodicallyShowWithDuration',
+        );
+        expect(
+          (periodic.arguments as Map)['repeatIntervalMilliseconds'],
+          const Duration(days: 30).inMilliseconds,
         );
         await service.dispose();
       },
