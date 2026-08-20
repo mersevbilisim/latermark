@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bildirim sesini kaynak küçültücüden korur.
+
+  `isShrinkResources = true` açık ve küçültücü "bu kaynağa kod içinden atıf var
+  mı" diye bakıyor. flutter_local_notifications ise sesi `R.raw.notification`
+  ile değil, çalışma anında adına göre çözüyor:
+
+      getIdentifier(notificationDetails.sound, "raw", packageName)
+
+  Bu bir dize araması; küçültücünün görebileceği bir bağ değil. Dosya bu yüzden
+  ölü kaynak sayılıp release paketinden atılıyordu — üstelik sessizce: Android
+  ses bulunamayınca hata vermiyor, varsayılan sese düşüyor. Yani hata ancak
+  yayınlanmış uygulamada, "neden kendi sesimiz çalmıyor" diye fark edilirdi.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/notification" />

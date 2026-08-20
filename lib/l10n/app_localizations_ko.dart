@@ -297,6 +297,9 @@ class L10nKo extends L10n {
   String get backupCreateTitle => '백업 만들기';
 
   @override
+  String get backupNothingToSave => '아직 백업할 것이 없습니다.';
+
+  @override
   String get backupCreateDescription => '이 기기의 모든 것을 암호화된 파일 하나에 담습니다.';
 
   @override
@@ -372,7 +375,10 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get backupActionSave => '저장 또는 공유';
+  String get backupActionSave => '이 기기에 저장';
+
+  @override
+  String get backupSavedToDevice => '저장했습니다.';
 
   @override
   String get backupPickFile => '파일 선택';
@@ -753,7 +759,9 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => '10개의 공간을 모두 사용 중';
+  String paywallLimitTitle(int limit) {
+    return '$limit개의 공간을 모두 사용 중';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -858,6 +866,15 @@ class L10nKo extends L10n {
 
   @override
   String get notificationChannelDescription => '시간을 정한 기록을 알려드립니다.';
+
+  @override
+  String get reminderActionDone => '완료';
+
+  @override
+  String get reminderActionTomorrow => '내일';
+
+  @override
+  String get reminderActionNextWeek => '다음 주';
 
   @override
   String get actionOK => '확인';

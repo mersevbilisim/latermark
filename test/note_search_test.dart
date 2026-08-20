@@ -246,111 +246,41 @@ void main() {
   });
 
   group('göç', () {
-    test('v7 veritabanı açılınca OCR metni indekse taşınır', () async {
-      final path = '${sandbox.path}/v7.sqlite';
-      final legacy = raw.sqlite3.open(path);
-      legacy.execute('''
-        CREATE TABLE notes (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          image_name TEXT NOT NULL,
-          body TEXT NOT NULL DEFAULT '',
-          created_at INTEGER NOT NULL,
-          retention INTEGER NOT NULL DEFAULT 0,
-          ocr_text TEXT NULL,
-          custom_minutes INTEGER NOT NULL DEFAULT 0,
-          expires_at INTEGER NULL,
-          last_seen_at INTEGER NULL,
-          remind_after_days INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE TABLE settings (
-          id INTEGER NOT NULL DEFAULT 1,
-          theme_mode INTEGER NOT NULL DEFAULT 2,
-          density INTEGER NOT NULL DEFAULT 1,
-          reminder_enabled INTEGER NOT NULL DEFAULT 0,
-          default_retention INTEGER NOT NULL DEFAULT 0,
-          locale INTEGER NOT NULL DEFAULT 0,
-          default_custom_minutes INTEGER NOT NULL DEFAULT 0,
-          pro_unlocked INTEGER NOT NULL DEFAULT 0,
-          PRIMARY KEY (id)
-        );
-        PRAGMA user_version = 7;
-      ''');
-      legacy.execute(
-        'INSERT INTO notes (image_name, body, created_at, ocr_text) '
-        'VALUES (?, ?, ?, ?)',
-        ['a.jpg', 'Fiş', 1754000000, 'MUAYENE ÜCRETİ  4521   TL'],
-      );
-      // Henüz taranmamış kayıt: göçten sonra sırada olmalı.
-      legacy.execute(
-        'INSERT INTO notes (image_name, body, created_at) VALUES (?, ?, ?)',
-        ['b.jpg', 'Taranmamış', 1754000001],
-      );
-      legacy.close();
-
-      final migrated = NotesDatabase.forExecutor(NativeDatabase(File(path)));
-      final store = NotesRepository(database: migrated, photos: photos);
-      addTearDown(migrated.close);
-
-      // Eski OCR metni korundu ve katlanmış olarak aranabilir.
-      final hits = await store.search('4521');
-      expect(hits.ids, hasLength(1));
-      expect(hits.photoOnly, hits.ids);
-      // Not metni de indekslendi.
-      expect((await store.search('fiş')).ids, hits.ids);
-      // Boşluk daraltması göçte de uygulandı.
-      expect((await store.search('ucreti 4521')).ids, hits.ids);
-
-      // Taranmamış kayıt kuyruğa girdi, taranmış olan girmedi.
-      final pending = await store.unscanned();
-      expect(pending.map((n) => n.body), ['Taranmamış']);
-
-      // Kayıtların kendisi eksiksiz taşındı.
-      final notes = await store.watchNotes().first;
-      expect(notes, hasLength(2));
-      expect(notes.map((n) => n.imageName), containsAll(['a.jpg', 'b.jpg']));
-    });
-
-    test('v6 veritabanı da açılır', () async {
-      // 6'dan 8'e atlayan kurulumda ocr_text sütunu hiç var olmamıştı.
+    test('v6 OCR içeriği v7 fingerprint sütununa taşınır', () async {
       final path = '${sandbox.path}/v6.sqlite';
-      final legacy = raw.sqlite3.open(path);
-      legacy.execute('''
-        CREATE TABLE notes (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          image_name TEXT NOT NULL,
-          body TEXT NOT NULL DEFAULT '',
-          created_at INTEGER NOT NULL,
-          retention INTEGER NOT NULL DEFAULT 0,
-          custom_minutes INTEGER NOT NULL DEFAULT 0,
-          expires_at INTEGER NULL,
-          last_seen_at INTEGER NULL,
-          remind_after_days INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE TABLE settings (
-          id INTEGER NOT NULL DEFAULT 1,
-          theme_mode INTEGER NOT NULL DEFAULT 2,
-          density INTEGER NOT NULL DEFAULT 1,
-          reminder_enabled INTEGER NOT NULL DEFAULT 0,
-          default_retention INTEGER NOT NULL DEFAULT 0,
-          locale INTEGER NOT NULL DEFAULT 0,
-          default_custom_minutes INTEGER NOT NULL DEFAULT 0,
-          pro_unlocked INTEGER NOT NULL DEFAULT 0,
-          PRIMARY KEY (id)
-        );
-        PRAGMA user_version = 6;
-      ''');
-      legacy.execute(
-        'INSERT INTO notes (image_name, body, created_at) VALUES (?, ?, ?)',
-        ['c.jpg', 'Eski kayıt', 1754000002],
+
+      // Önce gerçek güncel şemayı üretip yalnız v7 sütununu geri alıyoruz.
+      // Böylece fixture, artık kullanılmayan `not_app.sqlite` şemasını değil
+      // uygulamanın gerçekten yükselteceği latermark_db v6'yı temsil eder.
+      final seed = NotesDatabase.forExecutor(NativeDatabase(File(path)));
+      await seed.select(seed.notes).get();
+      await seed.close();
+
+      final v6 = raw.sqlite3.open(path);
+      v6.execute(
+        'ALTER TABLE note_search DROP COLUMN photo_fingerprint; '
+        'PRAGMA user_version = 6;',
       );
-      legacy.close();
+      v6.execute(
+        'INSERT INTO notes (image_name, body, created_at) VALUES (?, ?, ?)',
+        ['a.jpg', 'Fiş', 1754000000],
+      );
+      v6.execute(
+        'INSERT INTO note_search '
+        '(note_id, body_folded, photo_folded, attempts) '
+        'VALUES (?, ?, ?, ?)',
+        [1, 'fis', 'muayene ucreti 4521 tl', 0],
+      );
+      v6.close();
 
       final migrated = NotesDatabase.forExecutor(NativeDatabase(File(path)));
-      final store = NotesRepository(database: migrated, photos: photos);
       addTearDown(migrated.close);
 
-      expect((await store.search('eski')).ids, hasLength(1));
-      expect((await store.unscanned()).map((n) => n.body), ['Eski kayıt']);
+      final row = await migrated.select(migrated.noteSearch).getSingle();
+      expect(
+        row.photoFingerprint,
+        SearchText.fingerprint('muayene ucreti 4521 tl'),
+      );
     });
   });
 

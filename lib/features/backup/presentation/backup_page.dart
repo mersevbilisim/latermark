@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:path/path.dart' as p;
+
+import '../../../shared/widgets/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
@@ -46,18 +50,28 @@ Future<File?> pickLatermarkBackup() async {
 /// Ayarlar sayfasını iki teknik eylemle kalabalıklaştırmadan yedekleme
 /// niyetini seçtirir. Dil paneliyle aynı editoryal aileyi kullanır: tek yüzey,
 /// ince cetveller, küçük bir vurgu izi ve sıfır kart/blur.
-Future<BackupMode?> showBackupActionsSheet(BuildContext context) {
+/// [hasData] yanlışken yedek alma seçeneği kapalı görünür.
+///
+/// Boş bir arşivden teknik olarak geçerli bir yedek üretilebilir ama o dosya
+/// hiçbir işe yaramaz: kullanıcı parola seçip bekledikten sonra elinde içi boş
+/// bir dosyayla kalır. Sebebi seçim anında söylemek, sonra hata vermekten iyi.
+Future<BackupMode?> showBackupActionsSheet(
+  BuildContext context, {
+  required bool hasData,
+}) {
   return showModalBottomSheet<BackupMode>(
     context: context,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.68),
     isScrollControlled: true,
-    builder: (context) => const _BackupActionsSheet(),
+    builder: (context) => _BackupActionsSheet(hasData: hasData),
   );
 }
 
 class _BackupActionsSheet extends StatelessWidget {
-  const _BackupActionsSheet();
+  const _BackupActionsSheet({required this.hasData});
+
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
@@ -157,8 +171,10 @@ class _BackupActionsSheet extends StatelessWidget {
                     key: const Key('backup-action-create'),
                     index: '01',
                     title: context.l10n.backupCreateTitle,
-                    onPressed: () =>
-                        Navigator.of(context).pop(BackupMode.create),
+                    note: hasData ? null : context.l10n.backupNothingToSave,
+                    onPressed: hasData
+                        ? () => Navigator.of(context).pop(BackupMode.create)
+                        : null,
                   ),
                   _BackupActionOption(
                     key: const Key('backup-action-restore'),
@@ -184,22 +200,35 @@ class _BackupActionOption extends StatelessWidget {
     required this.index,
     required this.title,
     required this.onPressed,
+    this.note,
     this.isLast = false,
   });
 
   final String index;
   final String title;
-  final VoidCallback onPressed;
+
+  /// `null` ise seçenek kapalı: dokunulamaz ve soluk görünür.
+  final VoidCallback? onPressed;
+
+  /// Kapalıyken başlığın altında beliren gerekçe.
+  final String? note;
+
   final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
+    final enabled = onPressed != null;
+    // Kapalı seçenek gizlenmiyor, soluklaşıyor: olmayan bir satır "neden
+    // yedekleyemiyorum" sorusunu doğurur, soluk bir satır cevabını yanında
+    // taşır.
+    final tint = enabled ? palette.ink : palette.inkGhost;
+
     return Pressable(
       onPressed: onPressed,
       scale: 0.995,
-      semanticLabel: title,
+      semanticLabel: note == null ? title : '$title, $note',
       child: Stack(
         children: [
           Padding(
@@ -213,19 +242,33 @@ class _BackupActionOption extends StatelessWidget {
                     child: Text(
                       index,
                       style: palette.overline.copyWith(
-                        color: palette.inkFaint,
+                        color: enabled ? palette.inkFaint : palette.inkGhost,
                         letterSpacing: 1.2,
                       ),
                     ),
                   ),
                 ),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: palette.body.copyWith(
-                      color: palette.ink,
-                      fontSize: 17,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: palette.body.copyWith(color: tint, fontSize: 17),
+                      ),
+                      if (note != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          note!,
+                          style: palette.caption.copyWith(
+                            color: palette.inkFaint,
+                            fontSize: 12.5,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -233,7 +276,7 @@ class _BackupActionOption extends StatelessWidget {
                   child: Icon(
                     Icons.arrow_forward_rounded,
                     size: 18,
-                    color: palette.inkSoft,
+                    color: enabled ? palette.inkSoft : palette.inkGhost,
                   ),
                 ),
               ],
@@ -383,6 +426,7 @@ class _BackupPageState extends State<BackupPage> {
       return _ReadyStage(
         key: const ValueKey('ready'),
         result: _created!,
+        onSave: _save,
         onShare: _share,
       );
     }
@@ -512,6 +556,36 @@ class _BackupPageState extends State<BackupPage> {
       _busy = false;
       _error = kind;
     });
+  }
+
+  /// Dosyayı kullanıcının seçtiği yere yazar.
+  ///
+  /// Paylaşmaktan ayrı bir yol olması şart: iOS'un paylaşım sayfası
+  /// "Dosyalar'a Kaydet"i kendiliğinden içeriyor ama Android'in paylaşım
+  /// menüsü yalnızca içeriği **alabilecek uygulamaları** listeliyor, dosyayı
+  /// telefona yazacak bir seçenek sunmuyor. Android'de kaydetmenin yolu
+  /// sistemin belge oluşturma ekranı; bu çağrı orada onu, iOS'ta da doğrudan
+  /// Dosyalar'ı açıyor.
+  Future<void> _save() async {
+    final result = _created;
+    if (result == null) return;
+
+    try {
+      final saved = await FlutterFileDialog.saveFile(
+        params: SaveFileDialogParams(
+          sourceFilePath: result.file.path,
+          fileName: p.basename(result.file.path),
+          mimeTypesFilter: const [latermarkBackupMimeType],
+        ),
+      );
+      // `null` iptal demek; kullanıcı vazgeçtiğinde hata göstermek yanlış olur.
+      if (saved == null || !mounted) return;
+      showToast(context, context.l10n.backupSavedToDevice);
+    } catch (error, stackTrace) {
+      debugPrint('Backup save failed: $error\n$stackTrace');
+      if (!mounted) return;
+      showToast(context, context.l10n.backupErrorGeneric, error: true);
+    }
   }
 
   Future<void> _share() async {
@@ -797,9 +871,15 @@ class _ProgressStage extends StatelessWidget {
 }
 
 class _ReadyStage extends StatelessWidget {
-  const _ReadyStage({super.key, required this.result, required this.onShare});
+  const _ReadyStage({
+    super.key,
+    required this.result,
+    required this.onSave,
+    required this.onShare,
+  });
 
   final CreatedBackup result;
+  final VoidCallback onSave;
   final VoidCallback onShare;
 
   @override
@@ -812,7 +892,9 @@ class _ReadyStage extends StatelessWidget {
         result.photoCount,
       ),
       actionLabel: context.l10n.backupActionSave,
-      onAction: onShare,
+      onAction: onSave,
+      secondaryLabel: context.l10n.actionShare,
+      onSecondary: onShare,
     );
   }
 }
@@ -905,6 +987,8 @@ class _CompletionStage extends StatelessWidget {
     required this.subtitle,
     required this.actionLabel,
     required this.onAction,
+    this.secondaryLabel,
+    this.onSecondary,
     this.showSubtitle = true,
   });
 
@@ -913,6 +997,14 @@ class _CompletionStage extends StatelessWidget {
   final String subtitle;
   final String actionLabel;
   final VoidCallback onAction;
+
+  /// Birincilin altında duran ikinci yol. Yedek bittiğinde "cihaza kaydet" ile
+  /// "paylaş" ayrı ayrı sunuluyor: Android'in paylaşım menüsünde dosyayı
+  /// telefona yazacak bir seçenek yok, oradaki tek kaydetme yolu sistemin
+  /// belge oluşturma ekranı.
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
+
   final bool showSubtitle;
 
   @override
@@ -947,6 +1039,15 @@ class _CompletionStage extends StatelessWidget {
         ],
         const SizedBox(height: 38),
         _FlatAction(label: actionLabel, onPressed: onAction),
+        if (secondaryLabel != null) ...[
+          const SizedBox(height: 10),
+          _FlatAction(
+            key: const Key('backup-secondary-action'),
+            label: secondaryLabel!,
+            onPressed: onSecondary,
+            quiet: true,
+          ),
+        ],
       ],
     );
   }
@@ -1083,11 +1184,16 @@ class _FlatAction extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.danger = false,
+    this.quiet = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool danger;
+
+  /// İkincil yol: dolu zemin yerine çerçeve. İki dolu düğme yan yana
+  /// durduğunda hangisinin asıl yol olduğu okunmuyordu.
+  final bool quiet;
 
   @override
   Widget build(BuildContext context) {
@@ -1105,12 +1211,15 @@ class _FlatAction extends StatelessWidget {
           height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: color,
+            color: quiet ? Colors.transparent : color,
+            border: quiet ? Border.all(color: color, width: 1) : null,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
             label,
-            style: palette.bodyStrong.copyWith(color: Colors.white),
+            style: palette.bodyStrong.copyWith(
+              color: quiet ? color : Colors.white,
+            ),
           ),
         ),
       ),

@@ -5,6 +5,7 @@ import '../../../core/theme/app_accent.dart';
 import '../../settings/domain/app_locale.dart';
 import '../../settings/domain/app_settings.dart';
 import '../domain/retention.dart';
+import 'search_text.dart';
 
 part 'notes_database.g.dart';
 
@@ -130,6 +131,11 @@ class NoteSearch extends Table {
   /// `null` = henüz okunamadı. Boş metin = tarandı, yazı bulunamadı.
   TextColumn get photoFolded => text().nullable()();
 
+  /// [photoFolded] içeriğinin sürümler arasında kararlı özeti. Spotlight her
+  /// açılışta sayfa dolusu OCR metnini belleğe almadan gerçek içerik
+  /// değişikliğini bununla görür.
+  TextColumn get photoFingerprint => text().nullable()();
+
   /// Başarısız okuma sayısı.
   ///
   /// Sayaç olmadan bozuk ya da okunamayan tek bir kare, listedeki her
@@ -208,7 +214,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -220,6 +226,26 @@ class NotesDatabase extends _$NotesDatabase {
   static const _pendingIndex =
       'CREATE INDEX IF NOT EXISTS note_search_pending '
       'ON note_search (note_id) WHERE photo_folded IS NULL';
+
+  /// Uygulama verisiyle birlikte atomik tamamlanması gereken, uygulama-içi
+  /// işlemlerin küçük kayıt defterleri.
+  ///
+  /// Bunlar Drift modeline bilinçli olarak eklenmiyor: kullanıcı verisi değil,
+  /// teslim/taşıma protokolünün durumudur. `IF NOT EXISTS` sayesinde eski ve
+  /// yeni bütün şemalarda güvenle kurulabilir; schemaVersion'ı sırf bu iç
+  /// ayrıntı için yükseltmek gerekmez.
+  static const _operationTables = '''
+    CREATE TABLE IF NOT EXISTS processed_imports (
+      import_id TEXT NOT NULL PRIMARY KEY,
+      note_id INTEGER NULL,
+      completed INTEGER NOT NULL DEFAULT 0,
+      processed_at INTEGER NULL
+    );
+    CREATE TABLE IF NOT EXISTS processed_reminder_actions (
+      event_id TEXT NOT NULL PRIMARY KEY,
+      processed_at INTEGER NOT NULL
+    );
+  ''';
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -251,9 +277,55 @@ class NotesDatabase extends _$NotesDatabase {
         await (update(notes)..where((note) => note.remindRepeats.equals(true)))
             .write(NotesCompanion(reminderAnchorAt: Value(DateTime.now())));
       }
+      if (from < 7) {
+        await m.addColumn(noteSearch, noteSearch.photoFingerprint);
+        const page = 200;
+        for (var offset = 0; ; offset += page) {
+          final rows = await customSelect(
+            'SELECT note_id, photo_folded FROM note_search '
+            'WHERE photo_folded IS NOT NULL '
+            'ORDER BY note_id LIMIT $page OFFSET $offset',
+          ).get();
+          if (rows.isEmpty) break;
+          for (final row in rows) {
+            final text = row.read<String>('photo_folded');
+            await customUpdate(
+              'UPDATE note_search SET photo_fingerprint = ? '
+              'WHERE note_id = ?',
+              variables: [
+                Variable<String>(SearchText.fingerprint(text)),
+                Variable<int>(row.read<int>('note_id')),
+              ],
+              updates: {noteSearch},
+            );
+          }
+          if (rows.length < page) break;
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      for (final statement in _operationTables.split(';')) {
+        if (statement.trim().isNotEmpty) await customStatement(statement);
+      }
+      await customStatement(
+        'DELETE FROM processed_reminder_actions WHERE processed_at < ?',
+        [
+          DateTime.now()
+              .subtract(const Duration(days: 180))
+              .millisecondsSinceEpoch,
+        ],
+      );
+      // Bildirim düğmeleri uygulamanınkinden **ayrı bir Flutter motorunda**
+      // işleniyor ve o motor aynı dosyaya ikinci bir bağlantı açıyor.
+      // Drift'in `shareAcrossIsolates` seçeneği burada işe yaramaz: bağımsız
+      // motorlar ortak `IsolateNameServer`'ı paylaşmıyor.
+      //
+      // SQLite'ın varsayılan meşguliyet zaman aşımı **sıfır** — iki bağlantı
+      // aynı ana denk gelirse yazan taraf hiç beklemeden `database is locked`
+      // alır. Yazmalar milisaniyelik olduğundan birkaç saniyelik bekleme, o
+      // çakışmayı kullanıcının hiç görmediği kısa bir gecikmeye çeviriyor.
+      await customStatement('PRAGMA busy_timeout = 4000');
       // Tercih satırı her zaman var olmalı; yoksa varsayılanlarla yaratılır.
       // Zaten varsa dokunulmaz.
       await into(settingsTable).insert(

@@ -1,15 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../../core/theme/app_motion.dart';
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../shared/widgets/app_toast.dart';
-import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
 import '../../widgets/reminder_control.dart';
 import 'photo_dismiss_surface.dart';
 import '../../../../../l10n/l10n_context.dart';
+import '../../../../../shared/widgets/colophon_bar.dart';
 import '../../../../../core/utils/app_format.dart';
 
 /// Detay marjının yerinde düzenleme hâli.
@@ -167,10 +166,11 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
               key: const ValueKey('edit-note-body-field'),
               controller: _text,
               focusNode: _focus,
-              // Yazı alanı ilk bakışta yazı alanı gibi dursun. İki satırlık
-              // bir kutu, altındaki koca boşlukla birlikte "asıl alan aşağıda"
-              // izlenimi veriyordu.
-              minLines: 4,
+              // Yazı alanı ilk bakışta yazı alanı gibi dursun; ama dört satır
+              // 23 puntoyla 116pt ediyor ve klavye açıkken ekranın kalanı
+              // hatırlatmaya yetmiyordu. Üç satır hem alanı alan gibi
+              // gösteriyor hem de yazdıkça büyümesine engel değil.
+              minLines: 3,
               maxLines: null,
               textAlignVertical: TextAlignVertical.top,
               textCapitalization: TextCapitalization.sentences,
@@ -211,7 +211,15 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
               key: const ValueKey('edit-note-body-overflow'),
               behavior: HitTestBehavior.opaque,
               onTap: _focusBody,
-              child: const SizedBox.expand(),
+              // `SizedBox.expand()` değil. Panelin boyunu `SliverFillRemaining`
+              // belirliyor ve bunu çocuğun *doğal* yüksekliğinden hesaplıyor;
+              // `expand()`in doğal yüksekliği sonsuz olduğu için hesap
+              // bozuluyor ve panel içeriği kadar uzayamıyordu. Klavye açılınca
+              // künye ve hatırlatma rayın altına düşüyor, kaydırmayla da
+              // ulaşılamıyordu (ölçüldü: hatırlatma 436→517, ray üstü 412,
+              // kaydırma payı 0). Doğal yüksekliği sıfır olan bir kutu esnek
+              // boşluğu aynı şekilde dolduruyor ama hesabı bozmuyor.
+              child: const SizedBox(width: double.infinity),
             ),
           ),
           const SizedBox(height: 24),
@@ -235,25 +243,32 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
               child: const SizedBox(height: 1),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
-            // Etiket tarafı compose ile aynı dili konuşur: ikon, başlık ve
-            // altında ne işe yaradığını söyleyen bir satır. Sağdaki kontrol
-            // değişmiyor — iki ekranda aynı alanın iki farklı görünmesi için
-            // bir sebep yok.
-            child: ReminderControl(
-              days: _remindAfterDays,
-              repeats: _remindRepeats,
-              prominent: true,
-              onChanged: (value) => setState(() => _remindAfterDays = value),
-              onRepeatsChanged: (value) =>
-                  setState(() => _remindRepeats = value),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
+                // Etiket tarafı compose ile aynı dili konuşur: ikon, başlık ve
+                // altında ne işe yaradığını söyleyen bir satır. Sağdaki kontrol
+                // değişmiyor — iki ekranda aynı alanın iki farklı görünmesi
+                // için bir sebep yok.
+                child: ReminderControl(
+                  days: _remindAfterDays,
+                  repeats: _remindRepeats,
+                  prominent: true,
+                  onChanged: (value) =>
+                      setState(() => _remindAfterDays = value),
+                  onRepeatsChanged: (value) =>
+                      setState(() => _remindRepeats = value),
+                ),
+              ),
+              // Sabit alt eylem rayı içeriğin üstünde yüzmez. Bu pay, kısa
+              // notta hatırlatmayı rayın hemen üstünde tutar; uzun notta ise
+              // içerikle birlikte doğal biçimde kayar.
+              SizedBox(height: EditNoteActionRail.extentOf(context) + 16),
+            ],
           ),
-          // Sabit alt eylem rayı içeriğin üstünde yüzmez. Bu pay, kısa notta
-          // hatırlatmayı rayın hemen üstünde tutar; uzun notta ise içerikle
-          // birlikte doğal biçimde kayar.
-          SizedBox(height: EditNoteActionRail.extentOf(context) + 16),
         ],
       ),
     );
@@ -330,100 +345,34 @@ class EditNoteActionRail extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              height: _actionsExtent,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: controller.saving,
-                  builder: (context, saving, _) => Row(
-                    children: [
-                      Expanded(
-                        child: _TextAction(
-                          key: const ValueKey('edit-action-cancel'),
-                          label: context.l10n.actionCancel,
-                          color: palette.inkSoft,
-                          alignment: AlignmentDirectional.centerStart,
-                          onPressed: saving ? null : onCancel,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _TextAction(
-                          key: const ValueKey('edit-action-save'),
-                          label: context.l10n.actionSave,
-                          color: palette.ember,
-                          alignment: AlignmentDirectional.centerEnd,
-                          busy: saving,
-                          onPressed: saving
-                              ? null
-                              : () => controller.saveAndClose(),
-                        ),
-                      ),
-                    ],
+            // Not detayının alt şeridiyle aynı künye dili. Rayın kendi üst
+            // kenarı zaten sınırı çiziyor, o yüzden şeridin güverte çizgisi
+            // kapalı: iki çizgi 40pt arayla üst üste gelince sınır değil,
+            // kusur okunuyor.
+            ValueListenableBuilder<bool>(
+              valueListenable: controller.saving,
+              builder: (context, saving, _) => ColophonBar(
+                height: _actionsExtent,
+                rule: false,
+                actions: [
+                  ColophonAction(
+                    key: const ValueKey('edit-action-cancel'),
+                    label: context.l10n.actionCancel,
+                    semanticLabel: context.l10n.actionCancel,
+                    onPressed: saving ? null : onCancel,
                   ),
-                ),
+                  ColophonAction(
+                    key: const ValueKey('edit-action-save'),
+                    label: context.l10n.actionSave,
+                    semanticLabel: context.l10n.actionSave,
+                    busy: saving,
+                    onPressed: saving ? null : controller.saveAndClose,
+                  ),
+                ],
               ),
             ),
             SizedBox(height: _bottomInsetOf(context)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TextAction extends StatelessWidget {
-  const _TextAction({
-    super.key,
-    required this.label,
-    required this.color,
-    required this.alignment,
-    required this.onPressed,
-    this.busy = false,
-  });
-
-  final String label;
-  final Color color;
-  final AlignmentGeometry alignment;
-  final VoidCallback? onPressed;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Pressable(
-      onPressed: onPressed,
-      semanticLabel: label,
-      scale: 0.96,
-      child: SizedBox.expand(
-        child: Align(
-          alignment: alignment,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: AnimatedSwitcher(
-              duration: AppMotion.fast,
-              child: busy
-                  ? SizedBox.square(
-                      key: const ValueKey('edit-note-saving'),
-                      dimension: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.6,
-                        color: color,
-                      ),
-                    )
-                  : Text(
-                      label,
-                      key: ValueKey(label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.palette.label.copyWith(
-                        color: color,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ),
         ),
       ),
     );

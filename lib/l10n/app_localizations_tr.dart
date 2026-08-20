@@ -309,6 +309,9 @@ class L10nTr extends L10n {
   String get backupCreateTitle => 'Yedek al';
 
   @override
+  String get backupNothingToSave => 'Henüz yedeklenecek bir şey yok.';
+
+  @override
   String get backupCreateDescription =>
       'Bu cihazdaki her şey, tek bir şifreli dosyada.';
 
@@ -387,7 +390,10 @@ class L10nTr extends L10n {
   }
 
   @override
-  String get backupActionSave => 'Kaydet veya paylaş';
+  String get backupActionSave => 'Bu cihaza kaydet';
+
+  @override
+  String get backupSavedToDevice => 'Kaydedildi.';
 
   @override
   String get backupPickFile => 'Dosya seç';
@@ -846,7 +852,9 @@ class L10nTr extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => '10 karen dolu';
+  String paywallLimitTitle(int limit) {
+    return '$limit karen dolu';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -961,6 +969,15 @@ class L10nTr extends L10n {
   @override
   String get notificationChannelDescription =>
       'Süre verdiğin kayıtları hatırlatır.';
+
+  @override
+  String get reminderActionDone => 'Tamam';
+
+  @override
+  String get reminderActionTomorrow => 'Yarın';
+
+  @override
+  String get reminderActionNextWeek => 'Haftaya';
 
   @override
   String get actionOK => 'Tamam';

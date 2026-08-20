@@ -57,6 +57,49 @@ void main() {
     expect(repository.imageOf(note).existsSync(), isTrue);
   });
 
+  test(
+    'aynı platform importu iki kez teslim edilse de tek kayıt oluşur',
+    () async {
+      final capture = await fakeCapture();
+      const importId = '3b8ed5a6-6633-4f72-b4fe-3c79fba1d958';
+
+      final first = await repository.create(
+        capture: capture,
+        body: 'Paylaşılan kare',
+        retention: const RetentionChoice(Retention.off),
+        importId: importId,
+      );
+      final replay = await repository.create(
+        capture: capture,
+        body: 'İkinci teslim',
+        retention: const RetentionChoice(Retention.off),
+        importId: importId,
+      );
+
+      expect(replay, first);
+      expect(await repository.hasProcessedImport(importId), isTrue);
+      expect(await repository.watchNotes().first, hasLength(1));
+      expect(
+        Directory('${sandbox.path}/captures').listSync().whereType<File>(),
+        hasLength(1),
+      );
+
+      // Cleanup gecikti, kullanıcı ise kaydı sildi: eski teslim notu yeniden
+      // diriltmemeli.
+      await repository.delete((await repository.watchNotes().first).single);
+      expect(
+        await repository.create(
+          capture: capture,
+          body: 'Üçüncü teslim',
+          retention: const RetentionChoice(Retention.off),
+          importId: importId,
+        ),
+        first,
+      );
+      expect(await repository.watchNotes().first, isEmpty);
+    },
+  );
+
   test('konum enlem ve boylam olarak notla birlikte saklanır', () async {
     await repository.create(
       capture: await fakeCapture(),
@@ -241,11 +284,29 @@ void main() {
 
     final orphan = File('${sandbox.path}/captures/yetim.jpg');
     await orphan.writeAsBytes([1, 2, 3]);
+    // Süpürme taze dosyalara dokunmuyor: `persist()` kareyi satırdan önce
+    // yazdığı için o pencerede kaydedilen kare yetim sanılıp siliniyordu.
+    // Gerçek bir yetim ise eskidir.
+    orphan.setLastModifiedSync(
+      DateTime.now().subtract(const Duration(hours: 2)),
+    );
 
     await repository.sweepOrphanFiles();
 
     expect(orphan.existsSync(), isFalse);
     final note = (await repository.watchNotes().first).single;
     expect(repository.imageOf(note).existsSync(), isTrue);
+  });
+
+  test('sweepOrphanFiles az önce kaydedilmiş kareye dokunmaz', () async {
+    // Açılış süpürmesi isim listesini önden alıp `unawaited` koşuyor; tam o
+    // sırada paylaşımdan gelen bir kare kaydedilebiliyor. Kullanıcı notu
+    // görür, fotoğrafı gitmiş olurdu.
+    final fresh = File('${sandbox.path}/captures/taze.jpg');
+    await fresh.writeAsBytes([1, 2, 3]);
+
+    await repository.sweepOrphanFiles();
+
+    expect(fresh.existsSync(), isTrue);
   });
 }

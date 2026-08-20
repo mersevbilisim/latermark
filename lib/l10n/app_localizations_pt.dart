@@ -318,6 +318,9 @@ class L10nPt extends L10n {
   String get backupCreateTitle => 'Criar uma cópia';
 
   @override
+  String get backupNothingToSave => 'Ainda não há nada para copiar.';
+
+  @override
   String get backupCreateDescription =>
       'Tudo o que está neste dispositivo, selado num ficheiro encriptado.';
 
@@ -397,7 +400,10 @@ class L10nPt extends L10n {
   }
 
   @override
-  String get backupActionSave => 'Guardar ou partilhar';
+  String get backupActionSave => 'Guardar neste dispositivo';
+
+  @override
+  String get backupSavedToDevice => 'Guardado.';
 
   @override
   String get backupPickFile => 'Escolher um ficheiro';
@@ -875,7 +881,9 @@ class L10nPt extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => 'Os seus 10 lugares estão ocupados';
+  String paywallLimitTitle(int limit) {
+    return 'Os seus $limit lugares estão ocupados';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -992,6 +1000,15 @@ class L10nPt extends L10n {
   @override
   String get notificationChannelDescription =>
       'Lembra as capturas que programou.';
+
+  @override
+  String get reminderActionDone => 'Concluído';
+
+  @override
+  String get reminderActionTomorrow => 'Amanhã';
+
+  @override
+  String get reminderActionNextWeek => 'Próxima semana';
 
   @override
   String get actionOK => 'OK';
@@ -1366,6 +1383,9 @@ class L10nPtBr extends L10nPt {
   String get backupCreateTitle => 'Criar um backup';
 
   @override
+  String get backupNothingToSave => 'Ainda não há nada para fazer backup.';
+
+  @override
   String get backupCreateDescription =>
       'Tudo neste aparelho, selado em um arquivo criptografado.';
 
@@ -1445,7 +1465,10 @@ class L10nPtBr extends L10nPt {
   }
 
   @override
-  String get backupActionSave => 'Salvar ou compartilhar';
+  String get backupActionSave => 'Salvar neste aparelho';
+
+  @override
+  String get backupSavedToDevice => 'Salvo.';
 
   @override
   String get backupPickFile => 'Escolher um arquivo';
@@ -1921,7 +1944,9 @@ class L10nPtBr extends L10nPt {
   }
 
   @override
-  String get paywallLimitTitle => 'Seus 10 espaços estão ocupados';
+  String paywallLimitTitle(int limit) {
+    return 'Seus $limit espaços estão ocupados';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -2039,6 +2064,15 @@ class L10nPtBr extends L10nPt {
   @override
   String get notificationChannelDescription =>
       'Lembra você dos registros agendados.';
+
+  @override
+  String get reminderActionDone => 'Concluído';
+
+  @override
+  String get reminderActionTomorrow => 'Amanhã';
+
+  @override
+  String get reminderActionNextWeek => 'Próxima semana';
 
   @override
   String get actionOK => 'OK';

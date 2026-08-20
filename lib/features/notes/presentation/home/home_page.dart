@@ -5,6 +5,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_link.dart';
 import '../../../../app/app_routes.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
@@ -41,6 +42,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   StreamSubscription<void>? _sharedImportSubscription;
   late final HomeWidgetLink _widgetLink;
   StreamSubscription<HomeWidgetAction>? _widgetLinkSubscription;
+  StreamSubscription<AppLink>? _appLinkSubscription;
   ReminderService? _reminders;
   StreamSubscription<int>? _reminderLinkSubscription;
   bool _pickingFromGallery = false;
@@ -85,6 +87,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     ) {
       _drainSharedImports();
     });
+    _appLinkSubscription = AppLinkBridge.links.listen(_queueAppLink);
+    unawaited(_drainPendingAppLink());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _drainSharedImports();
     });
@@ -104,6 +108,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _searchFocus.dispose();
     _sharedImportSubscription?.cancel();
     _widgetLinkSubscription?.cancel();
+    _appLinkSubscription?.cancel();
     _reminderLinkSubscription?.cancel();
     unawaited(_widgetLink.dispose());
     super.dispose();
@@ -113,6 +118,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     _drainSharedImports();
+    unawaited(_drainPendingAppLink());
     _drainExternalRoutes();
     setState(() => _calendarReference = DateTime.now());
     _scheduleCalendarRollover();
@@ -241,6 +247,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _drainSharedImports() async {
     if (_drainingSharedImports || !mounted || _repository == null) return;
     final reviewPrompts = context.reviewPrompts;
+    final settingsRepository = AppScope.settingsOf(context);
+    final reminders = context.reminders;
     _drainingSharedImports = true;
 
     try {
@@ -250,11 +258,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
         if (shared.saveImmediately) {
           try {
+            final processed = await _repository!.hasProcessedImport(shared.id);
+            if (!processed && !await _allowNewNote()) break;
+            var settings = await settingsRepository.read();
+            if (shared.remindAfterDays > 0 && !settings.proUnlocked) {
+              if (!mounted) break;
+              await showPaywall(context, reason: PaywallReason.reminder);
+              settings = await settingsRepository.read();
+              // Extension son bilinen hakkı görür; mağaza bu arada hakkı
+              // düşürdüyse seçimi sessizce yok saymak yerine payload bekler.
+              if (!settings.proUnlocked) break;
+            }
+            if (shared.remindAfterDays > 0) {
+              await settingsRepository.setReminderEnabled(true);
+              var allowed = await reminders.hasPermission();
+              if (!allowed) allowed = await reminders.requestPermission();
+              // İzin reddedilse de DB'deki seçim korunur. Global tercih açık
+              // kaldığı için kullanıcı Ayarlar'dan izin verdiği anda sonraki
+              // sync bildirimi kurar.
+            }
             await _repository!.create(
               capture: shared.image,
               body: shared.initialText,
-              retention: const RetentionChoice.off(),
+              retention: RetentionChoice(
+                settings.defaultRetention,
+                customMinutes: settings.defaultCustomMinutes,
+              ),
               createdAt: shared.createdAt,
+              remindAfterDays: shared.remindAfterDays,
+              importId: shared.id,
             );
             if (reviewPrompts != null) {
               unawaited(reviewPrompts.recordSuccessfulSave());
@@ -273,6 +305,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           }
           continue;
         }
+
+        if (!await _allowNewNote() || !mounted) break;
 
         await Navigator.of(context).push(
           AppRoutes.lift(
@@ -293,6 +327,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } finally {
       _drainingSharedImports = false;
       _drainExternalRoutes();
+    }
+  }
+
+  /// Soğuk açılışta Spotlight sonucu Flutter motorundan **önce** gelir.
+  /// Native taraf onu bekletiyor; ilk kare çizilirken ve her öne gelişte
+  /// kuyruktan alınıyor.
+  Future<void> _drainPendingAppLink() async {
+    final link = await AppLinkBridge.takePending();
+    if (link != null) _queueAppLink(link);
+  }
+
+  void _queueAppLink(AppLink link) {
+    switch (link) {
+      case OpenNoteLink(:final noteId):
+        _queueLinkedNote(noteId);
     }
   }
 

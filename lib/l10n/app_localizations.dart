@@ -664,6 +664,12 @@ abstract class L10n {
   /// **'Create a backup'**
   String get backupCreateTitle;
 
+  /// No description provided for @backupNothingToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'There’s nothing to back up yet.'**
+  String get backupNothingToSave;
+
   /// No description provided for @backupCreateDescription.
   ///
   /// In en, this message translates to:
@@ -805,8 +811,14 @@ abstract class L10n {
   /// No description provided for @backupActionSave.
   ///
   /// In en, this message translates to:
-  /// **'Save or share'**
+  /// **'Save to this device'**
   String get backupActionSave;
+
+  /// No description provided for @backupSavedToDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get backupSavedToDevice;
 
   /// No description provided for @backupPickFile.
   ///
@@ -1453,8 +1465,8 @@ abstract class L10n {
   /// No description provided for @paywallLimitTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your 10 frames are full'**
-  String get paywallLimitTitle;
+  /// **'Your {limit} frames are full'**
+  String paywallLimitTitle(int limit);
 
   /// No description provided for @paywallLimitBody.
   ///
@@ -1641,6 +1653,24 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Reminds you about frames you’ve scheduled.'**
   String get notificationChannelDescription;
+
+  /// Notification action button: the user handled this reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get reminderActionDone;
+
+  /// Notification action button: postpone the reminder by one day.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get reminderActionTomorrow;
+
+  /// Notification action button: postpone the reminder by seven days.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get reminderActionNextWeek;
 
   /// No description provided for @actionOK.
   ///

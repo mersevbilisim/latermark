@@ -241,7 +241,10 @@ class _LimitNotice extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.paywallLimitTitle, style: palette.bodyStrong),
+            Text(
+              l10n.paywallLimitTitle(ProLimits.freeNotes),
+              style: palette.bodyStrong,
+            ),
             const SizedBox(height: 5),
             Text(
               l10n.paywallLimitBody(ProLimits.freeNotes),

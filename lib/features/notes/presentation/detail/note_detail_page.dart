@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/app_scope.dart';
@@ -19,7 +18,7 @@ import '../../data/notes_repository.dart';
 import '../../data/photo_aspect.dart';
 import '../../data/photo_tone.dart';
 import '../../domain/note_reminder.dart';
-import '../../../../shared/widgets/glass_surface.dart';
+import '../../../../shared/widgets/colophon_bar.dart';
 import '../../../../shared/widgets/icon_orb.dart';
 import '../home/widgets/note_photo.dart';
 import 'widgets/detail_sheet.dart';
@@ -75,6 +74,9 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   Stream<Note?>? _note;
   bool _entranceStarted = false;
   bool _editing = false;
+
+  /// Paylaşma isteği verildi, sistem sayfası henüz gelmedi.
+  bool _sharing = false;
   double _dismissProgress = 0;
   double _editorDismissOffset = 0;
   double _editorDismissProgress = 0;
@@ -194,12 +196,22 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   }
 
   Future<void> _shareNote(Note note) async {
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(_repository!.imageOf(note).path)],
-        text: note.body.isNotEmpty ? note.body : null,
-      ),
-    );
+    // Sistem paylaşım sayfası anında gelmiyor: fotoğraf dosyası hazırlanırken
+    // ekranda hiçbir şey olmuyordu ve dokunuş yutulmuş gibi duruyordu.
+    // `share()` sayfa *kapanınca* tamamlandığı için bekleme, tam olarak
+    // sayfanın açılmasını beklediğimiz süre boyunca görünür kalıyor.
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(_repository!.imageOf(note).path)],
+          text: note.body.isNotEmpty ? note.body : null,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   // ----------------------------------------------------------------- dismiss
@@ -348,9 +360,22 @@ class _NoteDetailPageState extends State<NoteDetailPage>
       (usableHeight * .60).clamp(compactHeight ? 220.0 : 300.0, 640.0),
       aspect,
     );
+    // Yazarken sahne, klavyeden *artan* yere göre ölçülüyor.
+    //
+    // `media.size` klavyeyi bilmez; ondan hesaplanan baskı yazarken de dinlenme
+    // hâlindeki boyunda kalıyordu. 393×852'de bu, klavye açıkken ekranın yarısı
+    // demek: panel 258'de başlıyor, 516'daki klavye çizgisine 258pt kalıyor,
+    // panelin içeriği ise 379pt istiyor. Yazarken baskı referans, konu değil —
+    // o yüzden klavye yükseldikçe küçülüyor ve yer nota kalıyor.
+    //
+    // Klavye payı sayfanın *dışından* okunuyor: `resizeToAvoidBottomInset`
+    // gövdeyi zaten küçülttüğü için Scaffold'un altındaki MediaQuery insets'i
+    // sıfırlamış oluyor. State'in kendi context'i Scaffold'un üstünde.
+    final editingHeight =
+        usableHeight - MediaQuery.viewInsetsOf(this.context).bottom;
     final editingStage = _fitPrint(
       printWidth,
-      (usableHeight * .24).clamp(compactHeight ? 118.0 : 150.0, 230.0),
+      (editingHeight * .24).clamp(118.0, 230.0),
       aspect,
     );
     final stage = _editing ? editingStage : restingStage;
@@ -534,6 +559,7 @@ class _NoteDetailPageState extends State<NoteDetailPage>
                           onDelete: () => _delete(note),
                           onEdit: _beginEditing,
                           onShare: () => _shareNote(note),
+                          sharing: _sharing,
                         ),
                       ),
                     ),
@@ -824,7 +850,7 @@ class _FrameStamp extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Tick(color: palette.ember),
+            ColophonTick(color: palette.ember),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
@@ -841,7 +867,7 @@ class _FrameStamp extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _Tick(color: palette.ember),
+            ColophonTick(color: palette.ember),
           ],
         ),
       ],
@@ -849,31 +875,18 @@ class _FrameStamp extends StatelessWidget {
   }
 }
 
-/// Tarihi iki yandan tutan kısa kor çizgisi.
-class _Tick extends StatelessWidget {
-  const _Tick({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 10,
-      height: 1,
-      child: ColoredBox(color: color.withValues(alpha: 0.75)),
-    );
-  }
-}
-
-/// Sayfanın alt eylem şeridi.
+/// Sayfanın alt eylem şeridi: künyenin ikinci yarısı.
 ///
-/// Üç eylem ayrı ayrı yüzen glifler değil, tek bir denetim bloğu. Her hücrede
-/// ikonun altında adı yazıyor: bu sayfaya ayda bir giren biri, kalem ikonunun
-/// "düzenle" mi "imzala" mı olduğunu tahmin etmek zorunda kalmıyor.
+/// Bu sayfa bir baskı. Tepesinde künyesi var — saat, altında iki kısa kor
+/// çizgi arasında geniş harf aralıklı tarih. Dibinde ise bugüne kadar cam bir
+/// slab ve onun içinde ikon-üstte-ad-altta hücreler vardı; yani aynı sayfanın
+/// üstü künye, altı sekme çubuğu konuşuyordu. Sekme çubuğu eşitler arasında
+/// gezinmek için bir kalıp, oysa bunlar gezinme değil, baskıya yapılan üç
+/// ayrı iş.
 ///
-/// Renkler paletten geliyor, ödünç alınmıyor: silme tehlike rengi, düzenleme
-/// kullanıcının seçtiği vurgu, paylaşma nötr mürekkep. Böylece hem açık/koyu
-/// temada hem de her vurgu seçiminde tutarlı kalıyor.
+/// Şerit artık kutu değil: kap kalkınca ekrandan bir çerçeve eksiliyor ve
+/// baskı büyüyor. Kelimeleri ayıran kor çizgiler künyedekinin aynısı, aynı
+/// [ColophonTick]. Sayfanın iki ucu aynı noktalama işaretini kullanıyor.
 class DetailActionBar extends StatelessWidget {
   const DetailActionBar({
     super.key,
@@ -881,15 +894,22 @@ class DetailActionBar extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     required this.onShare,
+    this.sharing = false,
   });
 
-  static const double _barHeight = 62;
+  /// Şerit tek satır yazıya indi; künyeden alçak durabiliyor. Artan yer
+  /// baskıya gidiyor.
+  static const double _barHeight = 52;
+
   static const double _gap = 10;
 
   final Animation<double> reveal;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback onShare;
+
+  /// Paylaşma beklerken adı nefes alır; şeritte dönen bir çark belirmez.
+  final bool sharing;
 
   static double extentOf(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -936,137 +956,28 @@ class DetailActionBar extends StatelessWidget {
                       ? 14
                       : MediaQuery.paddingOf(context).bottom,
                 ),
-                child: GlassSurface(
-                  borderRadius: AppShape.all(AppShape.panel),
-                  tint: palette.canvasLift,
-                  borderColor: palette.hairline,
-                  child: SizedBox(
-                    height: _barHeight,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _BarAction(
-                            key: const ValueKey('detail-action-delete'),
-                            icon: Icons.delete_outline_rounded,
-                            label: l10n.actionDelete,
-                            semanticLabel: l10n.actionDelete,
-                            color: palette.danger,
-                            onPressed: onDelete,
-                          ),
-                        ),
-                        Expanded(
-                          child: _BarAction(
-                            key: const ValueKey('detail-action-edit'),
-                            icon: Icons.edit_outlined,
-                            label: l10n.actionEdit,
-                            semanticLabel: l10n.editNoteSemantic,
-                            color: palette.ember,
-                            onPressed: onEdit,
-                          ),
-                        ),
-                        Expanded(
-                          child: _BarAction(
-                            key: const ValueKey('detail-action-share'),
-                            icon: Icons.ios_share_rounded,
-                            label: l10n.actionShare,
-                            semanticLabel: l10n.shareNoteSemantic,
-                            color: palette.ink,
-                            onPressed: onShare,
-                          ),
-                        ),
-                      ],
+                child: ColophonBar(
+                  height: _barHeight,
+                  actions: [
+                    ColophonAction(
+                      key: const ValueKey('detail-action-delete'),
+                      label: l10n.actionDelete,
+                      semanticLabel: l10n.actionDelete,
+                      pressColor: palette.danger,
+                      onPressed: onDelete,
                     ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Şeritteki tek hücre: ikon, altında adı.
-///
-/// Basılınca hücrenin kendisi değil, altındaki yumuşak bir hap parlar. Şeridin
-/// içinde görünür bir sınırı olmayan bir alanı ölçekleyerek geri bildirim
-/// vermek, dokunulan yeri belirsiz bırakıyordu; parlayan hap parmağın tam
-/// olarak neyi tuttuğunu gösteriyor.
-class _BarAction extends StatefulWidget {
-  const _BarAction({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.semanticLabel,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final String semanticLabel;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  State<_BarAction> createState() => _BarActionState();
-}
-
-class _BarActionState extends State<_BarAction> {
-  bool _down = false;
-
-  void _setDown(bool value) {
-    if (_down == value) return;
-    setState(() => _down = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return Semantics(
-      button: true,
-      label: widget.semanticLabel,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _setDown(true),
-        onTapUp: (_) => _setDown(false),
-        onTapCancel: () => _setDown(false),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          widget.onPressed();
-        },
-        child: AnimatedScale(
-          scale: _down ? 0.95 : 1,
-          duration: AppMotion.fast,
-          curve: AppMotion.ease,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-            child: AnimatedContainer(
-              duration: AppMotion.fast,
-              curve: AppMotion.ease,
-              decoration: ShapeDecoration(
-                shape: AppShape.border(AppShape.control),
-                color: _down ? palette.glass : Colors.transparent,
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(widget.icon, size: 21, color: widget.color),
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: palette.label.copyWith(
-                        color: widget.color,
-                        fontSize: 11.5,
-                        height: 1,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0,
-                      ),
+                    ColophonAction(
+                      key: const ValueKey('detail-action-edit'),
+                      label: l10n.actionEdit,
+                      semanticLabel: l10n.editNoteSemantic,
+                      onPressed: onEdit,
+                    ),
+                    ColophonAction(
+                      key: const ValueKey('detail-action-share'),
+                      label: l10n.actionShare,
+                      semanticLabel: l10n.shareNoteSemantic,
+                      busy: sharing,
+                      onPressed: onShare,
                     ),
                   ],
                 ),

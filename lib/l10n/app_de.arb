@@ -113,6 +113,7 @@
   "backupManageTitle": "Backups verwalten",
   "backupManageDescription": "Erstelle eine verschlüsselte Kopie oder stelle ein vorhandenes Backup wieder her.",
   "backupCreateTitle": "Backup erstellen",
+  "backupNothingToSave": "Es gibt noch nichts zu sichern.",
   "backupCreateDescription": "Alles auf diesem Gerät, versiegelt in einer verschlüsselten Datei.",
   "backupRestoreTitle": "Backup wiederherstellen",
   "backupRestoreDescription": "Alles hier durch eine Backup-Datei ersetzen.",
@@ -136,7 +137,8 @@
   "backupItems": "{done} von {total}",
   "backupReadyTitle": "Dein Backup ist fertig",
   "backupReadySubtitle": "{notes} Notizen und {photos} Aufnahmen, verschlüsselt.",
-  "backupActionSave": "Sichern oder teilen",
+  "backupActionSave": "Auf diesem Gerät sichern",
+  "backupSavedToDevice": "Gesichert.",
   "backupPickFile": "Datei wählen",
   "backupUnlockTitle": "Passwort eingeben",
   "backupUnlockSubtitle": "Das Passwort, das du beim Erstellen dieses Backups gewählt hast.",
@@ -358,7 +360,7 @@
       }
     }
   },
-  "paywallLimitTitle": "Deine 10 Plätze sind belegt",
+  "paywallLimitTitle": "Deine {limit} Plätze sind belegt",
   "paywallLimitBody": "In der kostenlosen Version bleiben bis zu {limit} Aufnahmen gleichzeitig erhalten. Pro hebt das Limit auf — oder du löschst eine Aufnahme und machst weiter.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -449,6 +451,9 @@
   "notificationBodyNoBody": "Du wolltest an diese Aufnahme erinnert werden.",
   "notificationChannelName": "Erinnerungen",
   "notificationChannelDescription": "Erinnert dich an geplante Aufnahmen.",
+  "reminderActionDone": "Erledigt",
+  "reminderActionTomorrow": "Morgen",
+  "reminderActionNextWeek": "Nächste Woche",
   "actionOK": "OK",
   "widgetDescription": "Zeigt deine neueste Aufnahme und Notiz.",
   "widgetEmptySubtitle": "Deine erste Notiz erscheint hier",

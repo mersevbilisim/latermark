@@ -15,6 +15,7 @@ class SharedImport {
     required this.createdAt,
     required this.initialText,
     required this.saveImmediately,
+    required this.remindAfterDays,
   });
 
   final String id;
@@ -26,6 +27,10 @@ class SharedImport {
   /// açıldığında doğrudan tamamlanır. Android ana uygulamayı açabildiğinden
   /// mevcut Compose ekranı gösterilir.
   final bool saveImmediately;
+
+  /// Share Extension içinde seçilen tek-atışlı hatırlatma. Değer ana
+  /// uygulamada entitlement ve bildirim izni kurallarından tekrar geçer.
+  final int remindAfterDays;
 }
 
 /// iOS Share Extension ile Android ACTION_SEND'i tek Dart akışında birleştirir.
@@ -74,6 +79,10 @@ abstract final class SharedImportBridge {
             ? raw['initialText']! as String
             : '',
         saveImmediately: raw['saveImmediately'] == true,
+        remindAfterDays: switch (raw['remindAfterDays']) {
+          final num days => days.toInt().clamp(0, 365),
+          _ => 0,
+        },
       );
     } on MissingPluginException {
       // Widget testleri ve desteklenmeyen masaüstü platformları.
@@ -84,15 +93,36 @@ abstract final class SharedImportBridge {
   }
 
   /// Native gelen kutusundaki görseli ve yan verisini birlikte temizler.
-  static Future<void> complete(String id) async {
+  static Future<bool> complete(String id) async {
     _ensureInitialized();
     try {
-      await _channel.invokeMethod<void>('completeSharedImport', {'id': id});
+      return await _channel.invokeMethod<bool>('completeSharedImport', {
+            'id': id,
+          }) ??
+          true;
     } on MissingPluginException {
       // Desteklenmeyen platformda temizlenecek native gelen kutusu yoktur.
+      return true;
     } on PlatformException {
-      // İşletim sistemi kendi önbelleğini daha sonra temizleyebilir. Kullanıcı
-      // akışını yalnızca temizlik hatası yüzünden başarısız göstermeyiz.
+      // DB ledger yeniden teslimi çoğaltmayacak; temizlik bir sonraki
+      // foreground turunda tekrar denenebilir.
+      return false;
+    }
+  }
+
+  /// Share Extension'ın Pro-only seçenekleri göstermesi için son bilinen
+  /// entitlement'ı App Group'a aynalar. Doğruluk kaynağı yine Drift/mağazadır;
+  /// ana uygulama payload'ı işlerken hakkı yeniden kontrol eder.
+  static Future<void> setProUnlocked(bool unlocked) async {
+    _ensureInitialized();
+    try {
+      await _channel.invokeMethod<void>('setShareEntitlement', {
+        'unlocked': unlocked,
+      });
+    } on MissingPluginException {
+      // Android ve widget testlerinde iOS App Group'u yoktur.
+    } on PlatformException {
+      // Extension en kötü ihtimalle reminder seçeneğini gizler.
     }
   }
 }

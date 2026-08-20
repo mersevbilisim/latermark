@@ -49,7 +49,7 @@ void main() {
           builder: (context) => Scaffold(
             body: TextButton(
               onPressed: () async {
-                selected = await showBackupActionsSheet(context);
+                selected = await showBackupActionsSheet(context, hasData: true);
               },
               child: const Text('aç'),
             ),
@@ -81,6 +81,57 @@ void main() {
     await tester.tap(find.byKey(const Key('backup-action-restore')));
     await tester.pumpAndSettle();
     expect(selected, BackupMode.restore);
+  });
+
+  testWidgets('kayıt yokken yedek alma kapalı ama sebebiyle görünür', (
+    tester,
+  ) async {
+    // Boş arşivden teknik olarak geçerli ama işe yaramaz bir dosya çıkardı.
+    // Seçenek gizlenmiyor: gizlemek "neden yedekleyemiyorum" sorusunu
+    // doğururdu, soluk satır cevabı yanında taşıyor.
+    useSurface(tester, const Size(320, 568), textScale: 1.3);
+    BackupMode? selected;
+    var opened = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: L10n.supportedLocales,
+        localizationsDelegates: L10n.localizationsDelegates,
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                opened++;
+                selected = await showBackupActionsSheet(
+                  context,
+                  hasData: false,
+                );
+              },
+              child: const Text('aç'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Henüz yedeklenecek bir şey yok.'), findsOneWidget);
+
+    // Dokunmak paneli kapatmamalı; seçenek gerçekten atıl.
+    await tester.tap(find.byKey(const Key('backup-action-create')));
+    await tester.pumpAndSettle();
+    expect(selected, isNull);
+    expect(opened, 1);
+
+    // Geri yükleme açık kalıyor: yeni telefonda yedeği açmanın tek yolu o.
+    await tester.tap(find.byKey(const Key('backup-action-restore')));
+    await tester.pumpAndSettle();
+    expect(selected, BackupMode.restore);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

@@ -15,6 +15,7 @@ import 'package:latermark/core/theme/app_palette.dart';
 import 'package:latermark/shared/widgets/pro_badge.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
 import 'package:latermark/features/settings/presentation/widgets/pro_callout.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 
 final _pixel = base64Decode(
@@ -90,26 +91,32 @@ void main() {
   testWidgets(
     'kontakt baskısı dolu gözleri kullanıcının kareleriyle doldurur',
     (tester) async {
-      await addNotes(tester, 7);
+      // Sınırın altında bir sayı: kalan gözlerin boş kalması testin konusu.
+      // Sabit bir sayı yerine sınırdan türetiliyor, yoksa ücretsiz katman her
+      // değiştiğinde bu test kırılır — nitekim kırıldı.
+      const filled = ProLimits.freeNotes - 2;
+      await addNotes(tester, filled);
       await pumpCallout(tester);
 
       // Teklif okunuyor ve eylemin ne olduğu yazıyor — chevron değil.
       expect(find.text('Bazı kareler kalmalı.'), findsOneWidget);
       expect(find.text("Pro'ya geç"), findsOneWidget);
-      // Yedi kare var, yedi göz dolu. Kalan üç göz boş: sınır sayılabiliyor.
-      expect(find.byType(Image), findsNWidgets(7));
+      // Kaç kare varsa o kadar göz dolu; gerisi boş kalıyor ve sınır
+      // sayılabiliyor.
+      expect(find.byType(Image), findsNWidgets(filled));
 
       await disposeTree(tester);
     },
   );
 
   testWidgets('şerit sınırdan fazlasını göstermez', (tester) async {
-    // Ücretsiz katman zaten 10'da duruyor, ama şerit bunu kendi başına da
-    // garanti etmeli: 10 gözü olan bir baskı 11. kareyi çizemez.
-    await addNotes(tester, 12);
+    // Ücretsiz katman zaten sınırda duruyor, ama şerit bunu kendi başına da
+    // garanti etmeli: n gözü olan bir baskı n+1. kareyi çizemez. Geri yükleme
+    // sınırın üstünde bir arşiv bırakabildiği için bu gerçek bir durum.
+    await addNotes(tester, ProLimits.freeNotes + 2);
     await pumpCallout(tester);
 
-    expect(find.byType(Image), findsNWidgets(10));
+    expect(find.byType(Image), findsNWidgets(ProLimits.freeNotes));
 
     await disposeTree(tester);
   });

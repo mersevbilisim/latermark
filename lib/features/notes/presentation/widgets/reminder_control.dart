@@ -51,21 +51,40 @@ class _ReminderControlState extends State<ReminderControl> {
   /// sistem istemini tekrar tetiklemenin anlamı yok.
   bool _permissionAsked = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Var olan bir hatırlatıcı düzenlenirken izin sonradan sistemden
+    // kapatılmış olabilir. Alan ilk kareden itibaren gerçeği söylesin; açılış
+    // sırasında sistem istemi göstermeden yalnızca mevcut durumu okur.
+    if (widget.days > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_ensurePermission(ask: false));
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(ReminderControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.days > 0 && widget.days == 0) _blocked = false;
+  }
+
   /// Kullanıcı ilk kez süre verdiğinde izin *o anda* istenir.
   ///
   /// Açılışta sormak yerine burada sormak, isteği kullanıcının niyetini
   /// gösterdiği ana bağlıyor — sistem istemi de böylece anlamlı geliyor.
   void _onChanged(int value) {
     widget.onChanged(value);
-    if (value > 0) unawaited(_ensurePermission());
+    if (value > 0) unawaited(_ensurePermission(ask: true));
   }
 
-  Future<void> _ensurePermission() async {
+  Future<void> _ensurePermission({required bool ask}) async {
     final reminders = context.reminders;
     final settings = AppScope.settingsOf(context);
 
     var allowed = await reminders.hasPermission();
-    if (!allowed && !_permissionAsked) {
+    if (!allowed && ask && !_permissionAsked) {
       _permissionAsked = true;
       allowed = await reminders.requestPermission();
     }

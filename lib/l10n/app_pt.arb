@@ -113,6 +113,7 @@
   "backupManageTitle": "Gerir cópias",
   "backupManageDescription": "Cria uma cópia encriptada ou repõe uma cópia existente.",
   "backupCreateTitle": "Criar uma cópia",
+  "backupNothingToSave": "Ainda não há nada para copiar.",
   "backupCreateDescription": "Tudo o que está neste dispositivo, selado num ficheiro encriptado.",
   "backupRestoreTitle": "Restaurar uma cópia",
   "backupRestoreDescription": "Substituir tudo aqui por um ficheiro de cópia.",
@@ -136,7 +137,8 @@
   "backupItems": "{done} de {total}",
   "backupReadyTitle": "A tua cópia está pronta",
   "backupReadySubtitle": "{notes} notas e {photos} fotos, encriptadas.",
-  "backupActionSave": "Guardar ou partilhar",
+  "backupActionSave": "Guardar neste dispositivo",
+  "backupSavedToDevice": "Guardado.",
   "backupPickFile": "Escolher um ficheiro",
   "backupUnlockTitle": "Introduz a palavra-passe",
   "backupUnlockSubtitle": "A palavra-passe que escolheste ao criar esta cópia.",
@@ -358,7 +360,7 @@
       }
     }
   },
-  "paywallLimitTitle": "Os seus 10 lugares estão ocupados",
+  "paywallLimitTitle": "Os seus {limit} lugares estão ocupados",
   "paywallLimitBody": "A versão gratuita mantém até {limit} capturas de cada vez. O Pro remove o limite — ou pode eliminar uma captura para continuar.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -449,6 +451,9 @@
   "notificationBodyNoBody": "Pediu para ser lembrado desta captura.",
   "notificationChannelName": "Lembretes",
   "notificationChannelDescription": "Lembra as capturas que programou.",
+  "reminderActionDone": "Concluído",
+  "reminderActionTomorrow": "Amanhã",
+  "reminderActionNextWeek": "Próxima semana",
   "actionOK": "OK",
   "widgetDescription": "Mostra a captura mais recente e a respetiva nota.",
   "widgetEmptySubtitle": "A sua primeira nota aparecerá aqui",

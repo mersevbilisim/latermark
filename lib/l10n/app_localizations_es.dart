@@ -317,6 +317,9 @@ class L10nEs extends L10n {
   String get backupCreateTitle => 'Crear una copia';
 
   @override
+  String get backupNothingToSave => 'Todavía no hay nada que copiar.';
+
+  @override
   String get backupCreateDescription =>
       'Todo lo de este dispositivo, sellado en un archivo cifrado.';
 
@@ -396,7 +399,10 @@ class L10nEs extends L10n {
   }
 
   @override
-  String get backupActionSave => 'Guardar o compartir';
+  String get backupActionSave => 'Guardar en este dispositivo';
+
+  @override
+  String get backupSavedToDevice => 'Guardado.';
 
   @override
   String get backupPickFile => 'Elegir un archivo';
@@ -872,7 +878,9 @@ class L10nEs extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => 'Tus 10 espacios están ocupados';
+  String paywallLimitTitle(int limit) {
+    return 'Tus $limit espacios están ocupados';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -990,6 +998,15 @@ class L10nEs extends L10n {
   @override
   String get notificationChannelDescription =>
       'Te avisa de las capturas que hayas programado.';
+
+  @override
+  String get reminderActionDone => 'Hecho';
+
+  @override
+  String get reminderActionTomorrow => 'Mañana';
+
+  @override
+  String get reminderActionNextWeek => 'La próxima semana';
 
   @override
   String get actionOK => 'Aceptar';

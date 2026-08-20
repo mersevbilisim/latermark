@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/drift.dart';
 
+import '../domain/reminder_action.dart';
 import '../domain/retention.dart';
 import '../../settings/domain/pro_downgrade_policy.dart';
 import 'location_service.dart';
@@ -40,6 +41,20 @@ class SearchHits {
   bool get filtering => query.isNotEmpty;
 
   bool contains(int id) => !filtering || ids.contains(id);
+}
+
+final class _CreateResult {
+  const _CreateResult(this.noteId, {this.reused = false});
+
+  final int noteId;
+  final bool reused;
+}
+
+final class _ProcessedImport {
+  const _ProcessedImport({required this.noteId, required this.completed});
+
+  final int? noteId;
+  final bool completed;
 }
 
 /// Arayüzün veriye tek giriş kapısı.
@@ -109,61 +124,163 @@ class NotesRepository {
     bool remindRepeats = false,
     DateTime? createdAt,
     NoteLocation? location,
+    String? importId,
   }) async {
+    final normalizedImportId = importId?.trim();
+    if (normalizedImportId != null &&
+        (normalizedImportId.isEmpty || normalizedImportId.length > 128)) {
+      throw ArgumentError.value(
+        importId,
+        'importId',
+        'Geçersiz import kimliği',
+      );
+    }
+    if (normalizedImportId != null) {
+      final processed = await _processedImport(normalizedImportId);
+      if (processed?.completed == true && processed?.noteId != null) {
+        return processed!.noteId!;
+      }
+    }
+
     final stamp = createdAt ?? DateTime.now();
     final reminderAnchor = DateTime.now();
     final imageName = await _store.persist(capture);
     final text = body.trim();
 
-    // Not ile indeks satırı **aynı işlemde** yazılıyor. Her notun bir indeks
-    // satırı olması taramanın da aramanın da dayandığı değişmez: satırı
-    // olmayan bir kayıt ne aranabilir ne de sıraya girer, üstelik ikisi de
-    // sessizce olur.
-    return _db.transaction(() async {
-      final isPro = await _isProUnlocked();
-      // Compose, entitlement değişmeden hemen önce açılmış olabilir. UI kilidi
-      // tek başına yeterli değil; son karar veritabanına yazıldığı anda alınır.
-      final effectiveRetention = isPro
-          ? retention
-          : freeRetentionFallback(retention);
-      final effectiveReminder = isPro && remindAfterDays > 0
-          ? remindAfterDays
-          : 0;
-      // Tekrar, hatırlatmanın bir kipi: hatırlatma yoksa tekrar da yok.
-      final effectiveRepeats = effectiveReminder > 0 && remindRepeats;
-      final id = await _db
-          .into(_db.notes)
-          .insert(
-            NotesCompanion.insert(
-              imageName: imageName,
-              body: Value(text),
-              createdAt: stamp,
-              retention: Value(effectiveRetention.retention),
-              customMinutes: Value(effectiveRetention.customMinutes),
-              expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
-              remindAfterDays: Value(effectiveReminder),
-              reminderAnchorAt: Value(
-                effectiveReminder > 0 ? reminderAnchor : null,
-              ),
-              remindRepeats: Value(effectiveRepeats),
-              // Koordinat Pro kilidine takılmıyor: konum bir ücretli özellik
-              // değil, kaydın bir alanı.
-              latitude: Value(location?.latitude),
-              longitude: Value(location?.longitude),
-            ),
+    try {
+      final result = await _db.transaction(() async {
+        if (normalizedImportId != null) {
+          final claimed = await _db.customUpdate(
+            'INSERT OR IGNORE INTO processed_imports '
+            '(import_id, completed) VALUES (?, 0)',
+            variables: [Variable<String>(normalizedImportId)],
+            updates: const {},
           );
+          if (claimed == 0) {
+            final processed = await _processedImport(normalizedImportId);
+            if (processed?.completed == true && processed?.noteId != null) {
+              return _CreateResult(processed!.noteId!, reused: true);
+            }
+            await _db.customUpdate(
+              'DELETE FROM processed_imports '
+              'WHERE import_id = ? AND completed = 0',
+              variables: [Variable<String>(normalizedImportId)],
+              updates: const {},
+            );
+            await _db.customUpdate(
+              'INSERT INTO processed_imports '
+              '(import_id, completed) VALUES (?, 0)',
+              variables: [Variable<String>(normalizedImportId)],
+              updates: const {},
+            );
+          }
+        }
 
-      await _db
-          .into(_db.noteSearch)
-          .insert(
-            NoteSearchCompanion.insert(
-              noteId: Value(id),
-              bodyFolded: Value(SearchText.fold(text)),
-            ),
+        final id = await _insertNote(
+          imageName: imageName,
+          text: text,
+          stamp: stamp,
+          reminderAnchor: reminderAnchor,
+          retention: retention,
+          remindAfterDays: remindAfterDays,
+          remindRepeats: remindRepeats,
+          location: location,
+        );
+        if (normalizedImportId != null) {
+          await _db.customUpdate(
+            'UPDATE processed_imports SET '
+            'note_id = ?, completed = 1, processed_at = ? '
+            'WHERE import_id = ?',
+            variables: [
+              Variable<int>(id),
+              Variable<int>(DateTime.now().millisecondsSinceEpoch),
+              Variable<String>(normalizedImportId),
+            ],
+            updates: const {},
           );
+        }
+        return _CreateResult(id);
+      });
 
-      return id;
-    });
+      if (result.reused) await _store.remove(imageName);
+      return result.noteId;
+    } catch (_) {
+      await _store.remove(imageName);
+      rethrow;
+    }
+  }
+
+  /// Not ile arama satırını tek transaction içinde oluşturur.
+  Future<int> _insertNote({
+    required String imageName,
+    required String text,
+    required DateTime stamp,
+    required DateTime reminderAnchor,
+    required RetentionChoice retention,
+    required int remindAfterDays,
+    required bool remindRepeats,
+    required NoteLocation? location,
+  }) async {
+    final isPro = await _isProUnlocked();
+    final effectiveRetention = isPro
+        ? retention
+        : freeRetentionFallback(retention);
+    final effectiveReminder = isPro && remindAfterDays > 0
+        ? remindAfterDays
+        : 0;
+    final effectiveRepeats = effectiveReminder > 0 && remindRepeats;
+    final id = await _db
+        .into(_db.notes)
+        .insert(
+          NotesCompanion.insert(
+            imageName: imageName,
+            body: Value(text),
+            createdAt: stamp,
+            retention: Value(effectiveRetention.retention),
+            customMinutes: Value(effectiveRetention.customMinutes),
+            expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
+            remindAfterDays: Value(effectiveReminder),
+            reminderAnchorAt: Value(
+              effectiveReminder > 0 ? reminderAnchor : null,
+            ),
+            remindRepeats: Value(effectiveRepeats),
+            latitude: Value(location?.latitude),
+            longitude: Value(location?.longitude),
+          ),
+        );
+
+    await _db
+        .into(_db.noteSearch)
+        .insert(
+          NoteSearchCompanion.insert(
+            noteId: Value(id),
+            bodyFolded: Value(SearchText.fold(text)),
+          ),
+        );
+    return id;
+  }
+
+  Future<_ProcessedImport?> _processedImport(String importId) async {
+    final row = await _db
+        .customSelect(
+          'SELECT note_id, completed FROM processed_imports '
+          'WHERE import_id = ? LIMIT 1',
+          variables: [Variable<String>(importId)],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return _ProcessedImport(
+      noteId: row.readNullable<int>('note_id'),
+      completed: row.read<int>('completed') != 0,
+    );
+  }
+
+  /// Aynı platform tesliminin daha önce atomik olarak kaydedilip
+  /// kaydedilmediği. UI bunu yalnızca yeni-not limitini mevcut bir kaydın
+  /// cleanup tekrarında yanlışlıkla göstermemek için sorar.
+  Future<bool> hasProcessedImport(String importId) async {
+    final processed = await _processedImport(importId.trim());
+    return processed?.completed == true;
   }
 
   /// Notun yazısını ve hatırlatmasını günceller.
@@ -216,6 +333,118 @@ class NotesRepository {
       await (_db.update(_db.noteSearch)..where((t) => t.noteId.equals(note.id)))
           .write(NoteSearchCompanion(bodyFolded: Value(SearchText.fold(text))));
     });
+  }
+
+  /// Bildirim üzerindeki bir düğmenin cevabını nota yazar.
+  ///
+  /// Yalnızca hatırlatma alanlarına dokunuyor. [update]'ten ayrı durmasının
+  /// sebebi bu: kullanıcı notu düzenlemedi, hatırlatmaya cevap verdi —
+  /// gövdeye ve [Note.updatedAt] damgasına dokunmak o damganın anlamını
+  /// yitirmesi demek olurdu.
+  ///
+  /// Not **silinmiyor**; "Tamam" en fazla hatırlatmayı kapatır.
+  ///
+  /// Değişen kaydı döner; not yoksa, hatırlatması yoksa ya da hak kapalıysa
+  /// `null`. Hak kontrolü aynı transaction içinde yapılıyor: eylem, hakkı
+  /// düşmüş bir kullanıcının hatırlatmasını geri getiremez.
+  Future<Note?> applyReminderAction(
+    int noteId,
+    ReminderAction action, {
+    DateTime? firedAt,
+    DateTime? now,
+    String? eventId,
+  }) {
+    final moment = now ?? DateTime.now();
+
+    return _db.transaction(() async {
+      if (eventId != null) {
+        final claimed = await _db.customUpdate(
+          'INSERT OR IGNORE INTO processed_reminder_actions '
+          '(event_id, processed_at) VALUES (?, ?)',
+          variables: [
+            Variable<String>(eventId),
+            Variable<int>(moment.millisecondsSinceEpoch),
+          ],
+          updates: const {},
+        );
+        if (claimed == 0) return null;
+      }
+      final note = await noteById(noteId);
+      if (note == null || !await _isProUnlocked()) return null;
+
+      final outcome = reminderOutcomeFor(
+        action: action,
+        remindAfterDays: note.remindAfterDays,
+        repeats: note.remindRepeats,
+        anchorAt: note.reminderAnchorAt ?? note.createdAt,
+        now: moment,
+        firedAt: firedAt,
+      );
+      if (outcome == null) return null;
+
+      await (_db.update(_db.notes)..where((t) => t.id.equals(noteId))).write(
+        NotesCompanion(
+          remindAfterDays: Value(outcome.remindAfterDays),
+          reminderAnchorAt: Value(outcome.anchorAt),
+          remindRepeats: Value(outcome.repeats),
+        ),
+      );
+
+      return noteById(noteId);
+    });
+  }
+
+  /// Bu bağlantının dışında değişmiş olabilecek satırları yeniden yaydırır.
+  ///
+  /// Bildirim düğmeleri ayrı bir Flutter motorunda, yani **ayrı bir SQLite
+  /// bağlantısında** işleniyor. Drift akış geçersizleştirmesi süreç içi
+  /// olduğu için o yazma, açık duran uygulamanın listesine kendiliğinden
+  /// yansımaz; kart hatırlatmanın eski tarihini göstermeye devam ederdi.
+  /// Bu çağrı sorguları yeniden koşturur, veriye dokunmaz.
+  void reloadFromDisk() => _db.markTablesUpdated({_db.notes});
+
+  /// Spotlight diff'i için OCR içeriğinin küçük, kararlı özeti.
+  ///
+  /// Metnin kendisi yalnız gerçekten yeniden indekslenecek kayıtta okunur.
+  /// Eski şemadan veya backup'tan özetsiz gelen satırlar burada bir kez geri
+  /// doldurulur; sonraki açılışlar yalnız sekiz karakterlik imzaları taşır.
+  Future<Map<int, String?>> spotlightPhotoFingerprints() async {
+    var rows = await _db.select(_db.noteSearch).get();
+    final missing = [
+      for (final row in rows)
+        if (row.photoFolded != null && row.photoFingerprint == null) row,
+    ];
+    if (missing.isNotEmpty) {
+      await _db.transaction(() async {
+        for (final row in missing) {
+          await (_db.update(
+            _db.noteSearch,
+          )..where((search) => search.noteId.equals(row.noteId))).write(
+            NoteSearchCompanion(
+              photoFingerprint: Value(SearchText.fingerprint(row.photoFolded!)),
+            ),
+          );
+        }
+      });
+      rows = await _db.select(_db.noteSearch).get();
+    }
+    return {for (final row in rows) row.noteId: row.photoFingerprint};
+  }
+
+  /// Verilen kayıtların karedeki yazısı. Yalnızca indekslenecekler için
+  /// çağrılır; taranmamış kayıtlar sonuçta hiç görünmez.
+  Future<Map<int, String>> photoTextOf(Iterable<int> ids) async {
+    final wanted = ids.toList();
+    if (wanted.isEmpty) return const {};
+
+    final rows = await (_db.select(
+      _db.noteSearch,
+    )..where((t) => t.noteId.isIn(wanted) & t.photoFolded.isNotNull())).get();
+    return {
+      for (final row in rows)
+        if (row.photoFolded case final text? when text.isNotEmpty)
+          row.noteId: text,
+    };
   }
 
   /// Pro alanları yazılırken entitlement'ı aynı transaction içinde yeniden
@@ -307,6 +536,7 @@ class NotesRepository {
         )..where((t) => t.noteId.equals(id))).write(
           NoteSearchCompanion(
             photoFolded: Value(folded),
+            photoFingerprint: Value(SearchText.fingerprint(folded)),
             attempts: const Value(0),
           ),
         );
@@ -324,6 +554,7 @@ class NotesRepository {
             noteId: Value(id),
             bodyFolded: Value(SearchText.fold(note.body)),
             photoFolded: Value(folded),
+            photoFingerprint: Value(SearchText.fingerprint(folded)),
           ),
           mode: InsertMode.insertOrReplace,
         );

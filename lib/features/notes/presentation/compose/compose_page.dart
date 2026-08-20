@@ -13,7 +13,7 @@ import '../import/gallery_import.dart';
 import '../import/shared_import.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
-import 'widgets/compose_save_action.dart';
+import '../../../../shared/widgets/colophon_bar.dart';
 import '../widgets/location_control.dart';
 import '../widgets/reminder_control.dart';
 import '../../data/location_service.dart';
@@ -23,6 +23,13 @@ import '../../domain/retention.dart';
 
 /// Çekilen kareye not düşme ekranı.
 enum ComposeSource { camera, gallery, shared }
+
+/// Kaydetmenin hâli.
+///
+/// `sealed` tek karelik bir eşik: kalıcı kopya yazıldıktan sonra rota
+/// kapanana kadar geçen an. Ayrı bir görüntüsü yok, yalnızca kaydetme
+/// eyleminin yeniden tetiklenmesini engelliyor.
+enum ComposeSavePhase { idle, saving, sealed }
 
 class ComposePage extends StatefulWidget {
   const ComposePage({
@@ -83,6 +90,7 @@ class _ComposePageState extends State<ComposePage> {
   static const _locationSettleLimit = Duration(seconds: 4);
 
   ComposeSavePhase _savePhase = ComposeSavePhase.idle;
+
   bool _tempCleared = false;
   bool _flowHandedOff = false;
   bool _flowClosed = false;
@@ -186,6 +194,7 @@ class _ComposePageState extends State<ComposePage> {
         remindRepeats: remindRepeats,
         createdAt: _capturedAt,
         location: location,
+        importId: widget.sharedImportId,
       );
       if (reviewPrompts != null) {
         unawaited(reviewPrompts.recordSuccessfulSave());
@@ -359,10 +368,21 @@ class _ComposePageState extends State<ComposePage> {
                         ComposeSource.camera => null,
                       },
                     ),
-                    action: ComposeSaveAction(
-                      label: context.l10n.actionSave,
-                      phase: _savePhase,
-                      onPressed: _save,
+                    // Alt eylem, not detayıyla aynı künye dilinde: kutu yok,
+                    // güverte çizgisi ve altında geniş harf aralıklı ad.
+                    // Buradaki kapsül 88pt yer kaplıyordu; o payın çoğu artık
+                    // yazı alanının.
+                    action: ColophonBar(
+                      key: const ValueKey('compose-action-bar'),
+                      actions: [
+                        ColophonAction(
+                          key: const ValueKey('compose-action-save'),
+                          label: context.l10n.actionSave,
+                          semanticLabel: context.l10n.actionSave,
+                          busy: _savePhase != ComposeSavePhase.idle,
+                          onPressed: _save,
+                        ),
+                      ],
                     ),
                   ),
                 ),

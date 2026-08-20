@@ -7,6 +7,8 @@ import 'package:latermark/core/theme/app_accent.dart';
 import 'package:latermark/core/theme/app_palette.dart';
 import 'package:latermark/core/theme/app_theme.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/data/notes_repository.dart';
+import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
 import 'package:latermark/features/settings/presentation/widgets/settings_pieces.dart';
@@ -77,9 +79,32 @@ void main() {
 
   test('latermark_db v1 renk sutununa veri kaybetmeden yukselir', () async {
     final sandbox = await Directory.systemTemp.createTemp('latermark_accent');
+    final photoStore = await PhotoStore.openIn(sandbox);
     final path = '${sandbox.path}/v1.sqlite';
     final legacy = raw.sqlite3.open(path);
+    // v1'in **tamamı** kuruluyor: not, arama ve ayar tabloları. Eskiden burada
+    // yalnız `settings` vardı ve göç `notes`'a sütun eklemeye çalışırken
+    // patlıyordu — gerçek bir telefonda olamayacak bir başlangıç durumu, çünkü
+    // o veritabanını yaratan eski uygulama sürümü üç tabloyu da kurmuştu.
     legacy.execute('''
+      CREATE TABLE notes (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        image_name TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        retention INTEGER NOT NULL DEFAULT 0,
+        custom_minutes INTEGER NOT NULL DEFAULT 0,
+        expires_at INTEGER NULL,
+        last_seen_at INTEGER NULL,
+        remind_after_days INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE note_search (
+        note_id INTEGER NOT NULL PRIMARY KEY
+          REFERENCES notes (id) ON DELETE CASCADE,
+        body_folded TEXT NOT NULL DEFAULT '',
+        photo_folded TEXT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0
+      );
       CREATE TABLE settings (
         id INTEGER NOT NULL DEFAULT 1,
         theme_mode INTEGER NOT NULL DEFAULT 2,
@@ -91,9 +116,16 @@ void main() {
         pro_unlocked INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (id)
       );
+      -- Pro açık: hatırlatma şalteri modelde `proUnlocked && reminderEnabled`
+      -- ile maskeleniyor, ücretsiz bir satırda korunduğu görülemezdi.
       INSERT INTO settings (
-        id, theme_mode, density, reminder_enabled, locale
-      ) VALUES (1, 1, 0, 1, 3);
+        id, theme_mode, density, reminder_enabled, locale, pro_unlocked
+      ) VALUES (1, 1, 0, 1, 3, 1);
+      INSERT INTO notes (
+        image_name, body, created_at, remind_after_days
+      ) VALUES ('eski.jpg', 'v1 kaydı', 1754000000, 7);
+      INSERT INTO note_search (note_id, body_folded, photo_folded)
+        VALUES (1, 'v1 kaydi', 'fatura 4521');
       PRAGMA user_version = 1;
     ''');
     legacy.close();
@@ -106,6 +138,23 @@ void main() {
     expect(migrated.density, FeedDensity.single);
     expect(migrated.reminderEnabled, isTrue);
     expect(migrated.accent, AppAccent.orange);
+
+    // Kayıt göçten sağ çıktı ve v1'de olmayan sütunlar dürüst varsayılanlarla
+    // doldu. Bu sürümün eklediği iki sütun da burada sınanıyor: `remind_repeats`
+    // kapalı (eski hatırlatmaların hepsi tek atışlıktı) ve `reminder_anchor_at`
+    // boş (tekrar etmeyen bir kayda sayaç başlangıcı yazmanın anlamı yok).
+    final notes = NotesRepository(database: database, photos: photoStore);
+    final restored = await notes.watchNotes().first;
+    expect(restored, hasLength(1));
+    expect(restored.single.body, 'v1 kaydı');
+    expect(restored.single.remindAfterDays, 7);
+    expect(restored.single.remindRepeats, isFalse);
+    expect(restored.single.reminderAnchorAt, isNull);
+    expect(restored.single.updatedAt, isNull);
+    expect(restored.single.latitude, isNull);
+
+    // Arama indeksi de göçten geçti: karedeki yazı hâlâ bulunuyor.
+    expect((await notes.search('4521')).ids, {restored.single.id});
 
     await repository.setAccent(AppAccent.green);
     await database.close();

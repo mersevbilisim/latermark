@@ -42,6 +42,15 @@ class NoteComposer extends StatelessWidget {
   /// `false` ise içeriğe göre büyür (panel içinde).
   final bool expand;
 
+  /// Yazı alanının pes etmeyeceği taban.
+  ///
+  /// Alan, düzendeki tek esneyen parçaydı: fotoğraf tabanını, hatırlatma
+  /// bloğu ve alt şerit boyunu koruduğu için klavye açılınca kaybın tamamını
+  /// o yutuyor ve bir–iki satıra çöküyordu (ölçüldü: 393×852'de 51pt,
+  /// 400pt'lik klavyede 25pt). Artık bu tabanın altına inmiyor; sığmayan
+  /// durumda alanı küçültmek yerine sayfa kayıyor.
+  static const double minFieldExtent = 104;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -95,7 +104,19 @@ class NoteComposer extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: field),
+                      // Taban, esnek çocuğun *doğal* boyuna konuyor:
+                      // IntrinsicHeight kolonun boyunu bu taban üzerinden
+                      // hesaplıyor, dolayısıyla yer varken alan yine kalan
+                      // her şeyi kaplıyor, yer yokken kolon viewport'tan
+                      // uzun kalıp kaydırılıyor.
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: minFieldExtent,
+                          ),
+                          child: field,
+                        ),
+                      ),
                       if (extra != null) ...[
                         const SizedBox(height: 20),
                         extra!,

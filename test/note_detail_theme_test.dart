@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:latermark/app/app.dart';
@@ -20,6 +21,7 @@ import 'package:latermark/features/notes/presentation/home/widgets/note_card.dar
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
+import 'package:latermark/shared/widgets/glass_surface.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 
 final _pixel = base64Decode(
@@ -100,7 +102,8 @@ void main() {
     final backAction = find.byKey(const ValueKey('detail-action-back'));
     expect(tester.getSize(backAction), const Size.square(38));
 
-    // Üç eylem alt şeritte, ikon + ad olarak. Sıra referans düzendeki gibi.
+    // Üç eylem alt şeritte, künyenin diliyle: ikon yok, geniş harf aralıklı
+    // ad var. Sıra referans düzendeki gibi.
     final shareAction = find.byKey(const ValueKey('detail-action-share'));
     final editAction = find.byKey(const ValueKey('detail-action-edit'));
     final deleteAction = find.byKey(const ValueKey('detail-action-delete'));
@@ -114,21 +117,54 @@ void main() {
     expect(editCenter.dx, lessThan(shareCenter.dx));
     // Hücreler eşit genişlikte: orta hücre şeridin ekseninde durur.
     expect(editCenter.dx, closeTo(logicalSize.width / 2, 0.5));
-    expect(find.text('Sil'), findsOneWidget);
-    expect(find.text('Düzenle'), findsOneWidget);
-    expect(find.text('Paylaş'), findsOneWidget);
+    expect(find.text('SİL'), findsOneWidget);
+    expect(find.text('DÜZENLE'), findsOneWidget);
+    expect(find.text('PAYLAŞ'), findsOneWidget);
     // Şerit güvenli alanın üstünde kalır.
     expect(logicalSize.height - editCenter.dy, greaterThan(bottomSafeInset));
 
-    // Renkler paletten: silme tehlike, düzenleme vurgu, paylaşma nötr.
+    // Şerit bir kap değil, ama sınırsız da değil: kelimelerin üstünde
+    // baskının bittiğini söyleyen güverte çizgisi var.
+    final bar = find.byKey(const ValueKey('detail-action-bar'));
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.delete_outline_rounded)).color,
-      palette.danger,
+      find.descendant(of: bar, matching: find.byType(GlassSurface)),
+      findsNothing,
     );
-    expect(
-      tester.widget<Icon>(find.byIcon(Icons.edit_outlined)).color,
-      palette.ember,
+    final rule = find.descendant(
+      of: bar,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is SizedBox && widget.height == 0.5,
+      ),
     );
+    expect(rule, findsOneWidget);
+    expect(tester.getCenter(rule).dy, lessThan(editCenter.dy));
+    expect(tester.getSize(rule).width, logicalSize.width - 32);
+
+    // Renk dinlenirken yok; üç kelime de aynı mürekkepte. Tehlike sinyali
+    // dokunma anında beliriyor, dinlenen ekranda değil.
+    // Renk stilde değil boyanan paragrafta okunur: hücre onu
+    // AnimatedDefaultTextStyle üzerinden veriyor.
+    Color colorOf(Finder cell) => (tester.renderObject(
+          find.descendant(of: cell, matching: find.byType(Text)),
+        ) as RenderParagraph)
+        .text
+        .style!
+        .color!;
+    expect(colorOf(deleteAction), palette.ink);
+    expect(colorOf(editAction), palette.ink);
+    expect(colorOf(shareAction), palette.ink);
+
+    final press = await tester.startGesture(deleteCenter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(colorOf(deleteAction), palette.danger);
+    expect(colorOf(shareAction), palette.ink);
+    // Dokunuş tamamlanmıyor: bırakmak silme onayını açardı ve sayfanın geri
+    // kalanı bu testin konusu değil.
+    await press.cancel();
+    await _settle(tester);
+    expect(colorOf(deleteAction), palette.ink);
 
     final chrome = find.byKey(const ValueKey('detail-chrome'));
     final photoStage = find.byKey(const ValueKey('note-photo-stage'));
@@ -180,8 +216,8 @@ void main() {
     );
     expect(editField.keyboardAppearance, Brightness.light);
     expect(editField.style?.color, palette.ink);
-    expect(find.text('Vazgeç'), findsOneWidget);
-    expect(find.text('Kaydet'), findsOneWidget);
+    expect(find.text('VAZGEÇ'), findsOneWidget);
+    expect(find.text('KAYDET'), findsOneWidget);
 
     final cancelCenter = tester.getCenter(
       find.byKey(const ValueKey('edit-action-cancel')),
@@ -216,7 +252,7 @@ void main() {
     // Yazarken sayfa eylemleri çekilir; yerini kaydet/vazgeç rayı alır.
     expect(find.byKey(const ValueKey('detail-action-bar')), findsOneWidget);
 
-    await tester.tap(find.text('Vazgeç'));
+    await tester.tap(find.text('VAZGEÇ'));
     await _settle(tester);
     expect(find.byType(DetailSheet), findsOneWidget);
 
@@ -323,6 +359,66 @@ void main() {
       findsNothing,
     );
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('paylaşma beklerken adı nefes alır, çark belirmez', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 300);
+    addTearDown(tester.view.reset);
+
+    Future<void> pumpBar({required bool sharing}) => tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        locale: const Locale('tr'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              const Spacer(),
+              DetailActionBar(
+                reveal: const AlwaysStoppedAnimation<double>(1),
+                onDelete: () {},
+                onEdit: () {},
+                onShare: () {},
+                sharing: sharing,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    double opacityOf(String key) => tester
+        .widget<Opacity>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+
+    await pumpBar(sharing: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 550));
+    expect(opacityOf('detail-action-share'), 1.0);
+
+    await pumpBar(sharing: true);
+    await tester.pump();
+    // Sistem paylaşım sayfası beklenirken şeritte Material çarkı yok; bekleme
+    // kelimenin kendisinden okunuyor.
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.pump(const Duration(milliseconds: 550));
+    expect(opacityOf('detail-action-share'), lessThan(1.0));
+    // Yalnızca bekleyen kelime nefes alıyor; şeridin geri kalanı sabit.
+    expect(opacityOf('detail-action-delete'), 1.0);
+    expect(opacityOf('detail-action-edit'), 1.0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }
 

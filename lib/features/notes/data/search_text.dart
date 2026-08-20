@@ -15,6 +15,18 @@ abstract final class SearchText {
   /// (tutar, fiş no, vergi no) sayfanın ortasındadır, başında değil.
   static const int maxIndexedChars = 8000;
 
+  /// Süreçler ve sürümler arasında kararlı, küçük içerik imzası (FNV-1a).
+  /// `String.hashCode` bu sözleşmeyi vermez; Spotlight state'i ise diskte bir
+  /// sonraki sürüm tarafından da okunur.
+  static String fingerprint(String value) {
+    var hash = 0x811C9DC5;
+    for (var i = 0; i < value.length; i++) {
+      hash ^= value.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
+  }
+
   /// Aramada büyük/küçük ve diakritik farklarını yok sayar.
   ///
   /// OCR `ı` ile `i`yi sık karıştırıyor; kullanıcının yazdığı da her zaman

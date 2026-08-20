@@ -138,7 +138,7 @@ void main() {
     final selectorSize = tester.getSize(
       find.byKey(const Key('retention-selector')),
     );
-    expect(selectorSize.height, 46);
+    expect(selectorSize.height, 48);
     await tester.tap(find.text('3 Days'));
     await tester.pump();
 

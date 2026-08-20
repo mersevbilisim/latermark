@@ -344,7 +344,13 @@ class _SettingsPageState extends State<SettingsPage>
       return;
     }
 
-    final mode = await showBackupActionsSheet(context);
+    // Kayıt sayısı tek bir COUNT(*) ile geliyor; boş bir arşivden yedek almak
+    // içi boş bir dosya üretirdi ve bunu kullanıcıya seçim anında söylemek
+    // gerekiyor.
+    final noteCount = await AppScope.of(context).watchNoteCount().first;
+    if (!mounted) return;
+
+    final mode = await showBackupActionsSheet(context, hasData: noteCount > 0);
     if (mode == null || !mounted) return;
     await _openBackup(mode);
   }

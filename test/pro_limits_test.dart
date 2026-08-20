@@ -43,11 +43,32 @@ void main() {
 
     test('sınıra yaklaşınca görünür, uzakken görünmez', () {
       expect(ProLimits.showsCounter(0, isPro: false), isFalse);
+      // Pencerenin bir dışı kapalı, tam kenarı açık: eşiğin hangi tarafta
+      // olduğu sayaç davranışının tamamını belirliyor.
       expect(
-        ProLimits.showsCounter(ProLimits.freeNotes - 3, isPro: false),
+        ProLimits.showsCounter(
+          ProLimits.freeNotes - ProLimits.counterWindow - 1,
+          isPro: false,
+        ),
+        isFalse,
+      );
+      expect(
+        ProLimits.showsCounter(
+          ProLimits.freeNotes - ProLimits.counterWindow,
+          isPro: false,
+        ),
         isTrue,
       );
       expect(ProLimits.showsCounter(ProLimits.freeNotes, isPro: false), isTrue);
+    });
+
+    test('sayaç arşivin yarısından önce görünmez', () {
+      // Sınır küçüldükçe mutlak mesafe korunursa uyarı erken başlar ve
+      // kullanıcıyı daha arşivi kurarken sıkıştırır.
+      expect(
+        ProLimits.counterWindow * 2,
+        lessThanOrEqualTo(ProLimits.freeNotes),
+      );
     });
   });
 }

@@ -22,4 +22,13 @@
 "share.compose.hint" = "이 사진을 남기는 이유는 무엇인가요?";
 "share.error.title" = "사진을 추가하지 못했습니다";
 "share.error.body" = "사진을 Latermark로 보내지 못했습니다. 다시 시도해 주세요.";
+"share.reminder.title" = "미리 알림";
+"share.reminder.off" = "끔";
+"share.reminder.tomorrow" = "내일";
+"share.reminder.next_week" = "다음 주";
+"share.reminder.custom" = "사용자 설정";
+"share.reminder.days" = "%d일";
+"share.reminder.custom.message" = "1에서 365 사이의 일수를 입력하세요.";
+"share.reminder.custom.placeholder" = "일";
+"action.cancel" = "취소";
 "action.ok" = "확인";

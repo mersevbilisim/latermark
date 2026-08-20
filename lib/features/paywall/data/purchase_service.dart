@@ -20,9 +20,17 @@ import 'debug_entitlement.dart';
 /// uygulama açılışında arayüz titremesin diye. Bkz. [unlocked].
 class PurchaseService {
   PurchaseService({@visibleForTesting InAppPurchase? store})
-    : _store = store ?? InAppPurchase.instance;
+    : _storeInjected = store != null,
+      _storeOverride = store;
 
-  final InAppPurchase _store;
+  final InAppPurchase? _storeOverride;
+  final bool _storeInjected;
+
+  // `InAppPurchase.instance` Android'de oluşturulurken BillingClient
+  // bağlantısını başlatabilir. Test/desteklenmeyen platform kapısından önce
+  // dokunmamak, yalnız sorguları değil eklentinin kendisini de gerçekten lazy
+  // tutar.
+  InAppPurchase get _store => _storeOverride ?? InAppPurchase.instance;
 
   /// Apple ve Google'da aynı kimlik kullanılıyor.
   ///
@@ -60,7 +68,9 @@ class PurchaseService {
   final _purchased = StreamController<void>.broadcast();
   Stream<void> get onPurchased => _purchased.stream;
 
-  bool get _supported => Platform.isIOS || Platform.isAndroid;
+  bool get _supported =>
+      (_storeInjected || !Platform.environment.containsKey('FLUTTER_TEST')) &&
+      (Platform.isIOS || Platform.isAndroid);
 
   ProductDetails? _product;
   Future<void>? _productLoad;

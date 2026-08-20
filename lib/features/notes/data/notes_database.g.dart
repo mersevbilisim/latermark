@@ -926,6 +926,17 @@ class $NoteSearchTable extends NoteSearch
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _photoFingerprintMeta = const VerificationMeta(
+    'photoFingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> photoFingerprint = GeneratedColumn<String>(
+    'photo_fingerprint',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _attemptsMeta = const VerificationMeta(
     'attempts',
   );
@@ -943,6 +954,7 @@ class $NoteSearchTable extends NoteSearch
     noteId,
     bodyFolded,
     photoFolded,
+    photoFingerprint,
     attempts,
   ];
   @override
@@ -978,6 +990,15 @@ class $NoteSearchTable extends NoteSearch
         ),
       );
     }
+    if (data.containsKey('photo_fingerprint')) {
+      context.handle(
+        _photoFingerprintMeta,
+        photoFingerprint.isAcceptableOrUnknown(
+          data['photo_fingerprint']!,
+          _photoFingerprintMeta,
+        ),
+      );
+    }
     if (data.containsKey('attempts')) {
       context.handle(
         _attemptsMeta,
@@ -1004,6 +1025,10 @@ class $NoteSearchTable extends NoteSearch
       photoFolded: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}photo_folded'],
+      ),
+      photoFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_fingerprint'],
       ),
       attempts: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1040,6 +1065,11 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
   /// `null` = henüz okunamadı. Boş metin = tarandı, yazı bulunamadı.
   final String? photoFolded;
 
+  /// [photoFolded] içeriğinin sürümler arasında kararlı özeti. Spotlight her
+  /// açılışta sayfa dolusu OCR metnini belleğe almadan gerçek içerik
+  /// değişikliğini bununla görür.
+  final String? photoFingerprint;
+
   /// Başarısız okuma sayısı.
   ///
   /// Sayaç olmadan bozuk ya da okunamayan tek bir kare, listedeki her
@@ -1050,6 +1080,7 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
     required this.noteId,
     required this.bodyFolded,
     this.photoFolded,
+    this.photoFingerprint,
     required this.attempts,
   });
   @override
@@ -1059,6 +1090,9 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
     map['body_folded'] = Variable<String>(bodyFolded);
     if (!nullToAbsent || photoFolded != null) {
       map['photo_folded'] = Variable<String>(photoFolded);
+    }
+    if (!nullToAbsent || photoFingerprint != null) {
+      map['photo_fingerprint'] = Variable<String>(photoFingerprint);
     }
     map['attempts'] = Variable<int>(attempts);
     return map;
@@ -1071,6 +1105,9 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
       photoFolded: photoFolded == null && nullToAbsent
           ? const Value.absent()
           : Value(photoFolded),
+      photoFingerprint: photoFingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoFingerprint),
       attempts: Value(attempts),
     );
   }
@@ -1084,6 +1121,7 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
       noteId: serializer.fromJson<int>(json['noteId']),
       bodyFolded: serializer.fromJson<String>(json['bodyFolded']),
       photoFolded: serializer.fromJson<String?>(json['photoFolded']),
+      photoFingerprint: serializer.fromJson<String?>(json['photoFingerprint']),
       attempts: serializer.fromJson<int>(json['attempts']),
     );
   }
@@ -1094,6 +1132,7 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
       'noteId': serializer.toJson<int>(noteId),
       'bodyFolded': serializer.toJson<String>(bodyFolded),
       'photoFolded': serializer.toJson<String?>(photoFolded),
+      'photoFingerprint': serializer.toJson<String?>(photoFingerprint),
       'attempts': serializer.toJson<int>(attempts),
     };
   }
@@ -1102,11 +1141,15 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
     int? noteId,
     String? bodyFolded,
     Value<String?> photoFolded = const Value.absent(),
+    Value<String?> photoFingerprint = const Value.absent(),
     int? attempts,
   }) => NoteSearchRow(
     noteId: noteId ?? this.noteId,
     bodyFolded: bodyFolded ?? this.bodyFolded,
     photoFolded: photoFolded.present ? photoFolded.value : this.photoFolded,
+    photoFingerprint: photoFingerprint.present
+        ? photoFingerprint.value
+        : this.photoFingerprint,
     attempts: attempts ?? this.attempts,
   );
   NoteSearchRow copyWithCompanion(NoteSearchCompanion data) {
@@ -1118,6 +1161,9 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
       photoFolded: data.photoFolded.present
           ? data.photoFolded.value
           : this.photoFolded,
+      photoFingerprint: data.photoFingerprint.present
+          ? data.photoFingerprint.value
+          : this.photoFingerprint,
       attempts: data.attempts.present ? data.attempts.value : this.attempts,
     );
   }
@@ -1128,13 +1174,15 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
           ..write('noteId: $noteId, ')
           ..write('bodyFolded: $bodyFolded, ')
           ..write('photoFolded: $photoFolded, ')
+          ..write('photoFingerprint: $photoFingerprint, ')
           ..write('attempts: $attempts')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(noteId, bodyFolded, photoFolded, attempts);
+  int get hashCode =>
+      Object.hash(noteId, bodyFolded, photoFolded, photoFingerprint, attempts);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1142,6 +1190,7 @@ class NoteSearchRow extends DataClass implements Insertable<NoteSearchRow> {
           other.noteId == this.noteId &&
           other.bodyFolded == this.bodyFolded &&
           other.photoFolded == this.photoFolded &&
+          other.photoFingerprint == this.photoFingerprint &&
           other.attempts == this.attempts);
 }
 
@@ -1149,29 +1198,34 @@ class NoteSearchCompanion extends UpdateCompanion<NoteSearchRow> {
   final Value<int> noteId;
   final Value<String> bodyFolded;
   final Value<String?> photoFolded;
+  final Value<String?> photoFingerprint;
   final Value<int> attempts;
   const NoteSearchCompanion({
     this.noteId = const Value.absent(),
     this.bodyFolded = const Value.absent(),
     this.photoFolded = const Value.absent(),
+    this.photoFingerprint = const Value.absent(),
     this.attempts = const Value.absent(),
   });
   NoteSearchCompanion.insert({
     this.noteId = const Value.absent(),
     this.bodyFolded = const Value.absent(),
     this.photoFolded = const Value.absent(),
+    this.photoFingerprint = const Value.absent(),
     this.attempts = const Value.absent(),
   });
   static Insertable<NoteSearchRow> custom({
     Expression<int>? noteId,
     Expression<String>? bodyFolded,
     Expression<String>? photoFolded,
+    Expression<String>? photoFingerprint,
     Expression<int>? attempts,
   }) {
     return RawValuesInsertable({
       if (noteId != null) 'note_id': noteId,
       if (bodyFolded != null) 'body_folded': bodyFolded,
       if (photoFolded != null) 'photo_folded': photoFolded,
+      if (photoFingerprint != null) 'photo_fingerprint': photoFingerprint,
       if (attempts != null) 'attempts': attempts,
     });
   }
@@ -1180,12 +1234,14 @@ class NoteSearchCompanion extends UpdateCompanion<NoteSearchRow> {
     Value<int>? noteId,
     Value<String>? bodyFolded,
     Value<String?>? photoFolded,
+    Value<String?>? photoFingerprint,
     Value<int>? attempts,
   }) {
     return NoteSearchCompanion(
       noteId: noteId ?? this.noteId,
       bodyFolded: bodyFolded ?? this.bodyFolded,
       photoFolded: photoFolded ?? this.photoFolded,
+      photoFingerprint: photoFingerprint ?? this.photoFingerprint,
       attempts: attempts ?? this.attempts,
     );
   }
@@ -1202,6 +1258,9 @@ class NoteSearchCompanion extends UpdateCompanion<NoteSearchRow> {
     if (photoFolded.present) {
       map['photo_folded'] = Variable<String>(photoFolded.value);
     }
+    if (photoFingerprint.present) {
+      map['photo_fingerprint'] = Variable<String>(photoFingerprint.value);
+    }
     if (attempts.present) {
       map['attempts'] = Variable<int>(attempts.value);
     }
@@ -1214,6 +1273,7 @@ class NoteSearchCompanion extends UpdateCompanion<NoteSearchRow> {
           ..write('noteId: $noteId, ')
           ..write('bodyFolded: $bodyFolded, ')
           ..write('photoFolded: $photoFolded, ')
+          ..write('photoFingerprint: $photoFingerprint, ')
           ..write('attempts: $attempts')
           ..write(')'))
         .toString();
@@ -2393,6 +2453,7 @@ typedef $$NoteSearchTableCreateCompanionBuilder =
       Value<int> noteId,
       Value<String> bodyFolded,
       Value<String?> photoFolded,
+      Value<String?> photoFingerprint,
       Value<int> attempts,
     });
 typedef $$NoteSearchTableUpdateCompanionBuilder =
@@ -2400,6 +2461,7 @@ typedef $$NoteSearchTableUpdateCompanionBuilder =
       Value<int> noteId,
       Value<String> bodyFolded,
       Value<String?> photoFolded,
+      Value<String?> photoFingerprint,
       Value<int> attempts,
     });
 
@@ -2441,6 +2503,11 @@ class $$NoteSearchTableFilterComposer
 
   ColumnFilters<String> get photoFolded => $composableBuilder(
     column: $table.photoFolded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoFingerprint => $composableBuilder(
+    column: $table.photoFingerprint,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2492,6 +2559,11 @@ class $$NoteSearchTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get photoFingerprint => $composableBuilder(
+    column: $table.photoFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get attempts => $composableBuilder(
     column: $table.attempts,
     builder: (column) => ColumnOrderings(column),
@@ -2537,6 +2609,11 @@ class $$NoteSearchTableAnnotationComposer
 
   GeneratedColumn<String> get photoFolded => $composableBuilder(
     column: $table.photoFolded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get photoFingerprint => $composableBuilder(
+    column: $table.photoFingerprint,
     builder: (column) => column,
   );
 
@@ -2598,11 +2675,13 @@ class $$NoteSearchTableTableManager
                 Value<int> noteId = const Value.absent(),
                 Value<String> bodyFolded = const Value.absent(),
                 Value<String?> photoFolded = const Value.absent(),
+                Value<String?> photoFingerprint = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
               }) => NoteSearchCompanion(
                 noteId: noteId,
                 bodyFolded: bodyFolded,
                 photoFolded: photoFolded,
+                photoFingerprint: photoFingerprint,
                 attempts: attempts,
               ),
           createCompanionCallback:
@@ -2610,11 +2689,13 @@ class $$NoteSearchTableTableManager
                 Value<int> noteId = const Value.absent(),
                 Value<String> bodyFolded = const Value.absent(),
                 Value<String?> photoFolded = const Value.absent(),
+                Value<String?> photoFingerprint = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
               }) => NoteSearchCompanion.insert(
                 noteId: noteId,
                 bodyFolded: bodyFolded,
                 photoFolded: photoFolded,
+                photoFingerprint: photoFingerprint,
                 attempts: attempts,
               ),
           withReferenceMapper: (p0) => p0

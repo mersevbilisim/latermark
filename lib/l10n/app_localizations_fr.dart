@@ -317,6 +317,9 @@ class L10nFr extends L10n {
   String get backupCreateTitle => 'Créer une sauvegarde';
 
   @override
+  String get backupNothingToSave => 'Il n’y a encore rien à sauvegarder.';
+
+  @override
   String get backupCreateDescription =>
       'Tout ce qui est sur cet appareil, scellé dans un fichier chiffré.';
 
@@ -397,7 +400,10 @@ class L10nFr extends L10n {
   }
 
   @override
-  String get backupActionSave => 'Enregistrer ou partager';
+  String get backupActionSave => 'Enregistrer sur cet appareil';
+
+  @override
+  String get backupSavedToDevice => 'Enregistré.';
 
   @override
   String get backupPickFile => 'Choisir un fichier';
@@ -873,7 +879,9 @@ class L10nFr extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => 'Vos 10 emplacements sont occupés';
+  String paywallLimitTitle(int limit) {
+    return 'Vos $limit emplacements sont occupés';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -991,6 +999,15 @@ class L10nFr extends L10n {
   @override
   String get notificationChannelDescription =>
       'Vous rappelle les captures que vous avez programmées.';
+
+  @override
+  String get reminderActionDone => 'Terminé';
+
+  @override
+  String get reminderActionTomorrow => 'Demain';
+
+  @override
+  String get reminderActionNextWeek => 'La semaine prochaine';
 
   @override
   String get actionOK => 'OK';

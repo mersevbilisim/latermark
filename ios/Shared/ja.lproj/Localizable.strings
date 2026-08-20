@@ -22,4 +22,13 @@
 "share.compose.hint" = "この写真を残す理由は？";
 "share.error.title" = "写真を追加できませんでした";
 "share.error.body" = "写真をLatermarkに送信できませんでした。もう一度お試しください。";
+"share.reminder.title" = "リマインダー";
+"share.reminder.off" = "オフ";
+"share.reminder.tomorrow" = "明日";
+"share.reminder.next_week" = "来週";
+"share.reminder.custom" = "カスタム";
+"share.reminder.days" = "%d日";
+"share.reminder.custom.message" = "1から365までの日数を入力してください。";
+"share.reminder.custom.placeholder" = "日数";
+"action.cancel" = "キャンセル";
 "action.ok" = "OK";

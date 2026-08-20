@@ -7,6 +7,7 @@ import UIKit
 /// URL hileleriyle zorla açmaya çalışmaz.
 final class ShareViewController: SLComposeServiceViewController {
   private var isSaving = false
+  private var remindAfterDays = 0
 
   private func text(_ key: String) -> String {
     NSLocalizedString(key, tableName: "Localizable", bundle: .main, comment: "")
@@ -40,7 +41,8 @@ final class ShareViewController: SLComposeServiceViewController {
           try SharedImportStore.enqueue(
             imageAt: url,
             initialText: note,
-            saveImmediately: true
+            saveImmediately: true,
+            remindAfterDays: remindAfterDays
           )
           finish()
           return
@@ -52,7 +54,107 @@ final class ShareViewController: SLComposeServiceViewController {
     }
   }
 
-  override func configurationItems() -> [Any]! { [] }
+  override func configurationItems() -> [Any]! {
+    // Reminder Latermark'ta Pro özelliği. Extension mağaza/Drift açmaz; ana
+    // uygulamanın App Group'a aynaladığı son bilinen hakkı kullanır ve Runner
+    // kaydederken hakkı yeniden doğrular.
+    guard SharedImportStore.proUnlocked else { return [] }
+
+    guard let reminder = SLComposeSheetConfigurationItem() else { return [] }
+    reminder.title = text("share.reminder.title")
+    reminder.value = reminderValue
+    reminder.tapHandler = { [weak self] in self?.chooseReminder() }
+    return [reminder]
+  }
+
+  private var reminderValue: String {
+    switch remindAfterDays {
+    case 1: return text("share.reminder.tomorrow")
+    case 7: return text("share.reminder.next_week")
+    case 2...365:
+      return String(format: text("share.reminder.days"), remindAfterDays)
+    default: return text("share.reminder.off")
+    }
+  }
+
+  private func chooseReminder() {
+    let alert = UIAlertController(
+      title: text("share.reminder.title"),
+      message: nil,
+      preferredStyle: .alert
+    )
+    addReminderAction(
+      to: alert,
+      title: text("share.reminder.off"),
+      days: 0
+    )
+    addReminderAction(
+      to: alert,
+      title: text("share.reminder.tomorrow"),
+      days: 1
+    )
+    addReminderAction(
+      to: alert,
+      title: text("share.reminder.next_week"),
+      days: 7
+    )
+    alert.addAction(UIAlertAction(
+      title: text("share.reminder.custom"),
+      style: .default
+    ) { [weak self] _ in
+      self?.chooseCustomReminder()
+    })
+    alert.addAction(UIAlertAction(
+      title: text("action.cancel"),
+      style: .cancel
+    ))
+    present(alert, animated: true)
+  }
+
+  private func addReminderAction(
+    to alert: UIAlertController,
+    title: String,
+    days: Int
+  ) {
+    alert.addAction(UIAlertAction(title: title, style: .default) {
+      [weak self] _ in
+      self?.remindAfterDays = days
+      self?.reloadConfigurationItems()
+    })
+  }
+
+  private func chooseCustomReminder() {
+    let alert = UIAlertController(
+      title: text("share.reminder.custom"),
+      message: text("share.reminder.custom.message"),
+      preferredStyle: .alert
+    )
+    alert.addTextField { [weak self] field in
+      field.keyboardType = .numberPad
+      field.placeholder = self?.text("share.reminder.custom.placeholder")
+      if let self, self.remindAfterDays > 0 {
+        field.text = String(self.remindAfterDays)
+      }
+    }
+    alert.addAction(UIAlertAction(
+      title: text("action.cancel"),
+      style: .cancel
+    ))
+    alert.addAction(UIAlertAction(
+      title: text("action.ok"),
+      style: .default
+    ) { [weak self, weak alert] _ in
+      guard
+        let self,
+        let raw = alert?.textFields?.first?.text,
+        let days = Int(raw),
+        (1...365).contains(days)
+      else { return }
+      self.remindAfterDays = days
+      self.reloadConfigurationItems()
+    })
+    present(alert, animated: true)
+  }
 
   private func imageProvider() -> NSItemProvider? {
     extensionContext?.inputItems
@@ -80,7 +182,8 @@ final class ShareViewController: SLComposeServiceViewController {
           imageData: data,
           fileExtension: "jpg",
           initialText: note,
-          saveImmediately: true
+          saveImmediately: true,
+          remindAfterDays: remindAfterDays
         )
         finish()
       } catch {

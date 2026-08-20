@@ -114,6 +114,7 @@
   "backupManageTitle": "Yedekleme işlemleri",
   "backupManageDescription": "Şifreli bir kopya oluştur veya mevcut bir yedeği geri getir.",
   "backupCreateTitle": "Yedek al",
+  "backupNothingToSave": "Henüz yedeklenecek bir şey yok.",
   "backupCreateDescription": "Bu cihazdaki her şey, tek bir şifreli dosyada.",
   "backupRestoreTitle": "Yedeği geri yükle",
   "backupRestoreDescription": "Buradaki her şeyi bir yedek dosyasıyla değiştir.",
@@ -137,7 +138,8 @@
   "backupItems": "{done} / {total}",
   "backupReadyTitle": "Yedeğin hazır",
   "backupReadySubtitle": "{notes} not ve {photos} kare şifrelendi.",
-  "backupActionSave": "Kaydet veya paylaş",
+  "backupActionSave": "Bu cihaza kaydet",
+  "backupSavedToDevice": "Kaydedildi.",
   "backupPickFile": "Dosya seç",
   "backupUnlockTitle": "Parolayı gir",
   "backupUnlockSubtitle": "Bu yedeği alırken seçtiğin parola.",
@@ -359,7 +361,7 @@
       }
     }
   },
-  "paywallLimitTitle": "10 karen dolu",
+  "paywallLimitTitle": "{limit} karen dolu",
   "paywallLimitBody": "Ücretsiz katmanda aynı anda {limit} kare tutulur. Pro ile sınır kalkar — ya da bir kare silip devam edebilirsin.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -450,6 +452,9 @@
   "notificationBodyNoBody": "Bu kareyi hatırlatmamı istemiştin.",
   "notificationChannelName": "Hatırlatmalar",
   "notificationChannelDescription": "Süre verdiğin kayıtları hatırlatır.",
+  "reminderActionDone": "Tamam",
+  "reminderActionTomorrow": "Yarın",
+  "reminderActionNextWeek": "Haftaya",
   "widgetDescription": "Son kareni ve notunu gösterir.",
   "widgetEmptySubtitle": "İlk notun burada görünecek",
   "widgetPhotoDescription": "Son karenin fotoğrafı",

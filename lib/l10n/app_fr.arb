@@ -113,6 +113,7 @@
   "backupManageTitle": "Gérer les sauvegardes",
   "backupManageDescription": "Crée une copie chiffrée ou restaure une sauvegarde existante.",
   "backupCreateTitle": "Créer une sauvegarde",
+  "backupNothingToSave": "Il n’y a encore rien à sauvegarder.",
   "backupCreateDescription": "Tout ce qui est sur cet appareil, scellé dans un fichier chiffré.",
   "backupRestoreTitle": "Restaurer une sauvegarde",
   "backupRestoreDescription": "Remplacer tout ici par un fichier de sauvegarde.",
@@ -136,7 +137,8 @@
   "backupItems": "{done} sur {total}",
   "backupReadyTitle": "Ta sauvegarde est prête",
   "backupReadySubtitle": "{notes} notes et {photos} photos, chiffrées.",
-  "backupActionSave": "Enregistrer ou partager",
+  "backupActionSave": "Enregistrer sur cet appareil",
+  "backupSavedToDevice": "Enregistré.",
   "backupPickFile": "Choisir un fichier",
   "backupUnlockTitle": "Saisis le mot de passe",
   "backupUnlockSubtitle": "Le mot de passe choisi lors de la création de cette sauvegarde.",
@@ -358,7 +360,7 @@
       }
     }
   },
-  "paywallLimitTitle": "Vos 10 emplacements sont occupés",
+  "paywallLimitTitle": "Vos {limit} emplacements sont occupés",
   "paywallLimitBody": "La version gratuite conserve jusqu’à {limit} captures à la fois. Pro supprime cette limite — ou vous pouvez effacer une capture pour continuer.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -449,6 +451,9 @@
   "notificationBodyNoBody": "Vous aviez demandé un rappel pour cette capture.",
   "notificationChannelName": "Rappels",
   "notificationChannelDescription": "Vous rappelle les captures que vous avez programmées.",
+  "reminderActionDone": "Terminé",
+  "reminderActionTomorrow": "Demain",
+  "reminderActionNextWeek": "La semaine prochaine",
   "actionOK": "OK",
   "widgetDescription": "Affiche votre dernière capture et sa note.",
   "widgetEmptySubtitle": "Votre première note apparaîtra ici",

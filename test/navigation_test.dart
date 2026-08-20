@@ -142,7 +142,7 @@ void main() {
 
     expect(find.text('GALERİ'), findsOneWidget);
     expect(find.text('Başka fotoğraf'), findsOneWidget);
-    expect(find.text('Kaydet'), findsOneWidget);
+    expect(find.text('KAYDET'), findsOneWidget);
     expect(galleryFile.existsSync(), isTrue);
 
     await disposeTree(tester);
@@ -184,11 +184,19 @@ void main() {
       LatermarkApp(notes: repository, settings: SettingsRepository(database)),
     );
     await settle(tester);
+    // Paylaşım, ücretsiz katman kapısını gerçek Drift akışından geçirir.
+    // Widget testinin sahte saati native sqlite future'ını ilerletmez; event
+    // loop'a kısa bir tur verip açılan rotayı sonrasında çiziyoruz.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await settle(tester);
 
+    expect(delivered, isTrue);
     expect(find.text('PAYLAŞIM'), findsOneWidget);
     expect(find.text('Galeriden paylaşılan etiket'), findsOneWidget);
     expect(find.text('Başka fotoğraf'), findsOneWidget);
-    expect(find.text('Kaydet'), findsOneWidget);
+    expect(find.text('KAYDET'), findsOneWidget);
 
     tester.state<NavigatorState>(find.byType(Navigator)).pop();
     await settle(tester);
@@ -255,7 +263,7 @@ void main() {
     // Düzenleme ayrıca okunan satırın kendisine dokunarak da açılır.
     await tester.tap(find.byKey(const ValueKey('detail-note-copy')));
     await settle(tester);
-    expect(find.text('Kaydet'), findsOneWidget);
+    expect(find.text('KAYDET'), findsOneWidget);
 
     await disposeTree(tester);
   });
@@ -299,10 +307,7 @@ void main() {
     await settle(tester);
 
     // Kart bir bakışlık kısa biçimi ("3g") taşıyor; detay tam cümleyi.
-    expect(
-      find.text('2 GÜN 23 SAAT SONRA SİLİNECEK'),
-      findsOneWidget,
-    );
+    expect(find.text('2 GÜN 23 SAAT SONRA SİLİNECEK'), findsOneWidget);
     expect(find.byKey(const ValueKey('detail-life-edge')), findsOneWidget);
 
     await disposeTree(tester);

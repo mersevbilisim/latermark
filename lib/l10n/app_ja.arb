@@ -113,6 +113,7 @@
   "backupManageTitle": "バックアップ管理",
   "backupManageDescription": "暗号化したコピーの作成や、既存のバックアップの復元ができます。",
   "backupCreateTitle": "バックアップを作成",
+  "backupNothingToSave": "まだバックアップするものがありません。",
   "backupCreateDescription": "この端末のすべてを、暗号化された1つのファイルに。",
   "backupRestoreTitle": "バックアップから復元",
   "backupRestoreDescription": "ここにあるすべてをバックアップファイルで置き換えます。",
@@ -136,7 +137,8 @@
   "backupItems": "{done} / {total}",
   "backupReadyTitle": "バックアップができました",
   "backupReadySubtitle": "{notes}件のメモと{photos}枚の写真を暗号化しました。",
-  "backupActionSave": "保存または共有",
+  "backupActionSave": "この端末に保存",
+  "backupSavedToDevice": "保存しました。",
   "backupPickFile": "ファイルを選択",
   "backupUnlockTitle": "パスワードを入力",
   "backupUnlockSubtitle": "このバックアップを作成したときに設定したパスワード。",
@@ -358,7 +360,7 @@
       }
     }
   },
-  "paywallLimitTitle": "10枚すべて使用中",
+  "paywallLimitTitle": "{limit}枚すべて使用中",
   "paywallLimitBody": "無料版で保持できるのは同時に{limit}枚までです。Proなら上限なし。1枚削除して続けることもできます。",
   "@paywallLimitBody": {
     "placeholders": {
@@ -449,6 +451,9 @@
   "notificationBodyNoBody": "この写真を思い出す時間です。",
   "notificationChannelName": "リマインダー",
   "notificationChannelDescription": "日時を設定した記録をお知らせします。",
+  "reminderActionDone": "完了",
+  "reminderActionTomorrow": "明日",
+  "reminderActionNextWeek": "来週",
   "actionOK": "OK",
   "widgetDescription": "最新の写真とノートを表示します。",
   "widgetEmptySubtitle": "最初のノートがここに表示されます",

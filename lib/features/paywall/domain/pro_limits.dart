@@ -15,7 +15,18 @@
 ///   açar; kullanıcı ödemeden de uygulamaya devam edebilir.
 abstract final class ProLimits {
   /// Ücretsiz katmanda aynı anda tutulabilecek kare sayısı.
-  static const freeNotes = 10;
+  ///
+  /// Sayı burada tek yerde duruyor ve arayüzdeki her metin onu buradan
+  /// okuyor — paywall başlığı dahil. Eskiden başlıkta sabit "10" yazıyordu ve
+  /// sınır değiştiğinde ekran yalan söylemeye başlıyordu.
+  static const freeNotes = 5;
+
+  /// Sayacın göründüğü son kare sayısı.
+  ///
+  /// Sınırın kaçta kaçında uyarılacağı orantılı olmalı: on karede son üçte
+  /// uyarmak makul bir eşikti, beş karede aynı mutlak mesafe kullanıcıyı
+  /// arşivi yarısına gelmeden sıkıştırırdı.
+  static const counterWindow = 2;
 
   /// Kullanıcı bu sayıya ulaştığında yeni çekim paywall'a yönlenir.
   static bool blocksNewNote(int noteCount, {required bool isPro}) =>
@@ -25,5 +36,5 @@ abstract final class ProLimits {
   ///
   /// Kullanıcı duvara habersiz toslamamalı; son birkaç karede sayaç görünür.
   static bool showsCounter(int noteCount, {required bool isPro}) =>
-      !isPro && noteCount >= freeNotes - 3;
+      !isPro && noteCount >= freeNotes - counterWindow;
 }

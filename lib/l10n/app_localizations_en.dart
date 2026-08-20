@@ -316,6 +316,9 @@ class L10nEn extends L10n {
   String get backupCreateTitle => 'Create a backup';
 
   @override
+  String get backupNothingToSave => 'There’s nothing to back up yet.';
+
+  @override
   String get backupCreateDescription =>
       'Everything on this device, sealed into one encrypted file.';
 
@@ -395,7 +398,10 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get backupActionSave => 'Save or share';
+  String get backupActionSave => 'Save to this device';
+
+  @override
+  String get backupSavedToDevice => 'Saved.';
 
   @override
   String get backupPickFile => 'Choose a file';
@@ -868,7 +874,9 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => 'Your 10 frames are full';
+  String paywallLimitTitle(int limit) {
+    return 'Your $limit frames are full';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -984,6 +992,15 @@ class L10nEn extends L10n {
   @override
   String get notificationChannelDescription =>
       'Reminds you about frames you’ve scheduled.';
+
+  @override
+  String get reminderActionDone => 'Done';
+
+  @override
+  String get reminderActionTomorrow => 'Tomorrow';
+
+  @override
+  String get reminderActionNextWeek => 'Next week';
 
   @override
   String get actionOK => 'OK';

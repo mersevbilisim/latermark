@@ -297,6 +297,9 @@ class L10nJa extends L10n {
   String get backupCreateTitle => 'バックアップを作成';
 
   @override
+  String get backupNothingToSave => 'まだバックアップするものがありません。';
+
+  @override
   String get backupCreateDescription => 'この端末のすべてを、暗号化された1つのファイルに。';
 
   @override
@@ -372,7 +375,10 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get backupActionSave => '保存または共有';
+  String get backupActionSave => 'この端末に保存';
+
+  @override
+  String get backupSavedToDevice => '保存しました。';
 
   @override
   String get backupPickFile => 'ファイルを選択';
@@ -750,7 +756,9 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallLimitTitle => '10枚すべて使用中';
+  String paywallLimitTitle(int limit) {
+    return '$limit枚すべて使用中';
+  }
 
   @override
   String paywallLimitBody(int limit) {
@@ -854,6 +862,15 @@ class L10nJa extends L10n {
 
   @override
   String get notificationChannelDescription => '日時を設定した記録をお知らせします。';
+
+  @override
+  String get reminderActionDone => '完了';
+
+  @override
+  String get reminderActionTomorrow => '明日';
+
+  @override
+  String get reminderActionNextWeek => '来週';
 
   @override
   String get actionOK => 'OK';

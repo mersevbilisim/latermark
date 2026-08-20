@@ -22,4 +22,13 @@
 "share.compose.hint" = "Bu fotoğrafı neden saklıyorsun?";
 "share.error.title" = "Fotoğraf eklenemedi";
 "share.error.body" = "Latermark’a aktarım tamamlanamadı. Lütfen tekrar dene.";
+"share.reminder.title" = "Hatırlatıcı";
+"share.reminder.off" = "Kapalı";
+"share.reminder.tomorrow" = "Yarın";
+"share.reminder.next_week" = "Gelecek hafta";
+"share.reminder.custom" = "Özel";
+"share.reminder.days" = "%d gün";
+"share.reminder.custom.message" = "1 ile 365 arasında bir gün sayısı gir.";
+"share.reminder.custom.placeholder" = "Gün";
+"action.cancel" = "Vazgeç";
 "action.ok" = "Tamam";

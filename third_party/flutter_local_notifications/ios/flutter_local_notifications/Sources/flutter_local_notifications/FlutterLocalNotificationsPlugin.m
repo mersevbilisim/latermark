@@ -19,6 +19,8 @@ NSString *const FOREGROUND_ACTION_IDENTIFIERS =
     @"dexterous.com/flutter/local_notifications/foreground_action_identifiers";
 NSString *const INITIALIZE_METHOD = @"initialize";
 NSString *const GET_CALLBACK_METHOD = @"getCallbackHandle";
+NSString *const BACKGROUND_ACTION_COMPLETED_METHOD =
+    @"backgroundActionCompleted";
 NSString *const SHOW_METHOD = @"show";
 NSString *const ZONED_SCHEDULE_METHOD = @"zonedSchedule";
 NSString *const PERIODICALLY_SHOW_METHOD = @"periodicallyShow";
@@ -100,6 +102,7 @@ NSString *const NOTIFICATION_ID = @"NotificationId";
 NSString *const PAYLOAD = @"payload";
 NSString *const NOTIFICATION_LAUNCHED_APP = @"notificationLaunchedApp";
 NSString *const ACTION_ID = @"actionId";
+NSString *const ACTION_TOKEN = @"actionToken";
 NSString *const NOTIFICATION_RESPONSE_TYPE = @"notificationResponseType";
 NSString *const DISMISS_ISOLATE = @"dismissIsolate";
 
@@ -118,6 +121,44 @@ NSString *const IS_CRITICAL_ENABLED = @"isCriticalEnabled";
 NSString *const IS_PROVIDES_APP_NOTIFICATION_SETTINGS_ENABLED =
     @"isProvidesAppNotificationSettingsEnabled";
 NSString *const IS_CAR_PLAY_ENABLED = @"isCarPlayEnabled";
+
+/// iOS notification action completion handlers must live until the Dart
+/// background callback has finished its durable work. The app-delegate plugin
+/// instance receives the handler, while a second plugin instance on the
+/// headless engine receives Dart's acknowledgement, so storage is process-wide.
+static NSMutableDictionary<NSString *, id> *backgroundActionCompletions(void) {
+  static NSMutableDictionary<NSString *, id> *completions;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    completions = [NSMutableDictionary dictionary];
+  });
+  return completions;
+}
+
+static void finishBackgroundAction(NSString *token) {
+  __block void (^completion)(void) = nil;
+  @synchronized(backgroundActionCompletions()) {
+    completion = backgroundActionCompletions()[token];
+    [backgroundActionCompletions() removeObjectForKey:token];
+  }
+  if (completion) {
+    dispatch_async(dispatch_get_main_queue(), completion);
+  }
+}
+
+static void retainBackgroundAction(NSString *token,
+                                   void (^completion)(void)) {
+  @synchronized(backgroundActionCompletions()) {
+    backgroundActionCompletions()[token] = [completion copy];
+  }
+  // Never hold the system callback forever if Dart cannot start. The normal
+  // path acknowledges as soon as persistence and rescheduling complete.
+  dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW, (int64_t)(25 * NSEC_PER_SEC)),
+      dispatch_get_main_queue(), ^{
+        finishBackgroundAction(token);
+      });
+}
 
 NSString *const CRITICAL_SOUND_VOLUME = @"criticalSoundVolume";
 
@@ -181,6 +222,14 @@ static FlutterError *getFlutterError(NSError *error) {
     [self initialize:call.arguments result:result];
   } else if ([GET_CALLBACK_METHOD isEqualToString:call.method]) {
     result([_flutterEngineManager getCallbackHandle]);
+  } else if ([BACKGROUND_ACTION_COMPLETED_METHOD
+                 isEqualToString:call.method]) {
+    NSDictionary *arguments = (NSDictionary *)call.arguments;
+    NSString *token = arguments[ACTION_TOKEN];
+    if ([token isKindOfClass:[NSString class]]) {
+      finishBackgroundAction(token);
+    }
+    result(nil);
   } else if ([SHOW_METHOD isEqualToString:call.method]) {
 
     [self show:call.arguments result:result];
@@ -1172,9 +1221,13 @@ static FlutterError *getFlutterError(NSError *error) {
         actionEventSink = [[ActionEventSink alloc] init];
       }
 
+      NSString *token = [[NSUUID UUID] UUIDString];
+      notificationResponseDict[ACTION_TOKEN] = token;
+      retainBackgroundAction(token, completionHandler);
       [actionEventSink addItem:notificationResponseDict];
       [_flutterEngineManager startEngineIfNeeded:actionEventSink
                                  registerPlugins:registerPlugins];
+      return;
     }
 
     completionHandler();

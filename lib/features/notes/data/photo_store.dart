@@ -151,15 +151,29 @@ class PhotoStore {
     }
   }
 
+  /// Yeni yazılmış bir dosyanın yetim sayılmadan önce tanınacağı süre.
+  ///
+  /// [persist] kareyi **satırdan önce** diske yazıyor; arada bir pencere var.
+  /// Süpürme açılışta `unawaited` koştuğu ve isim listesini önden aldığı için
+  /// o pencerede kaydedilen kare "kaydı yok" diye silinebiliyordu — kullanıcı
+  /// notu görüyor, fotoğrafı gitmiş oluyordu. Paylaşımdan gelip açılışta
+  /// kendiliğinden kaydedilen kareler tam da bu aralığa denk geliyor.
+  ///
+  /// Bu yaşta bir dosyayı atlamak hiçbir şey kaybettirmiyor: gerçek yetim
+  /// bir sonraki açılışta zaten toplanıyor.
+  static const _orphanGrace = Duration(minutes: 5);
+
   /// Veritabanında karşılığı kalmamış dosyaları temizler. Kayıt silinirken
   /// uygulama öldürülürse ortaya çıkan yetim dosyalar için.
   Future<void> pruneOrphans(Set<String> knownNames) async {
     if (!_directory.existsSync()) return;
+    final cutoff = DateTime.now().subtract(_orphanGrace);
     await for (final entity in _directory.list()) {
       if (entity is! File) continue;
       final name = p.basename(entity.path);
       if (knownNames.contains(name)) continue;
       try {
+        if (entity.lastModifiedSync().isAfter(cutoff)) continue;
         await entity.delete();
       } on FileSystemException {
         // Yoksay.

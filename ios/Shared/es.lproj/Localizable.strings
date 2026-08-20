@@ -22,4 +22,13 @@
 "share.compose.hint" = "¿Por qué quieres guardar esta foto?";
 "share.error.title" = "No se pudo añadir la foto";
 "share.error.body" = "No se pudo enviar la foto a Latermark. Inténtalo de nuevo.";
+"share.reminder.title" = "Recordatorio";
+"share.reminder.off" = "Desactivado";
+"share.reminder.tomorrow" = "Mañana";
+"share.reminder.next_week" = "Próxima semana";
+"share.reminder.custom" = "Personalizado";
+"share.reminder.days" = "%d días";
+"share.reminder.custom.message" = "Introduce un número del 1 al 365.";
+"share.reminder.custom.placeholder" = "Días";
+"action.cancel" = "Cancelar";
 "action.ok" = "Aceptar";

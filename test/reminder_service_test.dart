@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -10,11 +13,22 @@ import 'package:latermark/features/reminders/reminder_service.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 
+/// 1×1 saydam PNG. Ek hazırlama kodu dosyayı gerçekten çözdüğü için
+/// testte de geçerli bir görüntü gerekiyor.
+final _png = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC'
+  'hwGA60e6kgAAAABJRU5ErkJggg==',
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   IOSFlutterLocalNotificationsPlugin.registerWith();
 
   const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+  const actionChannel = MethodChannel('latermark/reminder_actions');
+  // Ek kopyalarının yaşadığı kalıcı dizin path_provider'dan geliyor; testte
+  // eklenti yok, sahtesi olmadan kare hiç iliştirilmez.
+  const pathProvider = MethodChannel('plugins.flutter.io/path_provider');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
@@ -24,8 +38,21 @@ void main() {
     late List<Map<String, Object?>> activeNotifications;
     late List<Map<String, Object?>> pendingNotifications;
 
+    late Directory support;
+
     setUp(() {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      support = Directory.systemTemp.createTempSync('lm_support');
+      messenger.setMockMethodCallHandler(pathProvider, (call) async {
+        if (call.method == 'getApplicationSupportDirectory') {
+          return support.path;
+        }
+        return null;
+      });
+      messenger.setMockMethodCallHandler(actionChannel, (call) async {
+        if (call.method == 'timeZoneIdentifier') return 'Europe/Istanbul';
+        return null;
+      });
       calls = <MethodCall>[];
       launchDetails = <String, Object?>{'notificationLaunchedApp': false};
       activeNotifications = <Map<String, Object?>>[];
@@ -72,6 +99,9 @@ void main() {
 
     tearDown(() {
       messenger.setMockMethodCallHandler(channel, null);
+      messenger.setMockMethodCallHandler(pathProvider, null);
+      messenger.setMockMethodCallHandler(actionChannel, null);
+      if (support.existsSync()) support.deleteSync(recursive: true);
       debugDefaultTargetPlatformOverride = null;
     });
 
@@ -221,7 +251,7 @@ void main() {
       await service.dispose();
     });
 
-    test('süresiz tekrarlayan not native tek kayıt olarak planlanır', () async {
+    test('günlük tekrar iOS takvim saatini koruyan tek kayıt olur', () async {
       final service = ReminderService(supported: true);
       await service.initialize();
       final l10n = await L10n.delegate.load(const Locale('en'));
@@ -243,16 +273,249 @@ void main() {
         l10n,
       );
 
-      final periodic = calls.where(
-        (call) => call.method == 'periodicallyShowWithDuration',
-      );
-      expect(periodic, hasLength(1));
-      final arguments = periodic.single.arguments as Map;
+      final calendar = calls.where((call) => call.method == 'zonedSchedule');
+      expect(calendar, hasLength(1));
+      final arguments = calendar.single.arguments as Map;
       expect(arguments['id'], reminderNotificationId(40, 0));
-      expect(arguments['repeatIntervalMilliseconds'], 86400000);
-      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+      expect(
+        arguments['matchDateTimeComponents'],
+        DateTimeComponents.time.index,
+      );
+      expect(
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        isEmpty,
+      );
       await service.dispose();
     });
+
+    test('bildirim başlığı uygulamanın adı, gövdesi notun kendisi', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now().subtract(const Duration(days: 1));
+      final note = Note(
+        id: 500,
+        imageName: '500.jpg',
+        body: 'Şelale fotoğrafı',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 3,
+        reminderAnchorAt: anchor,
+        remindRepeats: false,
+        updatedAt: anchor,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final scheduled = calls.where((call) => call.method == 'zonedSchedule');
+      expect(scheduled, isNotEmpty);
+      final arguments = (scheduled.first.arguments as Map)
+          .cast<String, Object?>();
+      // Kilit ekranında satırın kimden geldiği başlıktan okunuyor; "Reminder"
+      // gibi genel bir sözcük her uygulamada aynı görünüyordu.
+      expect(arguments['title'], 'Latermark Pro');
+      expect(arguments['body'], 'Şelale fotoğrafı');
+      await service.dispose();
+    });
+
+    test('notun karesi bildirime kopya olarak iliştirilir', () async {
+      final sandbox = Directory.systemTemp.createTempSync('lm_art');
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+      final photo = File('${sandbox.path}/500.png')..writeAsBytesSync(_png);
+
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      service.photoOf = (_) => photo;
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now().subtract(const Duration(days: 1));
+      final note = Note(
+        id: 501,
+        imageName: '501.jpg',
+        body: 'Kare',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 3,
+        reminderAnchorAt: anchor,
+        remindRepeats: false,
+        updatedAt: anchor,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final scheduled = calls.where((call) => call.method == 'zonedSchedule');
+      expect(scheduled, isNotEmpty);
+      final arguments = (scheduled.first.arguments as Map)
+          .cast<String, Object?>();
+      final specifics = (arguments['platformSpecifics']! as Map)
+          .cast<String, Object?>();
+      final attachments = (specifics['attachments']! as List)
+          .cast<Map<Object?, Object?>>();
+      expect(attachments, hasLength(1));
+      final attached = attachments.single['filePath']! as String;
+
+      // iOS eki kendi deposuna **taşır**, Android ise bitmap'i bizim
+      // sürecimizde tam çözünürlükte çözer. İkisi için de giden şey asıl kare
+      // değil, küçültülmüş tek kullanımlık bir kopya.
+      expect(attached, isNot(photo.path));
+      expect(attached, endsWith('.png'));
+      expect(File(attached).existsSync(), isTrue);
+      expect(photo.existsSync(), isTrue);
+      await service.dispose();
+    });
+
+    test('desteklenmeyen kare eklenmez ama hatırlatma yine kurulur', () async {
+      final sandbox = Directory.systemTemp.createTempSync('lm_heic');
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+      // Galeriden ve paylaşımdan HEIC gelebiliyor. Apple bunu ek olarak kabul
+      // etmiyor ve hata döndürüyor; hata sync döngüsünü keserdi.
+      final photo = File('${sandbox.path}/502.heic')
+        ..writeAsBytesSync(<int>[1, 2, 3]);
+
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      service.photoOf = (_) => photo;
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now().subtract(const Duration(days: 1));
+      final note = Note(
+        id: 502,
+        imageName: '502.heic',
+        body: 'HEIC kare',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 3,
+        reminderAnchorAt: anchor,
+        remindRepeats: false,
+        updatedAt: anchor,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final scheduled = calls.where((call) => call.method == 'zonedSchedule');
+      expect(scheduled, isNotEmpty, reason: 'hatırlatma yine kurulmalı');
+      final specifics =
+          ((scheduled.first.arguments as Map)['platformSpecifics']! as Map)
+              .cast<String, Object?>();
+      expect(specifics['attachments'], anyOf(isNull, isEmpty));
+      await service.dispose();
+    });
+
+    test(
+      'kare kopyası kalıcı dizinde yaşar ve plandan düşünce silinir',
+      () async {
+        // Android bildirimi kurulum anında değil, alarm çaldığı anda kuruyor ve
+        // dosyayı *o an* okuyor. Kopya kurulumdan sonra silinseydi kare günler
+        // sonra çalan bildirimde kaybolurdu.
+        final sandbox = Directory.systemTemp.createTempSync('lm_keep');
+        addTearDown(() => sandbox.deleteSync(recursive: true));
+        final photo = File('${sandbox.path}/600.png')..writeAsBytesSync(_png);
+
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        service.photoOf = (_) => photo;
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now().subtract(const Duration(days: 1));
+        Note noteWith({required int remindAfterDays}) => Note(
+          id: 600,
+          imageName: '600.png',
+          body: 'Kare',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: remindAfterDays,
+          reminderAnchorAt: anchor,
+          remindRepeats: false,
+          updatedAt: anchor,
+        );
+        const on = AppSettings(reminderEnabled: true, proUnlocked: true);
+
+        await service.sync([noteWith(remindAfterDays: 3)], on, l10n);
+        final art = Directory('${support.path}/reminder_art');
+        expect(art.existsSync(), isTrue);
+        expect(art.listSync().whereType<File>(), hasLength(1));
+
+        // Kopyanın ölçütü zaman değil, hâlâ planda olup olmadığı. Hatırlatma
+        // kapatılınca dosyanın da gitmesi gerekir.
+        await service.sync([noteWith(remindAfterDays: 0)], on, l10n);
+        expect(art.listSync().whereType<File>(), isEmpty);
+        await service.dispose();
+      },
+    );
+
+    test(
+      'payload sürümü yükselince eski kurulum sökülüp yenisi kurulur',
+      () async {
+        // Bekleyen bir bildirimin hangi kanalla —dolayısıyla hangi sesle—
+        // kurulduğu sonradan sorulamıyor. Sürüm etiketi payload'da taşındığı
+        // için eski kurulum tanınıp yeniden kuruluyor.
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now().subtract(const Duration(days: 1));
+        final note = Note(
+          id: 601,
+          imageName: '601.jpg',
+          body: 'Eski kurulum',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 3,
+          reminderAnchorAt: anchor,
+          remindRepeats: false,
+          updatedAt: anchor,
+        );
+
+        // Yükseltme öncesinden kalmış gibi davran.
+        final staleId = reminderNotificationId(601, 0);
+        pendingNotifications.add(<String, Object?>{
+          'id': staleId,
+          'title': 'Reminder',
+          'body': 'Eski kurulum',
+          'payload':
+              'note/601/v2/at/'
+              '${anchor.add(const Duration(days: 3)).toUtc().millisecondsSinceEpoch}',
+        });
+
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        expect(
+          calls.where(
+            (call) => call.method == 'cancel' && call.arguments == staleId,
+          ),
+          hasLength(1),
+          reason: 'eski sürümle kurulmuş kayıt sökülmeli',
+        );
+        final scheduled = calls.where((call) => call.method == 'zonedSchedule');
+        expect(scheduled, hasLength(1));
+        expect(
+          (scheduled.single.arguments as Map)['payload'],
+          contains('/v3/'),
+        );
+        await service.dispose();
+      },
+    );
 
     test('uygulama yeniden senkron olunca native tekrar başa sarmaz', () async {
       final service = ReminderService(supported: true);
@@ -357,6 +620,38 @@ void main() {
         calls.where((call) => call.method == 'zonedSchedule'),
         hasLength(3),
       );
+      await service.dispose();
+    });
+
+    test('notu daha önce silinecek bir tekrar hiç kurulmaz', () async {
+      // Sessiz tuzak ve yukarıdaki "sonlu kurulur" testinden farkı bu:
+      // orada not birkaç oluşumu görecek kadar yaşıyor, burada ilk oluşuma
+      // bile varmadan siliniyor. Sonuç hiç bildirim değil — kullanıcı
+      // hatırlatma kurduğunu sanır, sistemde karşılığı olmaz.
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final created = DateTime.now();
+      final note = Note(
+        id: 10,
+        imageName: '10.jpg',
+        body: 'Kısa ömürlü',
+        createdAt: created,
+        retention: Retention.threeDays,
+        customMinutes: 0,
+        expiresAt: created.add(const Duration(days: 3)),
+        remindAfterDays: 30,
+        remindRepeats: true,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
       await service.dispose();
     });
 

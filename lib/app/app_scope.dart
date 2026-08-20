@@ -1,26 +1,32 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../features/home_widget/home_widget_bridge.dart';
 import '../features/backup/data/backup_service.dart';
 import '../features/notes/data/notes_database.dart';
 import '../features/notes/data/notes_repository.dart';
+import '../features/notes/presentation/import/shared_import.dart';
 import '../features/notes/data/location_service.dart';
 import '../features/notes/data/ocr_service.dart';
 import '../features/paywall/data/purchase_service.dart';
+import '../features/reminders/reminder_action_handler.dart';
 import '../features/reminders/reminder_service.dart';
 import '../features/review/review_prompt_service.dart';
 import '../features/settings/data/settings_repository.dart';
 import '../features/settings/domain/app_settings.dart';
+import '../features/spotlight/spotlight_bridge.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/supported_locale.dart';
 
 /// Uygulamanın çalışan parçalarını ağaca taşıyan kapsam.
 ///
-/// Üç arka plan işini de o yönetir:
+/// Arka plan işlerini o yönetir:
 /// * "otomatik sil" sözünü tutan zamanlayıcı — açılışta, her öne gelişte ve
 ///   önplandayken dakikada bir süresi dolmuş notları temizler,
 /// * ana ekran widget'ını besleyen köprü,
+/// * kayıtları Spotlight'a taşıyan köprü,
 /// * "bir süredir bakmadın" hatırlatıcıları.
 ///
 /// Bu iş için harici bir durum yönetimi paketine gerek yok.
@@ -31,6 +37,7 @@ class AppScope extends StatefulWidget {
     required this.settings,
     this.backups,
     this.reviewPrompts,
+    this.location,
     required this.child,
   });
 
@@ -38,6 +45,10 @@ class AppScope extends StatefulWidget {
   final SettingsRepository settings;
   final BackupService? backups;
   final ReviewPromptService? reviewPrompts;
+
+  /// Varsayılan olarak gerçek platform servisi kullanılır. Testler izin ve
+  /// sabitleme yarışlarını deterministik bir servisle doğrulayabilir.
+  final LocationService? location;
   final Widget child;
 
   static NotesRepository of(BuildContext context) => _scope(context).notes;
@@ -65,10 +76,11 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
 
   Timer? _timer;
   HomeWidgetBridge? _widgets;
+  SpotlightBridge? _spotlight;
   final _reminders = ReminderService();
   final _purchases = PurchaseService();
   final _ocr = OcrService();
-  final _location = LocationService();
+  late final _location = widget.location ?? LocationService();
   bool _scanning = false;
 
   AppSettings _preferences = const AppSettings();
@@ -86,7 +98,17 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _startSweeping();
     _widgets = HomeWidgetBridge(widget.notes)..start();
-    unawaited(_purchases.start());
+    _spotlight = SpotlightBridge(widget.notes);
+    unawaited(_spotlight?.start());
+    _listenForBackgroundWrites();
+    unawaited(
+      _purchases.start().onError((error, stackTrace) {
+        // Mağaza katmanı uygulama yaşam döngüsünü bloke edemez. Özellikle
+        // eklentinin bulunmadığı test/masaüstü ortamlarında purchaseStream
+        // bağlantısı, servis içindeki sorgulardan önce hata verebilir.
+        debugPrint('Satın alma servisi başlatılamadı: $error');
+      }),
+    );
     _purchases.unlocked.addListener(_cacheEntitlement);
 
     _settingsSub = widget.settings.watch().listen((value) {
@@ -96,6 +118,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       // İçerik temizliği HomeWidgetBridge'in kendi sıralı yayınında yapılır.
       _widgets?.pro = value.proUnlocked;
       _widgets?.accent = value.accent;
+      unawaited(SharedImportBridge.setProUnlocked(value.proUnlocked));
       if (value != _preferences) setState(() => _preferences = value);
       // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu
       // sırada yeniden değişmeyeceği için yalnız listener'a güvenmek stale bir
@@ -142,6 +165,23 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     unawaited(_syncQueue);
   }
 
+  /// Bildirim düğmeleri uygulamayı açmadan veri yazıyor; o yazma **ayrı bir
+  /// Flutter motorunda**, dolayısıyla ayrı bir SQLite bağlantısında oluyor.
+  ///
+  /// Drift'in akış geçersizleştirmesi süreç içi çalıştığı için o yazma açık
+  /// duran uygulamanın kartlarına kendiliğinden yansımaz: kullanıcı bildirimi
+  /// "Yarın"a ertelerken uygulama önde duruyorsa, kart hatırlatmanın eski
+  /// tarihini göstermeye devam ederdi. Native taraf yazma bittiğinde haber
+  /// veriyor ve sorgular yeniden koşuyor.
+  static const _reminderActionChannel = MethodChannel(kReminderActionChannel);
+
+  void _listenForBackgroundWrites() {
+    _reminderActionChannel.setMethodCallHandler((call) async {
+      if (call.method != 'reminderActionApplied' || !mounted) return;
+      widget.notes.reloadFromDisk();
+    });
+  }
+
   /// Mağaza cevabı Drift'e yazılır — yalnızca **kesin** bir cevap geldiğinde.
   ///
   /// `null` (bilinmiyor) durumunda dokunulmaz: ağ yokken önbelleği sıfırlamak,
@@ -161,11 +201,15 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   void dispose() {
     _syncRevision++;
     _timer?.cancel();
+    // Kanal süreç ömrü boyunca tek; işleyici bırakılmazsa sökülmüş bir
+    // kapsamın deposuna yazmaya çalışan bir kapan geride kalır.
+    _reminderActionChannel.setMethodCallHandler(null);
     _purchases.unlocked.removeListener(_cacheEntitlement);
     unawaited(_purchases.dispose());
     unawaited(_settingsSub?.cancel());
     unawaited(_notesSub?.cancel());
     unawaited(_widgets?.dispose());
+    unawaited(_spotlight?.dispose());
     unawaited(_reminders.dispose());
     widget.reviewPrompts?.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -177,6 +221,9 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _startSweeping();
+        // Uygulama arkadayken bir bildirim düğmesine basılmış olabilir; o
+        // yazma bu bağlantının akışlarına ulaşmadı.
+        widget.notes.reloadFromDisk();
         // Kullanıcı sistem ayarlarından bildirim iznini değiştirmiş olabilir.
         // Uygulama döner dönmez programı gerçek izin durumuyla yeniden kur.
         _syncRemindersWhenReady();
@@ -200,22 +247,14 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     final locale = settings.locale.locale ?? _deviceLocale();
     final l10n = await L10n.delegate.load(locale);
     _widgets?.l10n = l10n;
+    _spotlight?.l10n = l10n;
+    // Bildirime iliştirilecek kareyi depo çözüyor; servis depoyu tanımıyor.
+    _reminders.photoOf = widget.notes.imageOf;
     await _reminders.sync(notes, settings, l10n);
   }
 
-  Locale _deviceLocale() {
-    final device = WidgetsBinding.instance.platformDispatcher.locale;
-    for (final locale in L10n.supportedLocales) {
-      if (locale.languageCode == device.languageCode &&
-          locale.countryCode == device.countryCode) {
-        return locale;
-      }
-    }
-    for (final locale in L10n.supportedLocales) {
-      if (locale.languageCode == device.languageCode) return locale;
-    }
-    return const Locale('en');
-  }
+  Locale _deviceLocale() =>
+      resolveSupportedLocale(WidgetsBinding.instance.platformDispatcher.locale);
 
   /// Taranmamış kareleri arkada okur.
   ///
@@ -239,6 +278,10 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
         // sırada kalır ama sonsuza dek denenmez. Boş dize yazmak, modelin
         // henüz inmediği ilk anı kalıcı bir "yazı yok" kararına çevirirdi.
         await widget.notes.saveScan(note.id, text);
+        // Tarama `notes` tablosuna dokunmuyor — dokunsaydı her okunan kare
+        // bütün listeyi yeniden kurdururdu. Bu yüzden indeksin haberi
+        // buradan gidiyor.
+        _spotlight?.scanCompleted();
 
         // Günlüğe metnin kendisi değil ölçüsü giriyor: OCR görünmez bir alana
         // yazdığı için gözlemlenebilir kalması gerekiyor, ama sayfa dolusu

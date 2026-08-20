@@ -121,15 +121,14 @@ List<DateTime> reminderOccurrences({
 }) {
   if (remindAfterDays <= 0 || limit <= 0) return const [];
 
-  final interval = Duration(days: remindAfterDays);
   var step = repeats
-      ? (now.difference(anchorAt).inMicroseconds ~/ interval.inMicroseconds)
-      : 0;
+      ? (_localDayNumber(now) - _localDayNumber(anchorAt)) ~/ remindAfterDays
+      : 1;
   if (step < 1) step = 1;
 
   final occurrences = <DateTime>[];
   while (occurrences.length < limit) {
-    final at = anchorAt.add(interval * step);
+    final at = shiftLocalCalendarDays(anchorAt, remindAfterDays * step);
 
     // Silinme anındaki veya ondan sonraki bir bildirim hayalet bildirimdir.
     if (expiresAt != null && !expiresAt.isAfter(at)) break;
@@ -245,7 +244,33 @@ int _stepOf({
   required DateTime at,
   required DateTime anchorAt,
   required Duration interval,
-}) => at.difference(anchorAt).inMicroseconds ~/ interval.inMicroseconds;
+}) => (_localDayNumber(at) - _localDayNumber(anchorAt)) ~/ interval.inDays;
+
+/// Yerel takvimde gün ekler; `Duration(days: 1)` gibi 24 saat eklemez.
+/// Böylece yaz/kış saati geçişinde kullanıcının seçtiği duvar saati korunur.
+DateTime shiftLocalCalendarDays(DateTime at, int days) {
+  final local = at.toLocal();
+  return DateTime(
+    local.year,
+    local.month,
+    local.day + days,
+    local.hour,
+    local.minute,
+    local.second,
+    local.millisecond,
+    local.microsecond,
+  );
+}
+
+int _localDayNumber(DateTime value) {
+  final local = value.toLocal();
+  return DateTime.utc(
+        local.year,
+        local.month,
+        local.day,
+      ).millisecondsSinceEpoch ~/
+      Duration.millisecondsPerDay;
+}
 
 int _byTime(ScheduledReminder a, ScheduledReminder b) {
   final byTime = a.at.compareTo(b.at);

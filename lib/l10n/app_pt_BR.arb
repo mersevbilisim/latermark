@@ -113,6 +113,7 @@
   "backupManageTitle": "Gerenciar backups",
   "backupManageDescription": "Crie uma cópia criptografada ou restaure um backup existente.",
   "backupCreateTitle": "Criar um backup",
+  "backupNothingToSave": "Ainda não há nada para fazer backup.",
   "backupCreateDescription": "Tudo neste aparelho, selado em um arquivo criptografado.",
   "backupRestoreTitle": "Restaurar um backup",
   "backupRestoreDescription": "Substituir tudo aqui por um arquivo de backup.",
@@ -136,7 +137,8 @@
   "backupItems": "{done} de {total}",
   "backupReadyTitle": "Seu backup está pronto",
   "backupReadySubtitle": "{notes} notas e {photos} fotos, criptografadas.",
-  "backupActionSave": "Salvar ou compartilhar",
+  "backupActionSave": "Salvar neste aparelho",
+  "backupSavedToDevice": "Salvo.",
   "backupPickFile": "Escolher um arquivo",
   "backupUnlockTitle": "Digite a senha",
   "backupUnlockSubtitle": "A senha que você escolheu ao criar este backup.",
@@ -358,7 +360,7 @@
       }
     }
   },
-  "paywallLimitTitle": "Seus 10 espaços estão ocupados",
+  "paywallLimitTitle": "Seus {limit} espaços estão ocupados",
   "paywallLimitBody": "A versão gratuita mantém até {limit} registros por vez. O Pro remove o limite — ou você pode apagar um registro para continuar.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -449,6 +451,9 @@
   "notificationBodyNoBody": "Você pediu para lembrar deste registro.",
   "notificationChannelName": "Lembretes",
   "notificationChannelDescription": "Lembra você dos registros agendados.",
+  "reminderActionDone": "Concluído",
+  "reminderActionTomorrow": "Amanhã",
+  "reminderActionNextWeek": "Próxima semana",
   "actionOK": "OK",
   "widgetDescription": "Mostra seu registro mais recente e a nota.",
   "widgetEmptySubtitle": "Sua primeira nota aparecerá aqui",

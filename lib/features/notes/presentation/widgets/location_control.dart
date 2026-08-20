@@ -59,7 +59,8 @@ class LocationControl extends StatefulWidget {
   /// Kaydetmenin bekleyen sabitlemeye ulaşmasını sağlayan köprü.
   final LocationController? controller;
 
-  /// Anahtarın durumu. Varsayılanı ayarlardaki son tercih besler.
+  /// Anahtarın etkin durumu. Varsayılanı ayarlardaki son tercih besler; ancak
+  /// izin yoksa denetim bu değeri `false` olarak geri uzlaştırır.
   final bool enabled;
 
   final ValueChanged<bool> onChanged;
@@ -136,8 +137,8 @@ class _LocationControlState extends State<LocationControl> {
   }
 
   Future<void> _onChanged(bool value) async {
-    widget.onChanged(value);
     if (!value) {
+      widget.onChanged(false);
       _resolveGeneration++;
       _fix = null;
       _closePending(null);
@@ -151,10 +152,16 @@ class _LocationControlState extends State<LocationControl> {
       }
       return;
     }
-    await _resolve(askPermission: true);
+    // Açma isteğini, izin sonucu gelmeden kalıcı tercihe yazma. Aksi hâlde
+    // kullanıcı istemi reddetse bile bir sonraki Compose açık anahtarla
+    // başlıyor ve notun konumlu kaydedildiği izlenimini veriyordu.
+    await _resolve(askPermission: true, enableWhenAllowed: true);
   }
 
-  Future<void> _resolve({required bool askPermission}) async {
+  Future<void> _resolve({
+    required bool askPermission,
+    bool enableWhenAllowed = false,
+  }) async {
     if (_resolving) return;
     final generation = ++_resolveGeneration;
     _fix = null;
@@ -166,7 +173,6 @@ class _LocationControlState extends State<LocationControl> {
     });
     try {
       final location = context.location;
-      final settings = AppScope.settingsOf(context);
 
       var allowed = await location.hasPermission();
       if (!allowed && askPermission && !_permissionAsked) {
@@ -178,11 +184,15 @@ class _LocationControlState extends State<LocationControl> {
       setState(() => _blocked = !allowed);
       if (!allowed) {
         _closePending(null);
-        await settings.setLocationEnabled(false);
-        if (!mounted || generation != _resolveGeneration) return;
+        // Ayarlardaki tercih yalnızca bir niyet olabilir; işletim sistemi izin
+        // vermiyorsa ekrandaki ve kalıcı değer aynı anda kapanır. Gerçeğin tek
+        // sahibi parent state'tir, kalıcılığı da onun onChanged'i yapar.
+        widget.onChanged(false);
         widget.onResolved(null);
         return;
       }
+
+      if (enableWhenAllowed && !widget.enabled) widget.onChanged(true);
 
       final fix = await location.current();
       if (generation != _resolveGeneration) return;
@@ -223,12 +233,12 @@ class _LocationControlState extends State<LocationControl> {
           ),
           trailing: Switch.adaptive(
             key: const ValueKey('compose-location-switch'),
-            value: widget.enabled,
+            value: widget.enabled && !_blocked,
             onChanged: (value) => unawaited(_onChanged(value)),
             activeTrackColor: palette.ember,
           ),
         ),
-        if (widget.enabled && _blocked) ...[
+        if (_blocked) ...[
           const SizedBox(height: 6),
           _BlockedNotice(key: const ValueKey('compose-location-blocked')),
         ],

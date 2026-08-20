@@ -31,7 +31,7 @@ void callbackDispatcher() {
         .map<Map<String, dynamic>>(
           (Map<dynamic, dynamic> event) => Map.castFrom(event),
         )
-        .listen((Map<String, dynamic> event) {
+        .listen((Map<String, dynamic> event) async {
           final Object notificationId = event['notificationId'];
           final int id;
           if (notificationId is int) {
@@ -48,15 +48,29 @@ void callbackDispatcher() {
               responseTypeIndex is int
               ? NotificationResponseType.values[responseTypeIndex]
               : NotificationResponseType.selectedNotificationAction;
-          callback?.call(
-            NotificationResponse(
-              id: id,
-              actionId: event['actionId'],
-              input: event['input'],
-              payload: event['payload'],
-              notificationResponseType: notificationResponseType,
-            ),
-          );
+          try {
+            // The public callback typedef is `void` for backwards
+            // compatibility, but async handlers return a Future at runtime.
+            // Await it so iOS isn't told the background action is complete
+            // before durable application work has finished.
+            final dynamic callbackResult = (callback as dynamic)?.call(
+              NotificationResponse(
+                id: id,
+                actionId: event['actionId'],
+                input: event['input'],
+                payload: event['payload'],
+                notificationResponseType: notificationResponseType,
+              ),
+            );
+            if (callbackResult is Future) await callbackResult;
+          } finally {
+            final Object? token = event['actionToken'];
+            if (token is String) {
+              await channel.invokeMethod<void>('backgroundActionCompleted', {
+                'actionToken': token,
+              });
+            }
+          }
         });
   });
 }

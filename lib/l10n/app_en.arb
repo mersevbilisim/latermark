@@ -131,6 +131,7 @@
   "backupManageTitle": "Backup operations",
   "backupManageDescription": "Create an encrypted copy or bring an existing backup back.",
   "backupCreateTitle": "Create a backup",
+  "backupNothingToSave": "There’s nothing to back up yet.",
   "backupCreateDescription": "Everything on this device, sealed into one encrypted file.",
   "backupRestoreTitle": "Restore a backup",
   "backupRestoreDescription": "Replace everything here with a backup file.",
@@ -181,7 +182,8 @@
       }
     }
   },
-  "backupActionSave": "Save or share",
+  "backupActionSave": "Save to this device",
+  "backupSavedToDevice": "Saved.",
   "backupPickFile": "Choose a file",
   "backupUnlockTitle": "Enter the password",
   "backupUnlockSubtitle": "The password you chose when this backup was created.",
@@ -437,7 +439,14 @@
       }
     }
   },
-  "paywallLimitTitle": "Your 10 frames are full",
+  "paywallLimitTitle": "Your {limit} frames are full",
+  "@paywallLimitTitle": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "paywallLimitBody": "The free tier keeps up to {limit} frames at a time. Pro removes the limit — or delete one frame to continue.",
   "@paywallLimitBody": {
     "placeholders": {
@@ -528,6 +537,18 @@
   "notificationBodyNoBody": "You asked Latermark to remind you about this frame.",
   "notificationChannelName": "Reminders",
   "notificationChannelDescription": "Reminds you about frames you’ve scheduled.",
+  "reminderActionDone": "Done",
+  "reminderActionTomorrow": "Tomorrow",
+  "reminderActionNextWeek": "Next week",
+  "@reminderActionDone": {
+    "description": "Notification action button: the user handled this reminder."
+  },
+  "@reminderActionTomorrow": {
+    "description": "Notification action button: postpone the reminder by one day."
+  },
+  "@reminderActionNextWeek": {
+    "description": "Notification action button: postpone the reminder by seven days."
+  },
   "actionOK": "OK",
   "widgetDescription": "Shows your latest frame and note.",
   "widgetEmptySubtitle": "Your first note will appear here",

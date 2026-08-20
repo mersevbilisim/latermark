@@ -10,7 +10,11 @@
 		0694F781A1C128636522D5A1 /* SharedImportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807F920D2E455E676937AF88 /* SharedImportStore.swift */; };
 		0DCD1889C0C94C9E70A6002F /* NotWidgetEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB1960131A73F7A2F05BC8C /* NotWidgetEntry.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		A10000000000000000000051 /* notification.wav in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000050 /* notification.wav */; };
 		224E9B149FAD95B175F04E52 /* ImageChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606DA421C9CF6774698D8BD0 /* ImageChannel.swift */; };
+		203DE8C2F27B4342F32C46BC /* SpotlightChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */; };
+		E85BC3A0E123D995150AD298 /* AppLinkChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0EB8F9B17953A18E3279A9 /* AppLinkChannel.swift */; };
+		ECFFC9D586B231266555D901 /* ReminderActionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1379037FE7ADB7EB21B992E /* ReminderActionBridge.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		5574F2FE51FA46BED76F5151 /* NotWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 9258DDCD0B7A431CCBCDB448 /* NotWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -95,7 +99,11 @@
 		41906B5A0E52B5A7C3E5D850 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		4E61822D54492FBE0491E114 /* NotWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotWidget.swift; sourceTree = "<group>"; };
 		5AC515576851FB1F6B9E0EDE /* Runner.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000050 /* notification.wav */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = audio.wav; path = notification.wav; sourceTree = "<group>"; };
 		606DA421C9CF6774698D8BD0 /* ImageChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageChannel.swift; sourceTree = "<group>"; };
+		DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SpotlightChannel.swift; sourceTree = "<group>"; };
+		DD0EB8F9B17953A18E3279A9 /* AppLinkChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppLinkChannel.swift; sourceTree = "<group>"; };
+		D1379037FE7ADB7EB21B992E /* ReminderActionBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReminderActionBridge.swift; sourceTree = "<group>"; };
 		6B96D5DBBE34C430FC2D2B8A /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6FB1960131A73F7A2F05BC8C /* NotWidgetEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotWidgetEntry.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -247,6 +255,10 @@
 				E7F90A156E369E6B9F6C477C /* TextRecognitionChannel.swift */,
 				BD86FE290274462F81E4C28D /* LocationChannel.swift */,
 				606DA421C9CF6774698D8BD0 /* ImageChannel.swift */,
+				DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */,
+				DD0EB8F9B17953A18E3279A9 /* AppLinkChannel.swift */,
+				D1379037FE7ADB7EB21B992E /* ReminderActionBridge.swift */,
+				A10000000000000000000050 /* notification.wav */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -453,6 +465,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000051 /* notification.wav in Resources */,
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
@@ -535,6 +548,9 @@
 				E8E855E52906AB49B84FFBF8 /* TextRecognitionChannel.swift in Sources */,
 				9E7E587016EB4A64A9B9241D /* LocationChannel.swift in Sources */,
 				224E9B149FAD95B175F04E52 /* ImageChannel.swift in Sources */,
+				203DE8C2F27B4342F32C46BC /* SpotlightChannel.swift in Sources */,
+				E85BC3A0E123D995150AD298 /* AppLinkChannel.swift in Sources */,
+				ECFFC9D586B231266555D901 /* ReminderActionBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

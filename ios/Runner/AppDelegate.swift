@@ -2,6 +2,7 @@ import Flutter
 import StoreKit
 import UIKit
 import UserNotifications
+import flutter_local_notifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -14,6 +15,9 @@ import UserNotifications
   private var imageChannel: FlutterMethodChannel?
   private var locationChannel: FlutterMethodChannel?
   private var locationHandler: LocationChannel?
+  private var spotlightChannel: FlutterMethodChannel?
+  private var appLinkChannel: FlutterMethodChannel?
+  private var reminderActionChannel: FlutterMethodChannel?
 
   override func application(
     _ application: UIApplication,
@@ -22,6 +26,17 @@ import UserNotifications
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
     }
+
+    // Uygulamayı açmayan bir bildirim düğmesine basıldığında eklenti başsız
+    // bir `FlutterEngine` başlatıyor. O motorun eklentileri bu geri çağrıyla
+    // kaydediliyor ve kaydedilmesi şart: hatırlatmayı erteleyen kod
+    // veritabanına path_provider üzerinden ulaşıyor. Ayarlanmadan bırakılırsa
+    // eklenti `registerPlugins` nil'ken motoru kuruyor ve çöküyor.
+    FlutterLocalNotificationsPlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+      ReminderActionBridge.attachBackground(to: registry)
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -40,8 +55,25 @@ import UserNotifications
           let arguments = call.arguments as? [String: Any],
           let id = arguments["id"] as? String
         {
-          SharedImportStore.complete(id: id)
+          result(SharedImportStore.complete(id: id))
+        } else {
+          result(false)
         }
+      case "setShareEntitlement":
+        guard
+          let arguments = call.arguments as? [String: Any],
+          let unlocked = arguments["unlocked"] as? Bool
+        else {
+          result(
+            FlutterError(
+              code: "invalid_arguments",
+              message: "Missing Share entitlement value.",
+              details: nil
+            )
+          )
+          return
+        }
+        SharedImportStore.setProUnlocked(unlocked)
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
@@ -117,6 +149,20 @@ import UserNotifications
       }
     }
     self.entitlementChannel = entitlementChannel
+
+    spotlightChannel = SpotlightChannel.register(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
+    // Sahne olaylarına ancak tam bir eklenti kaydı üzerinden abone olunuyor;
+    // `applicationRegistrar` `addSceneDelegate:` taşımıyor.
+    if let linkRegistrar = engineBridge.pluginRegistry.registrar(
+      forPlugin: "LatermarkAppLink"
+    ) {
+      appLinkChannel = AppLinkChannel.register(registrar: linkRegistrar)
+    }
+    reminderActionChannel = ReminderActionBridge.attachMain(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
 
     ocrChannel = TextRecognitionChannel.register(
       messenger: engineBridge.applicationRegistrar.messenger()
