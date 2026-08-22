@@ -3,7 +3,8 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show MethodChannel, PlatformException;
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException, PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -16,6 +17,11 @@ import '../notes/domain/note_reminder.dart';
 import '../notes/domain/reminder_action.dart';
 import '../settings/domain/app_settings.dart';
 import 'reminder_action_handler.dart';
+
+/// Veritabanındaki hatırlatma niyetinden ayrı, işletim sisteminin teslimat
+/// hakkı. `unknown` bir ret değildir; eklenti henüz hazır olmayabilir veya
+/// geçici bir platform hatası yaşanmış olabilir.
+enum ReminderPermissionState { unknown, granted, denied }
 
 /// Kullanıcının açıkça istediği hatırlatmaları kurar.
 ///
@@ -32,14 +38,23 @@ class ReminderService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   final _noteTaps = StreamController<int>.broadcast();
+  final _permission = ValueNotifier<ReminderPermissionState>(
+    ReminderPermissionState.unknown,
+  );
   final bool? _supportedOverride;
+
   static const _settingsChannel = MethodChannel('latermark/app_settings');
   static const _actionChannel = MethodChannel('latermark/reminder_actions');
 
   bool _ready = false;
   bool _disposed = false;
   Future<void>? _initialization;
+  Future<ReminderPermissionState>? _permissionRead;
+  Future<ReminderPermissionState>? _permissionRequest;
+  int _permissionRevision = 0;
   int? _pendingNoteId;
+
+  ValueListenable<ReminderPermissionState> get permission => _permission;
 
   /// Bildirim düğmelerinin hangi dille kurulduğu.
   ///
@@ -80,10 +95,14 @@ class ReminderService {
   static const _soundName = 'notification';
   static const _iosSoundFile = 'notification.wav';
 
-  /// Hatırlatma bildirimlerinin düğme takımı.
+  /// Tek atış ve tekrar ayrı düğme takımları kullanır.
   ///
-  /// Tek kategori yetiyor: bütün hatırlatmalar aynı üç düğmeyi taşıyor.
-  static const _categoryId = 'latermark.reminder';
+  /// iOS'un periyodik tetikleyicisi, “ilk kez yarın/haftaya, sonra özel N gün
+  /// arayla” sözünü ifade edemiyor. Tekrarlı bildirimde bu iki eylemi göstermek
+  /// yanlış bir tarih vaat ederdi; orada yalnız bu turu tamamlama ve nota ait
+  /// hatırlatmayı tamamen kapatma seçenekleri vardır.
+  static const _onceCategoryId = 'latermark.reminder.once';
+  static const _repeatCategoryId = 'latermark.reminder.repeat';
 
   bool get _supported =>
       _supportedOverride ?? (!kIsWeb && (Platform.isIOS || Platform.isAndroid));
@@ -180,7 +199,7 @@ class ReminderService {
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
-          notificationCategories: [_category(l10n)],
+          notificationCategories: [_onceCategory(l10n), _repeatCategory(l10n)],
         ),
       ),
       onDidReceiveNotificationResponse: (response) {
@@ -195,14 +214,14 @@ class ReminderService {
     _categoryLocale = l10n.localeName;
   }
 
-  /// Bildirimin üç düğmesi.
+  /// Tek atışlı bildirimin dört düğmesi.
   ///
-  /// Hiçbiri `foreground` değil: üçünün de bütün değeri uygulamayı açmadan
+  /// Hiçbiri `foreground` değil: eylemlerin bütün değeri uygulamayı açmadan
   /// iş bitirmesinde. `foreground` verilseydi iOS her dokunuşta uygulamayı
   /// öne getirirdi ve düğmelerin varlık sebebi kalmazdı.
-  static DarwinNotificationCategory _category(L10n l10n) =>
+  static DarwinNotificationCategory _onceCategory(L10n l10n) =>
       DarwinNotificationCategory(
-        _categoryId,
+        _onceCategoryId,
         actions: [
           DarwinNotificationAction.plain(
             ReminderAction.done.id,
@@ -216,7 +235,28 @@ class ReminderService {
             ReminderAction.nextWeek.id,
             l10n.reminderActionNextWeek,
           ),
+          _turnOffAction(l10n),
         ],
+      );
+
+  /// Tekrarlı bildirimin desteklenen iki dürüst eylemi.
+  static DarwinNotificationCategory _repeatCategory(L10n l10n) =>
+      DarwinNotificationCategory(
+        _repeatCategoryId,
+        actions: [
+          DarwinNotificationAction.plain(
+            ReminderAction.done.id,
+            l10n.reminderActionDone,
+          ),
+          _turnOffAction(l10n),
+        ],
+      );
+
+  static DarwinNotificationAction _turnOffAction(L10n l10n) =>
+      DarwinNotificationAction.plain(
+        ReminderAction.turnOff.id,
+        l10n.reminderActionTurnOff,
+        options: const {DarwinNotificationActionOption.destructive},
       );
 
   static Future<L10n> _deviceL10n() =>
@@ -261,60 +301,181 @@ class ReminderService {
 
   /// Kullanıcı hatırlatıcıyı açtığında çağrılır.
   ///
-  /// İzin verilirse `true` döner. Reddedildiğinde arayüz tercihi açık
-  /// kaydetmez; işletim sistemi ile uygulama durumu böylece tutarlı kalır.
+  /// İzin verilirse `true` döner. Reddedilme veya geçici bilinmezlikte
+  /// kullanıcı niyetini silip silmemek çağıranın kararıdır; servis yalnızca
+  /// işletim sistemi sonucunu paylaşır.
   Future<bool> requestPermission() async {
-    if (!_supported) return false;
-    await initialize();
-
-    try {
-      if (_isIos) {
-        final granted = await _plugin
-            .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin
-            >()
-            ?.requestPermissions(alert: true, badge: false, sound: true);
-        return granted ?? false;
-      }
-
-      final android = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      final granted = await android?.requestNotificationsPermission();
-      return granted ?? false;
-    } on PlatformException catch (error) {
-      debugPrint('Bildirim izni alınamadı: $error');
-      return false;
-    }
+    final state = await requestPermissionState();
+    return state == ReminderPermissionState.granted;
   }
+
+  Future<ReminderPermissionState> requestPermissionState() =>
+      _requestPermissionState();
 
   /// İşletim sisteminin uygulamaya şu anda bildirim gönderebilme hakkı verip
   /// vermediğini okur. Kullanıcı izni daha sonra Ayarlar'dan kapatmış olabilir.
   Future<bool> hasPermission() async {
-    if (!_supported) return false;
-    await initialize();
+    final state = await refreshPermission();
+    return state == ReminderPermissionState.granted;
+  }
 
+  /// İzni okur ve yalnız kesin `granted/denied` sonucunu paylaşılan duruma
+  /// yazar. `null`, eksik eklenti ve geçici hatalar son kesin bilgiyi silmez.
+  Future<ReminderPermissionState> refreshPermission() {
+    if (_disposed || !_supported) {
+      return Future.value(ReminderPermissionState.unknown);
+    }
+    final requesting = _permissionRequest;
+    if (requesting != null) return requesting;
+    final reading = _permissionRead;
+    if (reading != null) return reading;
+
+    late final Future<ReminderPermissionState> operation;
+    operation = _readPermission().whenComplete(() {
+      if (identical(_permissionRead, operation)) _permissionRead = null;
+    });
+    return _permissionRead = operation;
+  }
+
+  Future<ReminderPermissionState> _readPermission() async {
+    final revision = ++_permissionRevision;
+    ReminderPermissionState result;
     try {
-      if (_isIos) {
-        final options = await _plugin
-            .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin
-            >()
-            ?.checkPermissions();
-        return options?.isEnabled ?? false;
-      }
-
-      final enabled = await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.areNotificationsEnabled();
-      return enabled ?? false;
+      await initialize();
+      result = _isIos
+          ? await _readIosPermission()
+          : _isAndroid
+          ? await _readAndroidPermission()
+          : ReminderPermissionState.unknown;
+    } on MissingPluginException catch (error) {
+      debugPrint('Bildirim izni okunamadı: $error');
+      result = ReminderPermissionState.unknown;
     } on PlatformException catch (error) {
       debugPrint('Bildirim izni okunamadı: $error');
-      return false;
+      result = ReminderPermissionState.unknown;
+    } on Object catch (error) {
+      debugPrint('Bildirim servisi izin sorgusuna hazırlanamadı: $error');
+      result = ReminderPermissionState.unknown;
     }
+
+    if (revision != _permissionRevision || _disposed) {
+      return ReminderPermissionState.unknown;
+    }
+    _publishPermission(result);
+    return result;
+  }
+
+  Future<ReminderPermissionState> _readIosPermission() async {
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (ios == null) return ReminderPermissionState.unknown;
+    final options = await ios.checkPermissions();
+    if (options == null) return ReminderPermissionState.unknown;
+    return options.isEnabled || options.isProvisionalEnabled
+        ? ReminderPermissionState.granted
+        : ReminderPermissionState.denied;
+  }
+
+  Future<ReminderPermissionState> _readAndroidPermission() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android == null) return ReminderPermissionState.unknown;
+
+    final appEnabled = await android.areNotificationsEnabled();
+    if (appEnabled == null) return ReminderPermissionState.unknown;
+    if (!appEnabled) return ReminderPermissionState.denied;
+
+    final channels = await android.getNotificationChannels();
+    if (channels == null) return ReminderPermissionState.unknown;
+    for (final channel in channels) {
+      if (channel.id == _channelId && channel.importance == Importance.none) {
+        return ReminderPermissionState.denied;
+      }
+    }
+    return ReminderPermissionState.granted;
+  }
+
+  Future<ReminderPermissionState> _requestPermissionState() {
+    if (_disposed || !_supported) {
+      return Future.value(ReminderPermissionState.unknown);
+    }
+    final requesting = _permissionRequest;
+    if (requesting != null) return requesting;
+    // Başlamış salt-okunur çağrı native tarafta iptal edilemez; revision onu
+    // geçersiz kılar. Pointer'ı bırakmak, kullanıcı cevabından sonraki sync'in
+    // o eski Future'ı paylaşmasını önler.
+    _permissionRead = null;
+
+    late final Future<ReminderPermissionState> operation;
+    operation = _performPermissionRequest().whenComplete(() {
+      if (identical(_permissionRequest, operation)) _permissionRequest = null;
+    });
+    return _permissionRequest = operation;
+  }
+
+  Future<ReminderPermissionState> _performPermissionRequest() async {
+    // Daha önce başlamış yavaş bir salt-okunur sorgu, kullanıcı cevabını
+    // sonradan ezemez.
+    final revision = ++_permissionRevision;
+    ReminderPermissionState result;
+    try {
+      await initialize();
+      if (_isIos) {
+        final ios = _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        final granted = await ios?.requestPermissions(
+          alert: true,
+          badge: false,
+          sound: true,
+        );
+        result = granted == null
+            ? ReminderPermissionState.unknown
+            : granted
+            ? ReminderPermissionState.granted
+            : ReminderPermissionState.denied;
+      } else if (_isAndroid) {
+        final android = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (android == null) {
+          result = ReminderPermissionState.unknown;
+        } else {
+          final prompted = await android.requestNotificationsPermission();
+          result = prompted == false
+              ? ReminderPermissionState.denied
+              : await _readAndroidPermission();
+        }
+      } else {
+        result = ReminderPermissionState.unknown;
+      }
+    } on MissingPluginException catch (error) {
+      debugPrint('Bildirim izni alınamadı: $error');
+      result = ReminderPermissionState.unknown;
+    } on PlatformException catch (error) {
+      debugPrint('Bildirim izni alınamadı: $error');
+      result = ReminderPermissionState.unknown;
+    } on Object catch (error) {
+      debugPrint('Bildirim servisi izin isteğine hazırlanamadı: $error');
+      result = ReminderPermissionState.unknown;
+    }
+
+    if (revision != _permissionRevision || _disposed) {
+      return ReminderPermissionState.unknown;
+    }
+    _publishPermission(result);
+    return result;
+  }
+
+  void _publishPermission(ReminderPermissionState state) {
+    if (state == ReminderPermissionState.unknown || _disposed) return;
+    if (_permission.value != state) _permission.value = state;
   }
 
   /// Kullanıcı izni daha önce reddettiyse işletim sistemi istemi yeniden
@@ -325,6 +486,95 @@ class ReminderService {
       await _settingsChannel.invokeMethod<bool>('openNotificationSettings');
     } on PlatformException catch (error) {
       debugPrint('Bildirim ayarları açılamadı: $error');
+    }
+  }
+
+  /// Arayüzde gösterilecek sıradaki oluşum, native programla aynı hesaptan.
+  DateTime? nextReminderAt(
+    Note note,
+    AppSettings settings, {
+    required DateTime now,
+  }) {
+    final anchor = note.reminderAnchorAt ?? note.createdAt;
+    return pendingReminderAt(
+      anchorAt: anchor,
+      remindAfterDays: note.remindAfterDays,
+      repeats: note.remindRepeats,
+      expiresAt: note.expiresAt,
+      now: now,
+    );
+  }
+
+  /// Debug Pro bölümündeki elle tetiklenen, tek seferlik güvenli bildirim.
+  ///
+  /// Gerçek reminder programına kayıt eklemez: `show` doğrudan tek bir
+  /// teslimat yapar ve sabit `0` kimliği önceki test satırını değiştirir.
+  /// [kDebugMode] derleme zamanı kapısı sayesinde release çağırıcısı yanlışlıkla
+  /// bu metoda ulaşsa bile platforma tek çağrı gitmez.
+  Future<bool> sendDebugTestNotification({
+    required Note note,
+    required L10n l10n,
+    required bool debugProEnabled,
+  }) async {
+    if (!kDebugMode ||
+        !debugProEnabled ||
+        !_supported ||
+        note.id <= 0 ||
+        note.remindAfterDays <= 0) {
+      return false;
+    }
+
+    try {
+      await initialize();
+      if (await requestPermissionState() != ReminderPermissionState.granted) {
+        return false;
+      }
+
+      const id = 0;
+      final art = await _attachmentPath(photoOf?.call(note), id);
+
+      Future<void> show(String? attachment) => _plugin.show(
+        id: id,
+        title: _title,
+        body: _body(note, l10n),
+        payload: 'note/${note.id}',
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            l10n.notificationChannelName,
+            channelDescription: l10n.notificationChannelDescription,
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            autoCancel: true,
+            sound: const RawResourceAndroidNotificationSound(_soundName),
+            styleInformation: attachment == null
+                ? null
+                : BigPictureStyleInformation(
+                    FilePathAndroidBitmap(attachment),
+                    largeIcon: FilePathAndroidBitmap(attachment),
+                    hideExpandedLargeIcon: true,
+                  ),
+          ),
+          iOS: DarwinNotificationDetails(
+            sound: _iosSoundFile,
+            attachments: attachment == null
+                ? null
+                : [DarwinNotificationAttachment(attachment)],
+          ),
+        ),
+      );
+
+      try {
+        await show(art);
+      } on PlatformException {
+        if (art == null) rethrow;
+        // Görsel eki reddedilirse test bildiriminin metni yine de ulaşsın.
+        await show(null);
+      }
+      return true;
+    } on Object catch (error) {
+      debugPrint('Debug test bildirimi gönderilemedi: $error');
+      return false;
     }
   }
 
@@ -361,37 +611,85 @@ class ReminderService {
 
       final now = tz.TZDateTime.now(tz.UTC);
       final byId = {for (final note in notes) note.id: note};
+      final requests = [
+        for (final note in notes)
+          ReminderRequest(
+            noteId: note.id,
+            anchorAt: note.reminderAnchorAt ?? note.createdAt,
+            remindAfterDays: note.remindAfterDays,
+            repeats: note.remindRepeats,
+            expiresAt: note.expiresAt,
+            // Android ilk kesin anı `calledAt` ile taşıyabiliyor. iOS'ta
+            // günlük/haftalık calendar trigger fazı korur, diğer aralıklar
+            // aşağıdaki küçük kayan tek-atış penceresine açılır.
+            allowNativeRepeat:
+                _isAndroid ||
+                (!_isIos) ||
+                note.remindAfterDays == 1 ||
+                note.remindAfterDays == 7,
+          ),
+      ];
       final schedule = reminderSchedule(
-        requests: [
-          for (final note in notes)
-            ReminderRequest(
-              noteId: note.id,
-              anchorAt: note.reminderAnchorAt ?? note.createdAt,
-              remindAfterDays: note.remindAfterDays,
-              repeats: note.remindRepeats,
-              expiresAt: note.expiresAt,
-            ),
-        ],
+        requests: requests,
         now: now,
+        maxPerNote: _isIos
+            ? kRollingReminderWindowPerNote
+            : kPendingReminderBudget,
       );
 
       final desired = <int, _DesiredReminder>{};
+      final photos = <int, File?>{};
+      final attachmentFingerprints = <int, String>{};
+      final firstOccurrenceByNote = <int, int>{};
+      for (final reminder in schedule) {
+        firstOccurrenceByNote.putIfAbsent(
+          reminder.noteId,
+          () => reminder.notificationId,
+        );
+      }
       for (final reminder in schedule) {
         final note = byId[reminder.noteId];
         if (note == null) continue;
+        // Bütçeli tek-atış dizisinde aynı 1024 px kareyi her oluşum için kopyalamak
+        // hem iOS attachment kotasını hem belleği gereksiz tüketir. En yakın
+        // oluşum görselli kurulur; o teslim edilip sonraki sync çalıştığında
+        // sıradaki oluşum güvenle (mutlak tarihi değişmeden) görselleşir.
+        final shouldAttach =
+            firstOccurrenceByNote[note.id] == reminder.notificationId;
+        final photo = shouldAttach
+            ? photos.containsKey(note.id)
+                  ? photos[note.id]
+                  : photos[note.id] = photoOf?.call(note)
+            : null;
+        final attachmentFingerprint = shouldAttach
+            ? attachmentFingerprints[note.id] ??= await _attachmentFingerprint(
+                photo,
+              )
+            : _missingAttachmentFingerprint;
         desired[reminder.notificationId] = _DesiredReminder(
           reminder: reminder,
           note: note,
-          payload: _payload(reminder, note),
-          photo: photoOf?.call(note),
+          payload: _payload(
+            reminder,
+            note,
+            attachmentFingerprint: attachmentFingerprint,
+          ),
+          photo: photo,
         );
       }
+
+      // Geçici bir platform hatasını "izin yok" diye yorumlayıp mevcut
+      // alarmı silmek geri dönüşsüzdür: yenisi aynı turda kurulamaz. Kesin
+      // bir OS cevabı gelmeden bekleyen/teslim edilmiş duruma dokunma.
+      final permission = await refreshPermission();
+      if (permission == ReminderPermissionState.unknown) return;
 
       // Hatırlatması kapatılan ve silinen notların tepsiye ulaşmış satırları
       // da gider. Tek atışını teslim etmiş, hâlâ açık bir not korunur.
       await _removeObsoleteDeliveredNotifications(notes);
 
       final existing = <int>{};
+      final stale = <int>[];
       final pending = await _plugin.pendingNotificationRequests();
       for (final request in pending) {
         // Başka bir bildirim türü ileride aynı eklentiyi kullanırsa ona
@@ -404,18 +702,54 @@ class ReminderService {
           existing.add(request.id);
           continue;
         }
-        await _plugin.cancel(id: request.id);
+
+        // Sistem izni kapalıyken artık istekleri temizlemek güvenli, fakat
+        // hâlâ istenen bir alarmı değiştirmek değil: yeni sürüm/fotoğraf
+        // payload'ı OS izni geri gelene kadar eskisinin yerini alamaz.
+        if (target != null && permission == ReminderPermissionState.denied) {
+          continue;
+        }
+        stale.add(request.id);
       }
 
-      // İzin kapalıyken eski/hayalet kayıtlar yukarıda temizlenir ama yeni
-      // kayıt kurulmaz. Kullanıcı sistem ayarından dönünce sync yeniden koşar.
-      if (!await hasPermission()) return;
+      // Önceki 60'lık exact pencereyi yeni küçük programa geçirirken
+      // main isolate üzerinden 60 ayrı cancel çağrısı da Simulator'ı uzun
+      // süre meşgul edebilir. Bu uygulamada eklentinin bütün bekleyen kayıtları
+      // Latermark reminder'larıdır; büyük iOS migrasyonunu tek native toplu
+      // çağrıyla temizleyip güncel hedefi yeniden kurmak güvenlidir. Teslim
+      // edilmiş tepsi satırları bu API'den etkilenmez.
+      final useBulkMigrationCancel =
+          _isIos &&
+          permission == ReminderPermissionState.granted &&
+          stale.length > kRollingReminderWindowPerNote;
+      if (useBulkMigrationCancel) {
+        await _plugin.cancelAllPendingNotifications();
+        existing.clear();
+      } else {
+        for (final id in stale) {
+          await _plugin.cancel(id: id);
+        }
+      }
+
+      // İzin kapalıyken yalnız eski/hayalet kayıtlar yukarıda temizlenir.
+      // Kullanıcı sistem ayarından dönünce mismatch kayıtlar güvenle yenilenir.
+      if (permission == ReminderPermissionState.denied) return;
 
       await _sweepAttachments(desired.keys.toSet());
 
       for (final entry in desired.entries) {
         if (existing.contains(entry.key)) continue;
-        await _schedule(entry.value, l10n);
+        try {
+          await _schedule(entry.value, l10n);
+        } on PlatformException catch (error) {
+          // Tek bir bozuk native kayıt, aynı senkrondaki diğer notların
+          // programını kesmemeli. `_schedule` kare reddini zaten karesiz
+          // yeniden dener; ikinci hata kaydın kendisine aittir.
+          debugPrint(
+            'Hatırlatma kurulamadı (${entry.value.reminder.notificationId}): '
+            '$error',
+          );
+        }
       }
     } on PlatformException catch (error) {
       // İzin yoksa veya tam zamanlı alarm hakkı verilmemişse sessizce geç.
@@ -438,17 +772,11 @@ class ReminderService {
   ///
   /// Kopya, iOS onu aldığı anda yerinden kalkar. Alınamayan (kurulum hata
   /// verdiyse) artıklar bir sonraki [sync] süpürmesinde temizlenir.
-  /// iOS'un `UNNotificationAttachment`'ı kabul ettiği türler.
+  /// Apple'ın **üretilen** görsel eki için koyduğu 10 MB sınırı.
   ///
-  /// Bu sınır kozmetik değil: desteklenmeyen bir dosya verilince Apple hata
-  /// döndürüyor, eklenti onu `PlatformException`'a çeviriyor ve [sync]'in
-  /// döngüsü orada kesiliyor — yani **tek bir HEIC kare, o senkrondaki bütün
-  /// hatırlatmaları kurulmadan bırakır**. Galeriden ve paylaşımdan gelen
-  /// kareler pekâlâ HEIC olabilir. Görsel süs, hatırlatma taşıyıcı bilgi:
-  /// şüphede kalınca ek düşer, bildirim kalır.
-  static const _attachableExtensions = {'.jpg', '.jpeg', '.png', '.gif'};
-
-  /// Apple'ın görsel eki sınırı 10 MB. Üstünü göndermek de aynı hatayı üretir.
+  /// Kaynak bu sınırla veya dosya uzantısıyla elenmez. Photos paylaşımı HEIC
+  /// verebilir; kaynak 10 MB'tan büyük olsa bile aşağıda üretilen 1024 px PNG
+  /// çok daha küçük olabilir. Native API'ye giden destekli çıktı ölçülür.
   static const _attachmentSizeLimit = 10 * 1024 * 1024;
 
   /// Kopyanın uzun kenarı. Kilit ekranındaki önizleme ile açılmış bildirimin
@@ -458,19 +786,17 @@ class ReminderService {
   Future<String?> _attachmentPath(File? photo, int notificationId) async {
     if (photo == null || !photo.existsSync()) return null;
 
-    final dot = photo.path.lastIndexOf('.');
-    final extension = dot < 0 ? '' : photo.path.substring(dot).toLowerCase();
-    if (!_attachableExtensions.contains(extension)) return null;
-    if (await photo.length() > _attachmentSizeLimit) return null;
-
     final dir = await _resolveArtDir();
     if (dir == null) return null;
 
+    final copy = File('${dir.path}/$notificationId.png');
+    ui.Codec? codec;
     ui.Image? image;
     try {
-      // Buffer'ın sahipliğini codec devralır ve kendisi kapatır.
+      // `instantiateImageCodecWithSize` buffer'ı codec oluşturulunca kapatır;
+      // dönen codec'in yaşam döngüsü ise çağırana aittir.
       final buffer = await ui.ImmutableBuffer.fromFilePath(photo.path);
-      final codec = await ui.instantiateImageCodecWithSize(
+      codec = await ui.instantiateImageCodecWithSize(
         buffer,
         getTargetSize: (width, height) {
           if (width <= _attachmentMaxEdge && height <= _attachmentMaxEdge) {
@@ -487,16 +813,51 @@ class ReminderService {
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       if (data == null) return null;
 
-      final copy = File('${dir.path}/$notificationId.png');
-      await copy.writeAsBytes(data.buffer.asUint8List(), flush: true);
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      if (bytes.lengthInBytes > _attachmentSizeLimit) {
+        if (copy.existsSync()) await copy.delete();
+        return null;
+      }
+
+      await copy.writeAsBytes(bytes, flush: true);
       return copy.path;
     } on Object catch (error) {
       // Kare iliştirilemezse bildirim yine de gitmeli; görsel süs, taşıyıcı
       // bilgi değil. Çözme hatası da dosya hatası da aynı yere çıkar.
       debugPrint('Bildirim karesi hazırlanamadı: $error');
+      if (copy.existsSync()) {
+        try {
+          await copy.delete();
+        } on FileSystemException {
+          // Hazırlama hatasını koru; bu yalnız yeniden üretilebilir bir kopya.
+        }
+      }
       return null;
     } finally {
       image?.dispose();
+      codec?.dispose();
+    }
+  }
+
+  /// Kaynağın payload'a girecek kararlı kimliği.
+  ///
+  /// Dosya henüz yoksa `none` yazılır. Arka plan sıkıştırması dosyayı daha sonra
+  /// değiştirdiğinde boyut/zaman kimliği de değişir; ilk turda karesiz kurulan
+  /// native istek böylece sonraki [sync]'te aynı sanılıp korunmaz.
+  Future<String> _attachmentFingerprint(File? photo) async {
+    if (photo == null) return _missingAttachmentFingerprint;
+    try {
+      final stat = await photo.stat();
+      if (stat.type != FileSystemEntityType.file) {
+        return _missingAttachmentFingerprint;
+      }
+      return '${stat.size.toRadixString(36)}-'
+          '${stat.modified.microsecondsSinceEpoch.toRadixString(36)}';
+    } on FileSystemException {
+      return _missingAttachmentFingerprint;
     }
   }
 
@@ -536,9 +897,44 @@ class ReminderService {
   }
 
   Future<void> _schedule(_DesiredReminder desired, L10n l10n) async {
+    final art = await _attachmentPath(
+      desired.photo,
+      desired.reminder.notificationId,
+    );
+    if (art == null) {
+      await _installReminder(desired, l10n, art: null);
+      return;
+    }
+
+    try {
+      await _installReminder(desired, l10n, art: art);
+    } on PlatformException catch (error) {
+      // `UNNotificationAttachment` dosyayı doğrularken hata döndürebilir.
+      // Kare taşıyıcı bilgi değil: aynı isteği karesiz yeniden kur ve sonraki
+      // hatırlatmaların bu tek görsel yüzünden sırada kalmasına izin verme.
+      debugPrint(
+        'Bildirim karesi native tarafta reddedildi '
+        '(${desired.reminder.notificationId}): $error',
+      );
+      final rejectedCopy = File(art);
+      if (rejectedCopy.existsSync()) {
+        try {
+          await rejectedCopy.delete();
+        } on FileSystemException {
+          // Kopya yeniden üretilebilir; karesiz retry bunun yüzünden durmamalı.
+        }
+      }
+      await _installReminder(desired, l10n, art: null);
+    }
+  }
+
+  Future<void> _installReminder(
+    _DesiredReminder desired,
+    L10n l10n, {
+    required String? art,
+  }) async {
     final reminder = desired.reminder;
     final note = desired.note;
-    final art = await _attachmentPath(desired.photo, reminder.notificationId);
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId,
@@ -562,7 +958,9 @@ class ReminderService {
         sound: _iosSoundFile,
         // Düğmeleri bildirime bağlayan tek bağ. Android'e karşılığı
         // verilmiyor: oradaki davranış olduğu gibi korunuyor.
-        categoryIdentifier: _categoryId,
+        categoryIdentifier: note.remindRepeats
+            ? _repeatCategoryId
+            : _onceCategoryId,
         attachments: art == null ? null : [DarwinNotificationAttachment(art)],
       ),
     );
@@ -588,6 +986,28 @@ class ReminderService {
           matchDateTimeComponents: calendarRepeat,
         );
         return;
+      }
+      if (_isAndroid) {
+        final android = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (android != null) {
+          await android.periodicallyShowWithDuration(
+            id: reminder.notificationId,
+            repeatDurationInterval: interval,
+            // Plugin'in varsayılanı çağrı anıdır. Domain'in hesapladığı ilk
+            // kesin tarihi taşımak; upgrade, off/on ve reboot sonrasında
+            // tekrar fazının "şimdi + N" diye sıfırlanmasını önler.
+            firstScheduledAt: reminder.at,
+            title: _title,
+            body: l10n.notificationBodyNoBody,
+            payload: desired.payload,
+            scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            notificationDetails: details.android,
+          );
+          return;
+        }
       }
       await _plugin.periodicallyShowWithDuration(
         id: reminder.notificationId,
@@ -712,8 +1132,12 @@ class ReminderService {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _permissionRevision++;
+    _permissionRead = null;
+    _permissionRequest = null;
     _pendingNoteId = null;
     await _noteTaps.close();
+    _permission.dispose();
   }
 
   /// Bildirimin başlığı her zaman uygulamanın adı.
@@ -733,16 +1157,34 @@ class ReminderService {
 /// —dolayısıyla hangi sesle— kurulduğunu sonradan sorgulamanın yolu yok:
 /// `pendingNotificationRequests()` yalnızca kimlik, başlık, gövde ve payload
 /// veriyor. Sürümü payload'a yazmak, eski kurulumları tanınır kılıyor.
-const _payloadVersion = 'v3';
+const _payloadVersion = 'v5';
+const _legacyPayloadVersions = {'v2', 'v3', 'v4'};
 
-String _payload(ScheduledReminder reminder, Note note) {
+/// Attachment fingerprint şemasının payload etiketi.
+///
+/// Dosya kimliği hesabı ileride değişirse bu etiket yükseltilerek aynı reminder
+/// zamanını değiştirmeden native içerik bir kez güvenle yenilenebilir.
+const _attachmentPayloadVersion = 'art1';
+const _missingAttachmentFingerprint = 'none';
+
+String _payload(
+  ScheduledReminder reminder,
+  Note note, {
+  required String attachmentFingerprint,
+}) {
+  final String core;
   if (reminder.repeatsIndefinitely) {
     final anchor = note.reminderAnchorAt ?? note.createdAt;
-    return 'note/${note.id}/$_payloadVersion/every/${note.remindAfterDays}/'
+    core =
+        'note/${note.id}/$_payloadVersion/every/'
+        '${note.remindAfterDays}/'
         '${anchor.toUtc().millisecondsSinceEpoch}';
+  } else {
+    core =
+        'note/${note.id}/$_payloadVersion/at/'
+        '${reminder.at.toUtc().millisecondsSinceEpoch}';
   }
-  return 'note/${note.id}/$_payloadVersion/at/'
-      '${reminder.at.toUtc().millisecondsSinceEpoch}';
+  return '$core/$_attachmentPayloadVersion/$attachmentFingerprint';
 }
 
 final class _DesiredReminder {
@@ -775,25 +1217,53 @@ int? noteIdFromReminderPayload(String? payload) {
   // Sürüm etiketi yalnızca şemayı değil, **yeniden kurulmayı** da tetikliyor:
   // `sync()` payload'ı aynı kalan kaydı yeniden kurmuyor, dolayısıyla etiketi
   // yükseltmek eski sürümden kalan bekleyen bildirimleri iptal edip yeni
-  // kanal/ses ile yeniden kurdurmanın yolu. Okurken eskisi de kabul edilir:
-  // tepside hâlâ v2 ile duran bir satır dokununca yine doğru notu açmalı.
-  const readable = {'v2', _payloadVersion};
-  final validAt =
-      segments.length == 5 &&
-      readable.contains(segments[2]) &&
+  // kanal/ses ile yeniden kurdurmanın yolu. Okurken eskileri de kabul edilir:
+  // tepside hâlâ v2/v3 ile duran bir satır dokununca yine doğru notu açmalı.
+  final version = segments[2];
+  final current = version == _payloadVersion;
+  if (!current && !_legacyPayloadVersions.contains(version)) return null;
+
+  final int coreLength;
+  if (segments.length >= 5 &&
       segments[3] == 'at' &&
-      int.tryParse(segments[4]) != null;
-  final everyDays = segments.length == 6 && segments[3] == 'every'
-      ? int.tryParse(segments[4])
-      : null;
-  final validEvery =
-      segments.length == 6 &&
-      readable.contains(segments[2]) &&
-      segments[3] == 'every' &&
-      everyDays != null &&
-      everyDays > 0 &&
-      int.tryParse(segments[5]) != null;
-  return validAt || validEvery ? noteId : null;
+      int.tryParse(segments[4]) != null) {
+    coreLength = 5;
+  } else {
+    final everyCadence =
+        segments.length >= 6 &&
+            (segments[3] == 'every' || segments[3] == 'every_minutes')
+        ? int.tryParse(segments[4])
+        : null;
+    if (everyCadence == null ||
+        everyCadence <= 0 ||
+        int.tryParse(segments[5]) == null) {
+      return null;
+    }
+    coreLength = 6;
+  }
+
+  if (!current) {
+    // v2/v3 ek parmak izi taşımıyordu; v4 `art1` şemasını ilk kullanan
+    // sürümdü. Kategori kimlikleri için v5'e geçerken tepsideki v4
+    // bildirimlerinin dokunma/eylem payload'ları okunmaya devam eder.
+    if (version != 'v4') {
+      return segments.length == coreLength ? noteId : null;
+    }
+  }
+  final validAttachmentSuffix =
+      segments.length == coreLength + 2 &&
+      segments[coreLength] == _attachmentPayloadVersion &&
+      _validAttachmentFingerprint(segments[coreLength + 1]);
+  return validAttachmentSuffix ? noteId : null;
+}
+
+bool _validAttachmentFingerprint(String fingerprint) {
+  if (fingerprint == _missingAttachmentFingerprint) return true;
+  final parts = fingerprint.split('-');
+  if (parts.length != 2) return false;
+  final size = int.tryParse(parts[0], radix: 36);
+  final modified = int.tryParse(parts[1], radix: 36);
+  return size != null && size >= 0 && modified != null && modified >= 0;
 }
 
 /// Bir hatırlatma payload'ının temsil ettiği oluşum anı.
@@ -812,7 +1282,7 @@ DateTime? reminderFiredAt(String? payload, {required DateTime now}) {
   }
 
   final segments = payload.split('/');
-  if (segments.length == 5 && segments[3] == 'at') {
+  if (segments.length >= 5 && segments[3] == 'at') {
     final milliseconds = int.tryParse(segments[4]);
     return milliseconds == null
         ? null
@@ -822,7 +1292,27 @@ DateTime? reminderFiredAt(String? payload, {required DateTime now}) {
           ).toLocal();
   }
 
-  if (segments.length == 6 && segments[3] == 'every') {
+  if (segments.length >= 6 && segments[3] == 'every_minutes') {
+    final minutes = int.tryParse(segments[4]);
+    final anchorMilliseconds = int.tryParse(segments[5]);
+    if (minutes == null || minutes <= 0 || anchorMilliseconds == null) {
+      return null;
+    }
+
+    final anchor = DateTime.fromMillisecondsSinceEpoch(
+      anchorMilliseconds,
+      isUtc: true,
+    ).toLocal();
+    final interval = Duration(minutes: minutes);
+    final elapsedMicroseconds =
+        now.toUtc().microsecondsSinceEpoch -
+        anchor.toUtc().microsecondsSinceEpoch;
+    if (elapsedMicroseconds < interval.inMicroseconds) return null;
+    final step = elapsedMicroseconds ~/ interval.inMicroseconds;
+    return anchor.add(interval * step);
+  }
+
+  if (segments.length >= 6 && segments[3] == 'every') {
     final days = int.tryParse(segments[4]);
     final anchorMilliseconds = int.tryParse(segments[5]);
     if (days == null || days <= 0 || anchorMilliseconds == null) return null;

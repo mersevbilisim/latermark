@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_scope.dart';
+import '../../../reminders/reminder_service.dart';
 import '../../../paywall/presentation/paywall_host.dart';
 import 'reminder_field.dart';
 
@@ -83,25 +84,38 @@ class _ReminderControlState extends State<ReminderControl> {
     final reminders = context.reminders;
     final settings = AppScope.settingsOf(context);
 
-    var allowed = await reminders.hasPermission();
-    if (!allowed && ask && !_permissionAsked) {
-      _permissionAsked = true;
-      allowed = await reminders.requestPermission();
-    }
-    // Hatırlatmaların ana şalteri kapalıysa, kullanıcı burada süre vererek
-    // zaten istediğini söylemiş oluyor.
-    if (allowed) await settings.setReminderEnabled(true);
+    // Bir süre seçmek, OS izninden bağımsız olarak kullanıcının Latermark
+    // hatırlatmalarını istediği anlamına gelir. Niyeti şimdi saklamak,
+    // reddedilen izni Sistem Ayarları'ndan sonradan açtığında aynı nota geri
+    // dönüp süreyi yeniden seçme zorunluluğunu ortadan kaldırır. Native
+    // programlama yine merkezi izin durumu ile sıkı biçimde kapılıdır.
+    if (ask) await settings.setReminderEnabled(true);
 
+    var permission = await reminders.refreshPermission();
+    if (permission != ReminderPermissionState.granted &&
+        ask &&
+        !_permissionAsked) {
+      _permissionAsked = true;
+      permission = await reminders.requestPermissionState();
+    }
     if (!mounted) return;
-    setState(() => _blocked = !allowed);
+    setState(() => _blocked = permission == ReminderPermissionState.denied);
   }
 
   @override
   Widget build(BuildContext context) {
+    final permission = AppScope.reminderPermission(context);
+    final blocked = widget.days > 0
+        ? switch (permission) {
+            ReminderPermissionState.granted => false,
+            ReminderPermissionState.denied => true,
+            ReminderPermissionState.unknown => _blocked,
+          }
+        : false;
     return ReminderField(
       days: widget.days,
       repeats: widget.repeats,
-      blocked: _blocked,
+      blocked: blocked,
       locked: !AppScope.preferences(context).proUnlocked,
       prominent: widget.prominent,
       onChanged: _onChanged,

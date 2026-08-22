@@ -443,6 +443,8 @@
     }
   },
   "paywallRestore": "購入を復元",
+  "paywallRestoreNotFound": "以前の Latermark Pro の購入は見つかりませんでした。",
+  "paywallRestoreFailed": "購入を復元できませんでした。もう一度お試しください。",
   "paywallClose": "閉じる",
   "paywallLifeFree": "無料",
   "paywallLifePro": "Pro",
@@ -454,6 +456,7 @@
   "reminderActionDone": "完了",
   "reminderActionTomorrow": "明日",
   "reminderActionNextWeek": "来週",
+  "reminderActionTurnOff": "このリマインダーをオフ",
   "actionOK": "OK",
   "widgetDescription": "最新の写真とノートを表示します。",
   "widgetEmptySubtitle": "最初のノートがここに表示されます",

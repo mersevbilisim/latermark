@@ -46,6 +46,7 @@ class PurchaseService {
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   Future<bool?>? _entitlementRefresh;
   Completer<bool?>? _androidRestoreResult;
+  Future<bool?>? _restoreOperation;
 
   /// Mağazadan gelen, kullanıcının ülkesine göre biçimlendirilmiş fiyat.
   ///
@@ -285,6 +286,33 @@ class PurchaseService {
     }
   }
 
+  /// Kullanıcının açık "geri yükle" eylemi için App Store ile zorunlu
+  /// senkronizasyon yapar ve ardından güncel hakkı döndürür.
+  ///
+  /// Genel `in_app_purchase.restorePurchases()` StoreKit 2 yolunda yalnızca
+  /// cihazdaki `currentEntitlements` listesini yeniden yayıyor; `AppStore.sync`
+  /// çağırmıyor. Kullanıcı yeni bir cihaza geçtiğinde yerel liste henüz güncel
+  /// olmayabilir. Senkron native kanalda yapılır; olası Apple hesabı istemi
+  /// kullanıcı tarafından yanıtlanacağı için açılış sorgusundaki altı saniyelik
+  /// timeout burada bilinçli olarak kullanılmaz.
+  Future<bool?> _restoreIosEntitlement() async {
+    try {
+      final owned = await _entitlementChannel.invokeMethod<bool>(
+        'restoreProEntitlement',
+      );
+      if (owned == null) {
+        throw const FormatException('StoreKit geri yükleme sonucu boş döndü.');
+      }
+      unlocked.value = owned;
+      return owned;
+    } catch (error) {
+      // İptal, bağlantı ve doğrulama hataları "satın almamış" değildir. Son
+      // kesin önbelleği koru ve arayüzün hata sonucunu göstermesine izin ver.
+      debugPrint('iOS Pro geri yükleme doğrulanamadı: $error');
+      return null;
+    }
+  }
+
   Future<bool?> _readAndroidEntitlement() async {
     final activeRestore = _androidRestoreResult;
     if (activeRestore != null) return activeRestore.future;
@@ -327,19 +355,38 @@ class PurchaseService {
   }
 
   /// "Satın alımları geri yükle".
-  Future<void> restore() async {
+  ///
+  /// `true` Pro hakkının bulunduğunu, `false` mağazanın kesin olarak önceki
+  /// bir satın alma bulamadığını, `null` ise sonucun mağaza/kanal hatası
+  /// yüzünden doğrulanamadığını anlatır. Arayüz bu ayrımı kullanır; aksi hâlde
+  /// hızlı dönen boş ve hatalı sonuçların ikisi de "dokunmadı" gibi görünür.
+  Future<bool?> restore() {
+    final active = _restoreOperation;
+    if (active != null) return active;
+
+    late final Future<bool?> operation;
+    operation = _performRestore().whenComplete(() {
+      if (identical(_restoreOperation, operation)) {
+        _restoreOperation = null;
+      }
+    });
+    _restoreOperation = operation;
+    return operation;
+  }
+
+  Future<bool?> _performRestore() async {
     busy.value = true;
     try {
       if (Platform.isIOS) {
-        // StoreKit restore akışını tetikle; ardından stream'in "boş" olay
-        // üretmesine güvenmeden currentEntitlements ile kesin sonucu al.
-        await _store.restorePurchases();
+        return await _restoreIosEntitlement();
       }
-      await _refreshPlatformEntitlement();
+      return await _refreshPlatformEntitlement();
     } catch (error) {
       debugPrint('Geri yükleme başarısız: $error');
+      return null;
+    } finally {
+      busy.value = false;
     }
-    busy.value = false;
   }
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {

@@ -44,6 +44,7 @@ class PaywallPage extends StatelessWidget {
     this.reason,
     this.onPurchase,
     this.onRestore,
+    this.onClose,
     this.onFreeUpSpace,
   });
 
@@ -81,6 +82,7 @@ class PaywallPage extends StatelessWidget {
 
   final VoidCallback? onPurchase;
   final VoidCallback? onRestore;
+  final VoidCallback? onClose;
 
   /// Sınıra çarpıldığında sunulan ödemesiz çıkış: bir kare silip devam et.
   final VoidCallback? onFreeUpSpace;
@@ -100,7 +102,10 @@ class PaywallPage extends StatelessWidget {
               22,
               0,
               22,
-              MediaQuery.paddingOf(context).bottom + 228,
+              // 320 px genişlik, 1.3 yazı ölçeği, en uzun desteklenen çeviri
+              // ve iki ayrı 44 px bağlantı satırı birlikte ölçülerek ayrıldı.
+              // Son özellik footer'ın hit-test perdesinin altında kalmasın.
+              MediaQuery.paddingOf(context).bottom + 400,
             ),
             children: [
               SizedBox(height: topInset + 62),
@@ -181,7 +186,7 @@ class PaywallPage extends StatelessWidget {
             top: topInset + 2,
             left: 0,
             child: Pressable(
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: onClose ?? () => Navigator.of(context).maybePop(),
               scale: 0.9,
               semanticLabel: l10n.paywallClose,
               child: Padding(
@@ -438,6 +443,7 @@ class _Footer extends StatelessWidget {
     final veil = palette.canvasSunk;
 
     return DecoratedBox(
+      key: const Key('paywall-footer'),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -482,24 +488,48 @@ class _Footer extends StatelessWidget {
             //
             // Yanındaki yasal bağlantılar da App Store'un beklediği şey;
             // satın alma ekranında bulunmaları zorunlu.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // İki yasal bağlantı üst tabanı, restore ise alttaki ortalı
+                // noktayı oluşturur. Böylece üç uzun etiket tek satıra
+                // sıkışmaz; restore da ayrı bir kullanıcı eylemi olarak okunur.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      flex: 2,
+                      child: _FooterLink(
+                        label: l10n.legalPrivacy,
+                        onTap: () =>
+                            LegalLinks.open(LegalLinks.privacy(context)),
+                      ),
+                    ),
+                    const _FooterDot(),
+                    Flexible(
+                      flex: 3,
+                      child: _FooterLink(
+                        label: l10n.legalTerms,
+                        onTap: () => LegalLinks.open(LegalLinks.terms),
+                      ),
+                    ),
+                  ],
+                ),
                 // Geri yükleme yalnızca satın alma teklif edilirken anlamlı;
                 // hakkı olan biri için yapacak bir şeyi yok.
-                if (!unlocked) ...[
-                  _FooterLink(label: l10n.paywallRestore, onTap: onRestore),
-                  const _FooterDot(),
-                ],
-                _FooterLink(
-                  label: l10n.legalPrivacy,
-                  onTap: () => LegalLinks.open(LegalLinks.privacy(context)),
-                ),
-                const _FooterDot(),
-                _FooterLink(
-                  label: l10n.legalTerms,
-                  onTap: () => LegalLinks.open(LegalLinks.terms),
-                ),
+                if (!unlocked)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: _FooterLink(
+                          label: l10n.paywallRestore,
+                          onTap: onRestore,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ],
@@ -569,19 +599,35 @@ class _FooterLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Pressable(
-        onPressed: onTap,
-        scale: 0.96,
-        semanticLabel: label,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.palette.caption.copyWith(
-              color: context.palette.inkSoft,
+    return Pressable(
+      onPressed: onTap,
+      scale: 0.96,
+      semanticLabel: label,
+      // Caption metni tek başına yaklaşık 14 px yüksek. Yalnızca metnin
+      // boyutunu hit-test alanı yapmak simülatörde fareyle fark edilmese de
+      // fiziksel cihazda parmağın dokunuşu sıkça kaçırmasına yol açıyor.
+      // iOS'un yerleşik kontrolleriyle aynı tabanı kullan: görünüm küçük ve
+      // sakin kalırken görünmez dokunma yüzeyi en az 44 logical px olsun.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Align(
+          alignment: Alignment.center,
+          widthFactor: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            // Yasal metni ellipsis ile belirsizleştirme. Yalnız 320 px + 1.3
+            // ölçek gibi uç durumda birkaç puan küçülür; 44 px dokunma alanı
+            // değişmez ve etiketin tamamı okunur.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                style: context.palette.caption.copyWith(
+                  color: context.palette.inkSoft,
+                ),
+              ),
             ),
           ),
         ),

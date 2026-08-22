@@ -10,6 +10,7 @@ final class ReminderRequest {
     required this.remindAfterDays,
     required this.repeats,
     this.expiresAt,
+    this.allowNativeRepeat = true,
   });
 
   final int noteId;
@@ -31,6 +32,11 @@ final class ReminderRequest {
   /// Notun otomatik silinme anı; süresizse `null`. Silinmiş bir notu
   /// hatırlatmanın anlamı yok.
   final DateTime? expiresAt;
+
+  /// Platform ilk kesin tarihi ve aralığı aynı native kayıtta ifade
+  /// edebiliyorsa `true`. iOS'taki özel N günlük tekrarlar gibi bunu
+  /// yapamayan yollar, fazı koruyan sınırlı tek-atış dizisine açılır.
+  final bool allowNativeRepeat;
 }
 
 /// İşletim sistemine verilecek tek bir hatırlatma kaydı.
@@ -82,6 +88,16 @@ final class ScheduledReminder {
 /// bir bildirim türünün hatırlatmalar tarafından ezilmesini önler. Süresiz bir
 /// tekrar bu bütçeden yalnızca **bir** kayıt kullanır.
 const kPendingReminderBudget = 60;
+
+/// Tek bir native tekrarın ifade edemediği fazı korumak için kurulacak kayan
+/// tek-atış penceresinin not başına üst sınırı.
+///
+/// iOS toplamda 64 bekleyen isteğe izin verse de tek bir not için 60 isteği
+/// aynı senkronda köprüden geçirmek özellikle Simulator'da uzun süreli UI
+/// donmasına yol açabiliyor. Sekiz oluşum günlük/haftalık olmayan tekrarlar
+/// için yeterli bir ileri pencere bırakır; uygulama her açılış/resume
+/// senkronunda pencereyi ileri taşır.
+const kRollingReminderWindowPerNote = 8;
 
 /// Bir notun oluşumlarına ayrılan kimlik aralığı.
 ///
@@ -186,7 +202,10 @@ List<ScheduledReminder> reminderSchedule({
   final nativeIntervals = <int, Duration>{};
   final byId = <int, ReminderRequest>{};
   for (final request in requests) {
-    final nativeRepeat = request.repeats && request.expiresAt == null;
+    final nativeRepeat =
+        request.repeats &&
+        request.expiresAt == null &&
+        request.allowNativeRepeat;
     final occurrences = reminderOccurrences(
       anchorAt: request.anchorAt,
       remindAfterDays: request.remindAfterDays,
@@ -217,7 +236,8 @@ List<ScheduledReminder> reminderSchedule({
       if (round >= occurrences.length) continue;
       if (schedule.length >= budget) return schedule..sort(_byTime);
       final request = byId[noteId]!;
-      final occurrence = request.repeats && request.expiresAt != null
+      final repeatsNatively = nativeIntervals.containsKey(noteId);
+      final occurrence = request.repeats && !repeatsNatively
           ? (_stepOf(
                       at: occurrences[round],
                       anchorAt: request.anchorAt,
@@ -231,7 +251,9 @@ List<ScheduledReminder> reminderSchedule({
           noteId: noteId,
           occurrence: occurrence,
           at: occurrences[round],
-          repeatInterval: round == 0 ? nativeIntervals[noteId] : null,
+          repeatInterval: repeatsNatively && round == 0
+              ? nativeIntervals[noteId]
+              : null,
         ),
       );
     }

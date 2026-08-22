@@ -17,7 +17,6 @@ import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
 import '../../data/photo_aspect.dart';
 import '../../data/photo_tone.dart';
-import '../../domain/note_reminder.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
 import '../../../../shared/widgets/icon_orb.dart';
 import '../home/widgets/note_photo.dart';
@@ -390,17 +389,6 @@ class _NoteDetailPageState extends State<NoteDetailPage>
         .clamp(0.0, 1.0)
         .toDouble();
 
-    final preferences = AppScope.preferences(context);
-    final reminderAt = preferences.proUnlocked && preferences.reminderEnabled
-        ? pendingReminderAt(
-            anchorAt: note.reminderAnchorAt ?? note.createdAt,
-            remindAfterDays: note.remindAfterDays,
-            repeats: note.remindRepeats,
-            expiresAt: note.expiresAt,
-            now: DateTime.now(),
-          )
-        : null;
-
     // Fotoğraf status bar'ın arkasına çizilmez; fakat tuval status bar'dan
     // sayfanın sonuna kadar kesintisizdir.
     return Transform.translate(
@@ -526,11 +514,10 @@ class _NoteDetailPageState extends State<NoteDetailPage>
                                 padding: EdgeInsets.only(
                                   bottom: DetailActionBar.extentOf(context),
                                 ),
-                                child: DetailSheet(
+                                child: _LiveDetailSheet(
                                   key: ValueKey('detail-note-${note.id}'),
                                   note: note,
                                   entrance: _entrance,
-                                  reminderAt: reminderAt,
                                   onEdit: _beginEditing,
                                 ),
                               ),
@@ -647,6 +634,41 @@ class _NoteDetailPageState extends State<NoteDetailPage>
       width = height * aspect;
     }
     return Size(width, height);
+  }
+}
+
+/// Sistem izni veya zaman değiştiğinde yalnızca künyeyi yeniler.
+/// Notun fotoğraf sahnesini baştan kurmak gereksiz olurdu.
+class _LiveDetailSheet extends StatelessWidget {
+  const _LiveDetailSheet({
+    super.key,
+    required this.note,
+    required this.entrance,
+    required this.onEdit,
+  });
+
+  final Note note;
+  final Animation<double> entrance;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = AppScope.preferences(context);
+    final reminders = context.reminders;
+    final active = AppScope.remindersActive(context);
+
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: AppScope.reminderClockOf(context),
+      builder: (context, now, _) => DetailSheet(
+        note: note,
+        entrance: entrance,
+        onEdit: onEdit,
+        reminderAt: active
+            ? reminders.nextReminderAt(note, settings, now: now)
+            : null,
+        now: now,
+      ),
+    );
   }
 }
 

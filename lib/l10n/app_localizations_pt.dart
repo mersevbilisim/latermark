@@ -977,6 +977,14 @@ class L10nPt extends L10n {
   String get paywallRestore => 'Restaurar compras';
 
   @override
+  String get paywallRestoreNotFound =>
+      'Não foi encontrada nenhuma compra anterior do Latermark Pro.';
+
+  @override
+  String get paywallRestoreFailed =>
+      'Não foi possível restaurar as compras. Tente novamente.';
+
+  @override
   String get paywallClose => 'Fechar';
 
   @override
@@ -1009,6 +1017,9 @@ class L10nPt extends L10n {
 
   @override
   String get reminderActionNextWeek => 'Próxima semana';
+
+  @override
+  String get reminderActionTurnOff => 'Desativar este lembrete';
 
   @override
   String get actionOK => 'OK';
@@ -2040,6 +2051,14 @@ class L10nPtBr extends L10nPt {
   String get paywallRestore => 'Restaurar compras';
 
   @override
+  String get paywallRestoreNotFound =>
+      'Não foi encontrada nenhuma compra anterior do Latermark Pro.';
+
+  @override
+  String get paywallRestoreFailed =>
+      'Não foi possível restaurar as compras. Tente novamente.';
+
+  @override
   String get paywallClose => 'Fechar';
 
   @override
@@ -2073,6 +2092,9 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get reminderActionNextWeek => 'Próxima semana';
+
+  @override
+  String get reminderActionTurnOff => 'Desativar este lembrete';
 
   @override
   String get actionOK => 'OK';

@@ -443,6 +443,8 @@
     }
   },
   "paywallRestore": "Restaurar compras",
+  "paywallRestoreNotFound": "Não foi encontrada nenhuma compra anterior do Latermark Pro.",
+  "paywallRestoreFailed": "Não foi possível restaurar as compras. Tente novamente.",
   "paywallClose": "Fechar",
   "paywallLifeFree": "Gratuito",
   "paywallLifePro": "Pro",
@@ -454,6 +456,7 @@
   "reminderActionDone": "Concluído",
   "reminderActionTomorrow": "Amanhã",
   "reminderActionNextWeek": "Próxima semana",
+  "reminderActionTurnOff": "Desativar este lembrete",
   "actionOK": "OK",
   "widgetDescription": "Mostra a captura mais recente e a respetiva nota.",
   "widgetEmptySubtitle": "A sua primeira nota aparecerá aqui",

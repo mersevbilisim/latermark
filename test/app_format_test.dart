@@ -100,6 +100,25 @@ void main() {
     });
   });
 
+  group('hatırlatma değeri', () {
+    test('tekrarı gün olarak söyler', () {
+      final at = DateTime(2026, 8, 9, 14, 32);
+
+      expect(
+        tr.reminderValue(at: at, repeats: true, everyDays: 3),
+        'Her 3 günde bir · sonraki 9 Ağustos 2026 · 14:32',
+      );
+    });
+
+    test('tek atışta cadence eki yazılmaz', () {
+      final at = DateTime(2026, 8, 9, 14, 32);
+      expect(
+        tr.reminderValue(at: at, repeats: false, everyDays: 3),
+        '9 Ağustos 2026 · 14:32',
+      );
+    });
+  });
+
   test('upper yalnızca Türkçede noktalı i korur', () async {
     final en = await L10n.delegate.load(const Locale('en'));
     expect(tr.upper('Haziran'), 'HAZİRAN');

@@ -66,7 +66,6 @@ Future<void> applyReminderActionFromNotification({
     // biçimlendiği için veri bulunmayan bir yerel `LocaleDataException`
     // atardı.
     await initializeDateFormatting();
-
     final photos = await PhotoStore.open();
     final notes = NotesRepository(database: database, photos: photos);
     final settingsRepository = SettingsRepository(database);

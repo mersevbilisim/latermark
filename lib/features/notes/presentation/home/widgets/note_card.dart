@@ -7,7 +7,6 @@ import '../../../../../shared/widgets/life_rule.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
-import '../../../domain/note_reminder.dart';
 import 'note_photo.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../core/utils/app_format.dart';
@@ -57,7 +56,7 @@ class NoteCard extends StatelessWidget {
     this.scale = CardScale.full,
     this.aspect,
     this.now,
-    required this.remindersActive,
+    this.reminderAt,
   });
 
   final Note note;
@@ -76,12 +75,8 @@ class NoteCard extends StatelessWidget {
   /// Testlerde zamanı sabitlemek için.
   final DateTime? now;
 
-  /// Hem Pro hakkı hem uygulama içi ana şalter açıkken `true`.
-  ///
-  /// Notta eski bir gün değeri bulunması tek başına sistemde çalışan bir
-  /// bildirim olduğu anlamına gelmez; künye yalnızca gerçekten etkin olan
-  /// hatırlatmaları göstermeli.
-  final bool remindersActive;
+  /// İşletim sistemi hakkı da hesaba katılmış gerçekten bekleyen oluşum.
+  final DateTime? reminderAt;
 
   @override
   Widget build(BuildContext context) {
@@ -89,20 +84,11 @@ class NoteCard extends StatelessWidget {
     final l10n = context.l10n;
     final hasBody = note.body.isNotEmpty;
     final reference = now ?? DateTime.now();
-    final reminderAt = remindersActive
-        ? pendingReminderAt(
-            anchorAt: note.reminderAnchorAt ?? note.createdAt,
-            remindAfterDays: note.remindAfterDays,
-            repeats: note.remindRepeats,
-            expiresAt: note.expiresAt,
-            now: reference,
-          )
-        : null;
     final semanticLabel = [
       hasBody ? note.body : l10n.noteWithoutBody,
       if (reminderAt != null)
         '${l10n.reminderLabel}: '
-            '${l10n.reminderValue(at: reminderAt, repeats: note.remindRepeats, everyDays: note.remindAfterDays)}',
+            '${l10n.reminderValue(at: reminderAt!, repeats: note.remindRepeats, everyDays: note.remindAfterDays)}',
     ].join('. ');
 
     return Pressable(

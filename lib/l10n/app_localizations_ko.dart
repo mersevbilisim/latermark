@@ -844,6 +844,12 @@ class L10nKo extends L10n {
   String get paywallRestore => '구매 복원';
 
   @override
+  String get paywallRestoreNotFound => '이전에 구매한 Latermark Pro를 찾지 못했습니다.';
+
+  @override
+  String get paywallRestoreFailed => '구매를 복원하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
   String get paywallClose => '닫기';
 
   @override
@@ -875,6 +881,9 @@ class L10nKo extends L10n {
 
   @override
   String get reminderActionNextWeek => '다음 주';
+
+  @override
+  String get reminderActionTurnOff => '이 알림 끄기';
 
   @override
   String get actionOK => '확인';

@@ -139,12 +139,14 @@ void main() {
       bool repeats = false,
       DateTime? anchor,
       DateTime? expiresAt,
+      bool allowNativeRepeat = true,
     }) => ReminderRequest(
       noteId: id,
       anchorAt: anchor ?? anchorAt,
       remindAfterDays: days,
       repeats: repeats,
       expiresAt: expiresAt,
+      allowNativeRepeat: allowNativeRepeat,
     );
 
     test('hatırlatması olmayan not programa girmez', () {
@@ -172,6 +174,52 @@ void main() {
         now: now,
       );
       expect(schedule.single.repeatInterval, const Duration(days: 365));
+    });
+
+    test('native fazı kuramayan platform kesin tek-atış dizisi üretir', () {
+      final schedule = reminderSchedule(
+        requests: [
+          request(9, days: 3, repeats: true, allowNativeRepeat: false),
+        ],
+        now: now,
+        budget: 4,
+      );
+
+      expect(schedule, hasLength(4));
+      expect(schedule.every((item) => item.repeatInterval == null), isTrue);
+      expect(schedule.map((item) => item.at), [
+        DateTime(2026, 8, 4, 12),
+        DateTime(2026, 8, 7, 12),
+        DateTime(2026, 8, 10, 12),
+        DateTime(2026, 8, 13, 12),
+      ]);
+    });
+
+    test('exact tekrar penceresi ilerlerken oluşum kimliği sabit kalır', () {
+      final requestValue = request(
+        9,
+        days: 3,
+        repeats: true,
+        allowNativeRepeat: false,
+      );
+      final first = reminderSchedule(
+        requests: [requestValue],
+        now: now,
+        budget: 4,
+      );
+      final later = reminderSchedule(
+        requests: [requestValue],
+        now: DateTime(2026, 8, 5, 12),
+        budget: 4,
+      );
+
+      final august7First = first.singleWhere(
+        (item) => item.at == DateTime(2026, 8, 7, 12),
+      );
+      final august7Later = later.singleWhere(
+        (item) => item.at == DateTime(2026, 8, 7, 12),
+      );
+      expect(august7Later.notificationId, august7First.notificationId);
     });
 
     test(
@@ -251,6 +299,20 @@ void main() {
       );
       expect(schedule, hasLength(kPendingReminderBudget));
       expect(kPendingReminderBudget, lessThan(64));
+    });
+
+    test('tek notun faz koruyan kayan penceresi küçük tutulur', () {
+      final schedule = reminderSchedule(
+        requests: [
+          request(9, days: 3, repeats: true, allowNativeRepeat: false),
+        ],
+        now: now,
+        maxPerNote: kRollingReminderWindowPerNote,
+      );
+
+      expect(schedule, hasLength(kRollingReminderWindowPerNote));
+      expect(kRollingReminderWindowPerNote, lessThan(kPendingReminderBudget));
+      expect(schedule.every((item) => item.repeatInterval == null), isTrue);
     });
   });
 }

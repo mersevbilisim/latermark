@@ -8,6 +8,44 @@ import flutter_local_notifications
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private static let proProductID = "latermarkpro"
 
+  /// StoreKit 2 imzayı cihazda doğrular. Yalnızca doğrulanmış, hâlen yürürlükte
+  /// ve geri alınmamış `latermarkpro` işlemi hak verir. Boş dizi kesin `false`;
+  /// hedef ürüne ait doğrulanamayan işlem ise yerel önbelleği ezmemek için
+  /// Flutter hatası olarak döner.
+  @MainActor
+  private static func resolveProEntitlement(_ result: @escaping FlutterResult) async {
+    var foundUnverifiedTarget = false
+
+    for await verification in Transaction.currentEntitlements {
+      switch verification {
+      case .verified(let transaction):
+        guard transaction.productID == proProductID else {
+          continue
+        }
+        if transaction.revocationDate == nil {
+          result(true)
+          return
+        }
+      case .unverified(let transaction, _):
+        if transaction.productID == proProductID {
+          foundUnverifiedTarget = true
+        }
+      }
+    }
+
+    if foundUnverifiedTarget {
+      result(
+        FlutterError(
+          code: "unverified_entitlement",
+          message: "StoreKit could not verify the Pro entitlement.",
+          details: nil
+        )
+      )
+    } else {
+      result(false)
+    }
+  }
+
   private var sharedImportChannel: FlutterMethodChannel?
   private var appSettingsChannel: FlutterMethodChannel?
   private var entitlementChannel: FlutterMethodChannel?
@@ -105,47 +143,34 @@ import flutter_local_notifications
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     entitlementChannel.setMethodCallHandler { call, result in
-      guard call.method == "currentProEntitlement" else {
-        result(FlutterMethodNotImplemented)
-        return
-      }
-
-      // StoreKit 2 imzayı cihazda doğrular. Yalnızca doğrulanmış, hâlen
-      // yürürlükte ve geri alınmamış `latermarkpro` işlemi hak verir. Boş
-      // dizi kesin `false`; hedef ürüne ait doğrulanamayan bir işlem ise
-      // mağaza hatası sayılır ve Dart tarafındaki son doğrulanmış önbelleği
-      // ezmemek için hata olarak döner.
-      Task { @MainActor in
-        var foundUnverifiedTarget = false
-
-        for await verification in Transaction.currentEntitlements {
-          switch verification {
-          case .verified(let transaction):
-            guard transaction.productID == AppDelegate.proProductID else {
-              continue
-            }
-            if transaction.revocationDate == nil {
-              result(true)
-              return
-            }
-          case .unverified(let transaction, _):
-            if transaction.productID == AppDelegate.proProductID {
-              foundUnverifiedTarget = true
-            }
-          }
+      switch call.method {
+      case "currentProEntitlement":
+        Task { @MainActor in
+          await AppDelegate.resolveProEntitlement(result)
         }
 
-        if foundUnverifiedTarget {
-          result(
-            FlutterError(
-              code: "unverified_entitlement",
-              message: "StoreKit could not verify the Pro entitlement.",
-              details: nil
+      case "restoreProEntitlement":
+        // Bu çağrı yalnız kullanıcının açık "Satın alımları geri yükle"
+        // dokunuşundan gelir. `AppStore.sync()` Apple hesabı istemi
+        // gösterebildiği için açılışta veya arka planda çağrılmamalı.
+        Task { @MainActor in
+          do {
+            try await AppStore.sync()
+          } catch {
+            result(
+              FlutterError(
+                code: "app_store_sync_failed",
+                message: "StoreKit could not sync purchases with the App Store.",
+                details: String(describing: error)
+              )
             )
-          )
-        } else {
-          result(false)
+            return
+          }
+          await AppDelegate.resolveProEntitlement(result)
         }
+
+      default:
+        result(FlutterMethodNotImplemented)
       }
     }
     self.entitlementChannel = entitlementChannel

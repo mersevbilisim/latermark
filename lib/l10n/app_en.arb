@@ -529,6 +529,8 @@
     }
   },
   "paywallRestore": "Restore Purchases",
+  "paywallRestoreNotFound": "No previous Latermark Pro purchase was found.",
+  "paywallRestoreFailed": "Purchases couldn’t be restored. Please try again.",
   "paywallClose": "Close",
   "paywallLifeFree": "Free",
   "paywallLifePro": "Pro",
@@ -540,6 +542,7 @@
   "reminderActionDone": "Done",
   "reminderActionTomorrow": "Tomorrow",
   "reminderActionNextWeek": "Next week",
+  "reminderActionTurnOff": "Turn off this reminder",
   "@reminderActionDone": {
     "description": "Notification action button: the user handled this reminder."
   },
@@ -548,6 +551,9 @@
   },
   "@reminderActionNextWeek": {
     "description": "Notification action button: postpone the reminder by seven days."
+  },
+  "@reminderActionTurnOff": {
+    "description": "Notification action button: disable only the reminder belonging to this note."
   },
   "actionOK": "OK",
   "widgetDescription": "Shows your latest frame and note.",

@@ -19,6 +19,7 @@ import 'package:latermark/l10n/app_localizations.dart';
 class _FakeSpotlight {
   final indexed = <List<Map<String, Object?>>>[];
   final removed = <List<int>>[];
+  final storedIds = <int>{};
   int resets = 0;
 
   static const channel = MethodChannel('latermark/spotlight');
@@ -29,17 +30,27 @@ class _FakeSpotlight {
   }
 
   Future<Object?> _handle(MethodCall call) async {
-    final arguments = (call.arguments as Map).cast<String, Object?>();
+    final arguments = switch (call.arguments) {
+      final Map value => value.cast<String, Object?>(),
+      _ => <String, Object?>{},
+    };
     switch (call.method) {
       case 'index':
-        indexed.add([
+        final batch = [
           for (final item in arguments['items']! as List)
             (item as Map).cast<String, Object?>(),
-        ]);
+        ];
+        indexed.add(batch);
+        storedIds.addAll(batch.map((item) => item['id']! as int));
       case 'remove':
-        removed.add((arguments['ids']! as List).cast<int>());
+        final ids = (arguments['ids']! as List).cast<int>();
+        removed.add(ids);
+        storedIds.removeAll(ids);
       case 'reset':
         resets++;
+        storedIds.clear();
+      case 'indexedIds':
+        return storedIds.toList(growable: false);
     }
     return null;
   }
@@ -54,6 +65,10 @@ class _FakeSpotlight {
     removed.clear();
     resets = 0;
   }
+
+  void loseSystemIndex() => storedIds.clear();
+
+  void loseSystemItem(int id) => storedIds.remove(id);
 }
 
 void main() {
@@ -226,6 +241,76 @@ void main() {
     await second.dispose();
   });
 
+  test(
+    'native indeks kaybolduysa yerel imzaya rağmen yeniden kurulur',
+    () async {
+      final id = await addNote('Kombi garanti belgesi');
+      final first = newBridge();
+      await first.start();
+      await settle(first);
+      await first.dispose();
+
+      native.clear();
+      native.loseSystemIndex();
+
+      final second = newBridge();
+      await second.start();
+      await settle(second);
+
+      expect(native.resets, 1);
+      expect(native.indexedIds, [id]);
+      expect(native.storedIds, {id});
+      await second.dispose();
+    },
+  );
+
+  test(
+    'native indeks kısmen kaybolduysa bütün kayıtlar yeniden kurulur',
+    () async {
+      final firstId = await addNote('Kombi garanti belgesi');
+      final secondId = await addNote('Pasaport yenileme');
+      final first = newBridge();
+      await first.start();
+      await settle(first);
+      await first.dispose();
+
+      native.clear();
+      native.loseSystemItem(secondId);
+
+      final second = newBridge();
+      await second.start();
+      await settle(second);
+
+      expect(native.resets, 1);
+      expect(native.indexedIds, containsAll(<int>[firstId, secondId]));
+      expect(native.storedIds, {firstId, secondId});
+      await second.dispose();
+    },
+  );
+
+  test('v2 imza dosyası named indeks migrasyonunu zorlar', () async {
+    final id = await addNote('Kombi garanti belgesi');
+    final first = newBridge();
+    await first.start();
+    await settle(first);
+    await first.dispose();
+
+    final stateFile = File('${sandbox.path}/spotlight_index.json');
+    final legacy =
+        jsonDecode(await stateFile.readAsString()) as Map<String, dynamic>;
+    legacy['version'] = 2;
+    await stateFile.writeAsString(jsonEncode(legacy));
+    native.clear();
+
+    final second = newBridge();
+    await second.start();
+    await settle(second);
+
+    expect(native.resets, 1);
+    expect(native.indexedIds, [id]);
+    await second.dispose();
+  });
+
   test('uygulama kapalıyken silinen kayıt açılışta indeksten düşer', () async {
     final id = await addNote('Fiş');
     final first = newBridge();
@@ -272,7 +357,7 @@ void main() {
               await File('${sandbox.path}/spotlight_index.json').readAsString(),
             )
             as Map<String, dynamic>;
-    expect(state['version'], 2);
+    expect(state['version'], 3);
     expect(state['rebuilding'], isFalse);
     expect((state['items'] as Map<String, dynamic>).keys, ['$id']);
     await bridge.dispose();

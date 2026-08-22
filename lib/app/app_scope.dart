@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -38,6 +39,7 @@ class AppScope extends StatefulWidget {
     this.backups,
     this.reviewPrompts,
     this.location,
+    this.reminders,
     required this.child,
   });
 
@@ -49,6 +51,10 @@ class AppScope extends StatefulWidget {
   /// Varsayılan olarak gerçek platform servisi kullanılır. Testler izin ve
   /// sabitleme yarışlarını deterministik bir servisle doğrulayabilir.
   final LocationService? location;
+
+  /// Widget/lifecycle testleri OS kanalı yerine deterministik bir izin
+  /// servisi bağlayabilir. Verilmezse gerçek platform servisi kurulur.
+  final ReminderService? reminders;
   final Widget child;
 
   static NotesRepository of(BuildContext context) => _scope(context).notes;
@@ -59,6 +65,25 @@ class AppScope extends StatefulWidget {
   /// Yürürlükteki tercihler. Değiştiğinde dinleyen widget yeniden kurulur.
   static AppSettings preferences(BuildContext context) =>
       _scope(context).preferences;
+
+  /// İşletim sisteminin Latermark bildirimlerine verdiği güncel hak.
+  /// Veritabanındaki [AppSettings.reminderEnabled] kullanıcı niyetidir;
+  /// sistem hakkı ayrı tutulur ki Ayarlar'dan yeniden izin verildiğinde not
+  /// seçimleri kaybolmadan çalışmaya devam etsin.
+  static ReminderPermissionState reminderPermission(BuildContext context) =>
+      _scope(context).reminderPermission;
+
+  /// Not künyesinde gerçekten çalışan bir hatırlatma gösterilebilir mi?
+  static bool remindersActive(BuildContext context) {
+    final scope = _scope(context);
+    return scope.preferences.proUnlocked &&
+        scope.preferences.reminderEnabled &&
+        scope.reminderPermission == ReminderPermissionState.granted;
+  }
+
+  /// Açık ekranlardaki “sonraki” anını canlı tutan, dar kapsamlı saat.
+  static ValueListenable<DateTime> reminderClockOf(BuildContext context) =>
+      _scope(context).reminderClock;
 
   static _RepositoryScope _scope(BuildContext context) {
     final scope = context
@@ -73,11 +98,15 @@ class AppScope extends StatefulWidget {
 
 class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   static const _sweepInterval = Duration(minutes: 1);
+  static const _reminderClockInterval = Duration(minutes: 1);
 
   Timer? _timer;
+  Timer? _reminderClockTimer;
+  Duration? _runningReminderClockInterval;
+  final _reminderClock = ValueNotifier<DateTime>(DateTime.now());
   HomeWidgetBridge? _widgets;
   SpotlightBridge? _spotlight;
-  final _reminders = ReminderService();
+  late final ReminderService _reminders;
   final _purchases = PurchaseService();
   final _ocr = OcrService();
   late final _location = widget.location ?? LocationService();
@@ -95,8 +124,12 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _reminders = widget.reminders ?? ReminderService();
     WidgetsBinding.instance.addObserver(this);
     _startSweeping();
+    _startReminderClock();
+    _reminders.permission.addListener(_onReminderPermissionChanged);
+    unawaited(_reminders.refreshPermission());
     _widgets = HomeWidgetBridge(widget.notes)..start();
     _spotlight = SpotlightBridge(widget.notes);
     unawaited(_spotlight?.start());
@@ -120,6 +153,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       _widgets?.accent = value.accent;
       unawaited(SharedImportBridge.setProUnlocked(value.proUnlocked));
       if (value != _preferences) setState(() => _preferences = value);
+      _startReminderClock();
       // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu
       // sırada yeniden değişmeyeceği için yalnız listener'a güvenmek stale bir
       // cache'i yaşatırdı; her ayar yayını son kesin hakla uzlaştırılır.
@@ -201,6 +235,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   void dispose() {
     _syncRevision++;
     _timer?.cancel();
+    _reminderClockTimer?.cancel();
     // Kanal süreç ömrü boyunca tek; işleyici bırakılmazsa sökülmüş bir
     // kapsamın deposuna yazmaya çalışan bir kapan geride kalır.
     _reminderActionChannel.setMethodCallHandler(null);
@@ -210,7 +245,9 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     unawaited(_notesSub?.cancel());
     unawaited(_widgets?.dispose());
     unawaited(_spotlight?.dispose());
+    _reminders.permission.removeListener(_onReminderPermissionChanged);
     unawaited(_reminders.dispose());
+    _reminderClock.dispose();
     widget.reviewPrompts?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -221,12 +258,14 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _startSweeping();
+        _startReminderClock(force: true);
         // Uygulama arkadayken bir bildirim düğmesine basılmış olabilir; o
         // yazma bu bağlantının akışlarına ulaşmadı.
         widget.notes.reloadFromDisk();
         // Kullanıcı sistem ayarlarından bildirim iznini değiştirmiş olabilir.
         // Uygulama döner dönmez programı gerçek izin durumuyla yeniden kur.
         _syncRemindersWhenReady();
+        unawaited(_reminders.refreshPermission());
         // Kullanıcı mağazadan iade almış olabilir; her dönüşte yeniden sor.
         unawaited(_purchases.refreshEntitlement());
       case AppLifecycleState.paused:
@@ -235,6 +274,9 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       case AppLifecycleState.inactive:
         _timer?.cancel();
         _timer = null;
+        _reminderClockTimer?.cancel();
+        _reminderClockTimer = null;
+        _runningReminderClockInterval = null;
     }
   }
 
@@ -307,6 +349,26 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     );
   }
 
+  void _onReminderPermissionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _startReminderClock({bool force = false}) {
+    const interval = _reminderClockInterval;
+    if (!force &&
+        _reminderClockTimer != null &&
+        _runningReminderClockInterval == interval) {
+      return;
+    }
+
+    _reminderClockTimer?.cancel();
+    _runningReminderClockInterval = interval;
+    _reminderClock.value = DateTime.now();
+    _reminderClockTimer = Timer.periodic(interval, (_) {
+      _reminderClock.value = DateTime.now();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return _RepositoryScope(
@@ -318,6 +380,8 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       location: _location,
       purchases: _purchases,
       preferences: _preferences,
+      reminderPermission: _reminders.permission.value,
+      reminderClock: _reminderClock,
       child: widget.child,
     );
   }
@@ -333,6 +397,8 @@ class _RepositoryScope extends InheritedWidget {
     required this.location,
     required this.purchases,
     required this.preferences,
+    required this.reminderPermission,
+    required this.reminderClock,
     required super.child,
   });
 
@@ -344,12 +410,15 @@ class _RepositoryScope extends InheritedWidget {
   final LocationService location;
   final PurchaseService purchases;
   final AppSettings preferences;
+  final ReminderPermissionState reminderPermission;
+  final ValueListenable<DateTime> reminderClock;
 
   @override
   bool updateShouldNotify(_RepositoryScope old) =>
       old.notes != notes ||
       old.settings != settings ||
-      old.preferences != preferences;
+      old.preferences != preferences ||
+      old.reminderPermission != reminderPermission;
 }
 
 /// Bildirim izni istemek için servise erişim.

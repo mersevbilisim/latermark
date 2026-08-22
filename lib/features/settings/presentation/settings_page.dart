@@ -14,6 +14,7 @@ import '../../../shared/widgets/icon_orb.dart';
 import '../../../shared/widgets/pro_badge.dart';
 import '../../backup/presentation/backup_page.dart';
 import '../../notes/domain/retention.dart';
+import '../../reminders/reminder_service.dart';
 import '../../../l10n/enum_labels.dart';
 import '../../../l10n/l10n_context.dart';
 import '../domain/app_locale.dart';
@@ -42,7 +43,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage>
     with WidgetsBindingObserver {
-  bool? _notificationPermission;
   bool _enableWhenPermissionGranted = false;
 
   @override
@@ -65,17 +65,14 @@ class _SettingsPageState extends State<SettingsPage>
 
   Future<void> _refreshPermission() async {
     final repository = AppScope.settingsOf(context);
-    final granted = await context.reminders.hasPermission();
+    final permission = await context.reminders.refreshPermission();
     if (!mounted) return;
 
-    if (granted && _enableWhenPermissionGranted) {
+    if (permission == ReminderPermissionState.granted &&
+        _enableWhenPermissionGranted) {
       _enableWhenPermissionGranted = false;
       await repository.setReminderEnabled(true);
-      if (!mounted) return;
     }
-
-    if (granted == _notificationPermission) return;
-    setState(() => _notificationPermission = granted);
   }
 
   void _openSettingsForEnable() {
@@ -88,9 +85,13 @@ class _SettingsPageState extends State<SettingsPage>
     final palette = context.palette;
     final settings = AppScope.preferences(context);
     final repository = AppScope.settingsOf(context);
+    final permission = AppScope.reminderPermission(context);
     final remindersBlocked =
-        settings.reminderEnabled && _notificationPermission == false;
-    final remindersActive = settings.reminderEnabled && !remindersBlocked;
+        settings.reminderEnabled &&
+        permission == ReminderPermissionState.denied;
+    final remindersActive =
+        settings.reminderEnabled &&
+        permission != ReminderPermissionState.denied;
 
     return Scaffold(
       backgroundColor: palette.canvas,
@@ -310,9 +311,9 @@ class _SettingsPageState extends State<SettingsPage>
 
   /// Hatırlatıcı açılırken bildirim izni istenir.
   ///
-  /// Tercih yalnızca işletim sistemi gerçekten izin verirse açık kaydedilir;
-  /// böylece anahtar açık görünürken bildirimlerin çalışmadığı yanıltıcı bir
-  /// durum oluşmaz.
+  /// Yeni bir tercih yalnızca işletim sistemi gerçekten izin verirse açılır.
+  /// Kullanıcının daha önce açık olan niyeti ise sistem izni kapatıldığında
+  /// silinmez; izin geri geldiğinde not seçimleri yeniden çalışır.
   Future<void> _toggleReminders(
     SettingsRepository repository,
     bool value,
@@ -323,12 +324,21 @@ class _SettingsPageState extends State<SettingsPage>
     }
 
     final reminders = context.reminders;
-    final granted = await reminders.requestPermission();
-    await repository.setReminderEnabled(granted);
+    final hadIntent = AppScope.preferences(context).reminderEnabled;
+    final permission = await reminders.requestPermissionState();
+    final granted = permission == ReminderPermissionState.granted;
+    if (granted) {
+      await repository.setReminderEnabled(true);
+    } else if (!hadIntent) {
+      await repository.setReminderEnabled(false);
+    }
 
     if (!mounted) return;
-    setState(() => _notificationPermission = granted);
     if (granted) return;
+    if (permission == ReminderPermissionState.unknown) {
+      showToast(context, context.l10n.toastSaveFailed, error: true);
+      return;
+    }
     showToast(
       context,
       context.l10n.toastPermissionDenied,
@@ -396,6 +406,8 @@ class _DebugSectionState extends State<_DebugSection> {
 
   @override
   Widget build(BuildContext context) {
+    final debugProEnabled =
+        DebugEntitlement.forced && AppScope.preferences(context).proUnlocked;
     return SettingsSection(
       title: 'Debug',
       children: [
@@ -409,9 +421,73 @@ class _DebugSectionState extends State<_DebugSection> {
             semanticLabel: 'Pro (debug)',
             onChanged: _busy ? (_) {} : _toggle,
           ),
+          below: debugProEnabled
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('debug-test-notification'),
+                    onPressed: _busy ? null : _sendTestNotification,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('Test bildirimi gönder'),
+                  ),
+                )
+              : null,
         ),
       ],
     );
+  }
+
+  Future<void> _sendTestNotification() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    try {
+      final repository = AppScope.of(context);
+      final candidates =
+          (await repository.watchNotes().first)
+              .where((note) => note.remindAfterDays > 0)
+              .toList()
+            ..sort((a, b) {
+              final byAnchor = (b.reminderAnchorAt ?? b.createdAt).compareTo(
+                a.reminderAnchorAt ?? a.createdAt,
+              );
+              return byAnchor != 0 ? byAnchor : b.id.compareTo(a.id);
+            });
+      if (!mounted) return;
+      if (candidates.isEmpty) {
+        showToast(
+          context,
+          'Önce hatırlatması açık bir not oluştur.',
+          error: true,
+        );
+        return;
+      }
+
+      final reminders = context.reminders;
+      reminders.photoOf = repository.imageOf;
+      final sent = await reminders.sendDebugTestNotification(
+        note: candidates.first,
+        l10n: context.l10n,
+        debugProEnabled:
+            DebugEntitlement.forced &&
+            AppScope.preferences(context).proUnlocked,
+      );
+      if (!mounted) return;
+      showToast(
+        context,
+        sent
+            ? 'Test bildirimi gönderildi.'
+            : 'Test bildirimi gönderilemedi. Bildirim iznini kontrol et.',
+        error: !sent,
+      );
+    } catch (error) {
+      debugPrint('Debug test bildirimi hazırlanamadı: $error');
+      if (mounted) {
+        showToast(context, 'Test bildirimi hazırlanamadı.', error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   /// Sıra önemli: önce anahtar, sonra veritabanı.

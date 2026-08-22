@@ -946,6 +946,14 @@ class L10nTr extends L10n {
   String get paywallRestore => 'Satın alımları geri yükle';
 
   @override
+  String get paywallRestoreNotFound =>
+      'Geri yüklenecek bir Latermark Pro satın alımı bulunamadı.';
+
+  @override
+  String get paywallRestoreFailed =>
+      'Satın alımlar geri yüklenemedi. Lütfen yeniden dene.';
+
+  @override
   String get paywallClose => 'Kapat';
 
   @override
@@ -978,6 +986,9 @@ class L10nTr extends L10n {
 
   @override
   String get reminderActionNextWeek => 'Haftaya';
+
+  @override
+  String get reminderActionTurnOff => 'Bu hatırlatmayı kapat';
 
   @override
   String get actionOK => 'Tamam';

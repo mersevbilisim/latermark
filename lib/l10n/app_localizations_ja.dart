@@ -840,6 +840,12 @@ class L10nJa extends L10n {
   String get paywallRestore => '購入を復元';
 
   @override
+  String get paywallRestoreNotFound => '以前の Latermark Pro の購入は見つかりませんでした。';
+
+  @override
+  String get paywallRestoreFailed => '購入を復元できませんでした。もう一度お試しください。';
+
+  @override
   String get paywallClose => '閉じる';
 
   @override
@@ -871,6 +877,9 @@ class L10nJa extends L10n {
 
   @override
   String get reminderActionNextWeek => '来週';
+
+  @override
+  String get reminderActionTurnOff => 'このリマインダーをオフ';
 
   @override
   String get actionOK => 'OK';

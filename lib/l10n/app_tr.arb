@@ -444,6 +444,8 @@
     }
   },
   "paywallRestore": "Satın alımları geri yükle",
+  "paywallRestoreNotFound": "Geri yüklenecek bir Latermark Pro satın alımı bulunamadı.",
+  "paywallRestoreFailed": "Satın alımlar geri yüklenemedi. Lütfen yeniden dene.",
   "paywallClose": "Kapat",
   "paywallLifeFree": "Ücretsiz",
   "paywallLifePro": "Pro",
@@ -455,6 +457,7 @@
   "reminderActionDone": "Tamam",
   "reminderActionTomorrow": "Yarın",
   "reminderActionNextWeek": "Haftaya",
+  "reminderActionTurnOff": "Bu hatırlatmayı kapat",
   "widgetDescription": "Son kareni ve notunu gösterir.",
   "widgetEmptySubtitle": "İlk notun burada görünecek",
   "widgetPhotoDescription": "Son karenin fotoğrafı",

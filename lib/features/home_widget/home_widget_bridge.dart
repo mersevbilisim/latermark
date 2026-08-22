@@ -242,13 +242,11 @@ class HomeWidgetBridge {
   Future<Uint8List?> _thumbnail(File source) async {
     if (!source.existsSync()) return null;
 
+    ui.Codec? codec;
     ui.Image? image;
     try {
       final bytes = await source.readAsBytes();
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: _photoWidth,
-      );
+      codec = await ui.instantiateImageCodec(bytes, targetWidth: _photoWidth);
       final frame = await codec.getNextFrame();
       image = frame.image;
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -258,6 +256,7 @@ class HomeWidgetBridge {
       return null;
     } finally {
       image?.dispose();
+      codec?.dispose();
     }
   }
 }

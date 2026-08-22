@@ -554,28 +554,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 if (all.isNotEmpty)
                   DensityCrossfade(
                     density: density,
-                    child: NotesFeed(
-                      notes: notes,
-                      calendarReference: _calendarReference,
-                      repository: _repository!,
-                      density: density,
-                      remindersActive:
-                          preferences.proUnlocked &&
-                          preferences.reminderEnabled,
-                      onOpen: _openNote,
-                      onDelete: _confirmDelete,
-                      onOpenSettings: _openSettings,
-                      // Deklanşörün perdesi güvenli alanı da kaplıyor; akış
-                      // yalnızca `dockHeight` ayırırsa son kaydın notu
-                      // perdenin altında sönük kalıyor.
-                      bottomInset:
-                          ShutterDock.dockHeight +
-                          MediaQuery.paddingOf(context).bottom,
-                      searching: _searching,
-                      searchController: _searchController,
-                      searchFocus: _searchFocus,
-                      onSearchChanged: _onQueryChanged,
-                      onToggleSearch: _toggleSearch,
+                    child: ValueListenableBuilder<DateTime>(
+                      valueListenable: AppScope.reminderClockOf(context),
+                      builder: (context, reminderReference, _) {
+                        final reminders = context.reminders;
+                        return NotesFeed(
+                          notes: notes,
+                          calendarReference: _calendarReference,
+                          reminderReference: reminderReference,
+                          repository: _repository!,
+                          reminders: reminders,
+                          settings: preferences,
+                          density: density,
+                          remindersActive: AppScope.remindersActive(context),
+                          onOpen: _openNote,
+                          onDelete: _confirmDelete,
+                          onOpenSettings: _openSettings,
+                          // Deklanşörün perdesi güvenli alanı da kaplıyor;
+                          // akış yalnızca `dockHeight` ayırırsa son kaydın
+                          // notu perdenin altında sönük kalıyor.
+                          bottomInset:
+                              ShutterDock.dockHeight +
+                              MediaQuery.paddingOf(context).bottom,
+                          searching: _searching,
+                          searchController: _searchController,
+                          searchFocus: _searchFocus,
+                          onSearchChanged: _onQueryChanged,
+                          onToggleSearch: _toggleSearch,
+                        );
+                      },
                     ),
                   ),
                 ShutterDock(

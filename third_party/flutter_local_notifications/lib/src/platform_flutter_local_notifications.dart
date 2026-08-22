@@ -433,22 +433,30 @@ class AndroidFlutterLocalNotificationsPlugin
     AndroidNotificationDetails? notificationDetails,
     String? payload,
     AndroidScheduleMode scheduleMode = AndroidScheduleMode.exact,
+    DateTime? firstScheduledAt,
   }) async {
     validateId(id);
     validateRepeatDurationInterval(repeatDurationInterval);
-    await _channel
-        .invokeMethod('periodicallyShowWithDuration', <String, Object?>{
-          'id': id,
-          'title': title,
-          'body': body,
-          'calledAt': clock.now().millisecondsSinceEpoch,
-          'repeatIntervalMilliseconds': repeatDurationInterval.inMilliseconds,
-          'platformSpecifics': _buildPlatformSpecifics(
-            notificationDetails,
-            scheduleMode,
-          ),
-          'payload': payload ?? '',
-        });
+    await _channel.invokeMethod(
+      'periodicallyShowWithDuration',
+      <String, Object?>{
+        'id': id,
+        'title': title,
+        'body': body,
+        // Android treats `calledAt` as the repeat sequence's origin. A
+        // future value is therefore the exact first delivery; after that,
+        // and after a reboot, native code advances it by whole intervals.
+        // Keeping the clock fallback preserves the public plugin's original
+        // "one interval after this call" behaviour for every existing caller.
+        'calledAt': (firstScheduledAt ?? clock.now()).millisecondsSinceEpoch,
+        'repeatIntervalMilliseconds': repeatDurationInterval.inMilliseconds,
+        'platformSpecifics': _buildPlatformSpecifics(
+          notificationDetails,
+          scheduleMode,
+        ),
+        'payload': payload ?? '',
+      },
+    );
   }
 
   Map<String, Object?> _buildPlatformSpecifics(

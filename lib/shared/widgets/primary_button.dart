@@ -124,22 +124,26 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                     color: Colors.white,
                   ),
                 )
-              : Row(
+              : FittedBox(
                   key: const ValueKey(false),
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 18, color: Colors.white),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      label,
-                      style: palette.bodyStrong.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 18, color: Colors.white),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        label,
+                        maxLines: 1,
+                        style: palette.bodyStrong.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
         ),
       ),

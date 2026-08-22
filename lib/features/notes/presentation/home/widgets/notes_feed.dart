@@ -5,6 +5,7 @@ import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/utils/app_format.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../settings/domain/app_settings.dart';
+import '../../../../reminders/reminder_service.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
 import '../../../data/photo_aspect.dart';
@@ -21,7 +22,10 @@ class NotesFeed extends StatelessWidget {
     super.key,
     required this.notes,
     required this.calendarReference,
+    required this.reminderReference,
     required this.repository,
+    required this.reminders,
+    required this.settings,
     required this.density,
     required this.remindersActive,
     required this.onOpen,
@@ -37,7 +41,10 @@ class NotesFeed extends StatelessWidget {
 
   final List<Note> notes;
   final DateTime calendarReference;
+  final DateTime reminderReference;
   final NotesRepository repository;
+  final ReminderService reminders;
+  final AppSettings settings;
   final FeedDensity density;
   final bool remindersActive;
   final ValueChanged<Note> onOpen;
@@ -107,16 +114,21 @@ class NotesFeed extends StatelessWidget {
     );
   }
 
-  Widget _card(Note note, CardScale scale, {double? aspect}) => NoteCard(
-    note: note,
-    repository: repository,
-    scale: scale,
-    aspect: aspect,
-    now: calendarReference,
-    remindersActive: remindersActive,
-    onTap: () => onOpen(note),
-    onLongPress: () => onDelete(note),
-  );
+  Widget _card(Note note, CardScale scale, {double? aspect}) {
+    final reminderAt = remindersActive
+        ? reminders.nextReminderAt(note, settings, now: reminderReference)
+        : null;
+    return NoteCard(
+      note: note,
+      repository: repository,
+      scale: scale,
+      aspect: aspect,
+      now: reminderReference,
+      reminderAt: reminderAt,
+      onTap: () => onOpen(note),
+      onLongPress: () => onDelete(note),
+    );
+  }
 
   String _labelFor(BuildContext context, NoteAgeGroup group) {
     final l10n = context.l10n;

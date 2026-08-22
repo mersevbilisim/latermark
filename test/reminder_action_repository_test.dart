@@ -138,6 +138,30 @@ void main() {
     );
   });
 
+  test('bildirimleri kapat tek atış ve tekrar alanlarını temizler', () async {
+    for (final repeats in [false, true]) {
+      final note = await noteWithReminder(
+        remindAfterDays: 30,
+        repeats: repeats,
+      );
+
+      final updated = await repository.applyReminderAction(
+        note.id,
+        ReminderAction.turnOff,
+      );
+
+      expect(updated, isNotNull);
+      expect(updated!.remindAfterDays, 0);
+      expect(updated.reminderAnchorAt, isNull);
+      expect(updated.remindRepeats, isFalse);
+      expect(updated.body, note.body);
+      expect(updated.updatedAt, note.updatedAt);
+      expect(await repository.noteById(note.id), isNotNull);
+    }
+
+    expect(await repository.watchNotes().first, hasLength(2));
+  });
+
   test(
     'aynı notification action yeniden teslim edilirse ikinci kez yazmaz',
     () async {

@@ -14,6 +14,7 @@ import 'note_reminder.dart';
 /// kullanıcının dokunduğu düğmeyi tanınmaz yapar.
 enum ReminderAction {
   done('latermark.reminder.done'),
+  turnOff('latermark.reminder.turn_off'),
   tomorrow('latermark.reminder.tomorrow'),
   nextWeek('latermark.reminder.next_week');
 
@@ -21,9 +22,10 @@ enum ReminderAction {
 
   final String id;
 
-  /// Ertelemenin kaç gün ittiği. [done] ertelemiyor.
+  /// Ertelemenin kaç gün ittiği. [done] ve [turnOff] ertelemiyor.
   int? get snoozeDays => switch (this) {
     ReminderAction.done => null,
+    ReminderAction.turnOff => null,
     ReminderAction.tomorrow => 1,
     ReminderAction.nextWeek => 7,
   };
@@ -95,6 +97,17 @@ ReminderOutcome? reminderOutcomeFor({
 }) {
   if (remindAfterDays <= 0) return null;
 
+  // "Bildirimleri kapat" tek bir oluşumu değil, notun hatırlatma
+  // tercihini kapatır. Tek atış/tekrar ayrımı bu
+  // eylem için anlamsızdır; depoya her zaman aynı temiz üçlü yazılır.
+  if (action == ReminderAction.turnOff) {
+    return const ReminderOutcome(
+      remindAfterDays: 0,
+      anchorAt: null,
+      repeats: false,
+    );
+  }
+
   final snoozeDays = action.snoozeDays;
   if (snoozeDays == null) {
     // "Tamam". Tekrarlayan bir hatırlatmada bu **oluşum** kapanır, dizi
@@ -120,14 +133,16 @@ ReminderOutcome? reminderOutcomeFor({
       ? now
       : firedAt;
 
-  // Hedef takvimle hesaplanıyor, `Duration` ile değil: yaz saati geçişinde 24
-  // saat eklemek duvar saatini bir saat kaydırırdı, oysa söz verilen şey
-  // "ertesi gün **aynı saat**".
-  var target = shiftLocalCalendarDays(base, snoozeDays);
+  // Hedef takvimle hesaplanıyor, `Duration` ile değil: yaz saati geçişinde
+  // 24 saat eklemek duvar saatini bir saat kaydırırdı.
+  DateTime shift(DateTime value, int amount) =>
+      shiftLocalCalendarDays(value, amount);
+
+  var target = shift(base, snoozeDays);
   // Kullanıcı bildirime saatler sonra cevap vermiş olabilir; hedef geçmişte
   // kalıyorsa aynı saati koruyarak ileri sarılır.
   while (!target.isAfter(now)) {
-    target = shiftLocalCalendarDays(target, snoozeDays);
+    target = shift(target, snoozeDays);
   }
 
   // Çıpa, hedeften bir aralık geriye konuyor: `reminderOccurrences` çıpaya
@@ -135,7 +150,7 @@ ReminderOutcome? reminderOutcomeFor({
   // ve kullanıcının seçtiği aralık ("30 günde bir") bozulmadan kalır.
   return ReminderOutcome(
     remindAfterDays: remindAfterDays,
-    anchorAt: shiftLocalCalendarDays(target, -remindAfterDays),
+    anchorAt: shift(target, -remindAfterDays),
     repeats: repeats,
   );
 }

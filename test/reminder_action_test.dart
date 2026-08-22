@@ -156,6 +156,29 @@ void main() {
     });
   });
 
+  group('bildirimleri kapat', () {
+    for (final repeats in [false, true]) {
+      test(
+        '${repeats ? 'tekrarlı' : 'tek atışlı'} hatırlatmanın bütün alanlarını temizler',
+        () {
+          final outcome = reminderOutcomeFor(
+            action: ReminderAction.turnOff,
+            remindAfterDays: 30,
+            repeats: repeats,
+            anchorAt: DateTime(2026, 7, 9, 9),
+            now: now,
+            firedAt: firedAt,
+          )!;
+
+          expect(outcome.cleared, isTrue);
+          expect(outcome.remindAfterDays, 0);
+          expect(outcome.anchorAt, isNull);
+          expect(outcome.repeats, isFalse);
+        },
+      );
+    }
+  });
+
   test('hatırlatması olmayan notta yapacak iş yok', () {
     for (final action in ReminderAction.values) {
       expect(
@@ -173,6 +196,10 @@ void main() {
   });
 
   group('eylem kimlikleri', () {
+    test('bildirim kapatma kimliği kalıcıdır', () {
+      expect(ReminderAction.turnOff.id, 'latermark.reminder.turn_off');
+    });
+
     test('tepside bekleyen bir bildirimden geri okunur', () {
       for (final action in ReminderAction.values) {
         expect(ReminderAction.fromId(action.id), action);
@@ -203,6 +230,17 @@ void main() {
       expect(
         reminderFiredAt(payload, now: DateTime(2026, 8, 8, 9, 1)),
         DateTime(2026, 8, 8, 9),
+      );
+    });
+
+    test('debug dakika tekrarında geçmişteki son oluşum hesaplanır', () {
+      final anchor = DateTime(2026, 8, 8, 9);
+      final payload =
+          'note/7/v3/every_minutes/3/'
+          '${anchor.toUtc().millisecondsSinceEpoch}';
+      expect(
+        reminderFiredAt(payload, now: DateTime(2026, 8, 8, 9, 7, 30)),
+        DateTime(2026, 8, 8, 9, 6),
       );
     });
 

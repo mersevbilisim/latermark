@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
 import 'package:latermark/features/notes/domain/note_reminder.dart';
+import 'package:latermark/features/notes/domain/reminder_action.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/reminders/reminder_service.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
@@ -19,6 +21,31 @@ final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC'
   'hwGA60e6kgAAAABJRU5ErkJggg==',
 );
+
+/// 2048×2048, sıkıştırmasız siyah BMP. Kaynak 10 MB'tan büyük; bildirime giden
+/// 1024 px PNG ise küçük. Böylece Apple'ın **çıktı** sınırını yanlışlıkla
+/// kaynağa uygulamadığımız gerçek bir codec yoluyla sınanır.
+Uint8List _oversizedBmp() {
+  const width = 2048;
+  const height = 2048;
+  const headerLength = 54;
+  const rowLength = width * 3;
+  const imageLength = rowLength * height;
+  const fileLength = headerLength + imageLength;
+  final bytes = Uint8List(fileLength);
+  final header = ByteData.view(bytes.buffer);
+  bytes[0] = 0x42;
+  bytes[1] = 0x4d;
+  header.setUint32(2, fileLength, Endian.little);
+  header.setUint32(10, headerLength, Endian.little);
+  header.setUint32(14, 40, Endian.little);
+  header.setInt32(18, width, Endian.little);
+  header.setInt32(22, height, Endian.little);
+  header.setUint16(26, 1, Endian.little);
+  header.setUint16(28, 24, Endian.little);
+  header.setUint32(34, imageLength, Endian.little);
+  return bytes;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +64,9 @@ void main() {
     late Map<String, Object?> launchDetails;
     late List<Map<String, Object?>> activeNotifications;
     late List<Map<String, Object?>> pendingNotifications;
+    late PlatformException? Function(MethodCall call) notificationFailure;
+    late Map<String, Object?>? permissionOptions;
+    late bool? requestedPermission;
 
     late Directory support;
 
@@ -57,15 +87,21 @@ void main() {
       launchDetails = <String, Object?>{'notificationLaunchedApp': false};
       activeNotifications = <Map<String, Object?>>[];
       pendingNotifications = <Map<String, Object?>>[];
+      notificationFailure = (_) => null;
+      permissionOptions = <String, Object?>{'isEnabled': true};
+      requestedPermission = null;
       messenger.setMockMethodCallHandler(channel, (call) async {
         calls.add(call);
+        final failure = notificationFailure(call);
+        if (failure != null) throw failure;
         if (call.method == 'initialize') return true;
         if (call.method == 'getNotificationAppLaunchDetails') {
           return launchDetails;
         }
         if (call.method == 'checkPermissions') {
-          return <String, Object?>{'isEnabled': true};
+          return permissionOptions;
         }
+        if (call.method == 'requestPermissions') return requestedPermission;
         if (call.method == 'getActiveNotifications') {
           return activeNotifications;
         }
@@ -141,6 +177,155 @@ void main() {
         await service.dispose();
       },
     );
+
+    test('iOS kategorileri nota özel kapatmayı doğru yerde sunar', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+
+      final initialize = calls.singleWhere(
+        (call) => call.method == 'initialize',
+      );
+      final arguments = (initialize.arguments as Map).cast<String, Object?>();
+      final categories = (arguments['notificationCategories']! as List)
+          .cast<Map>();
+      final byId = <String, Map>{
+        for (final category in categories)
+          category['identifier']! as String: category,
+      };
+
+      List<String> actionIds(String categoryId) =>
+          (byId[categoryId]!['actions']! as List)
+              .cast<Map>()
+              .map((action) => action['identifier']! as String)
+              .toList();
+
+      expect(actionIds('latermark.reminder.once'), [
+        ReminderAction.done.id,
+        ReminderAction.tomorrow.id,
+        ReminderAction.nextWeek.id,
+        ReminderAction.turnOff.id,
+      ]);
+      expect(actionIds('latermark.reminder.repeat'), [
+        ReminderAction.done.id,
+        ReminderAction.turnOff.id,
+      ]);
+      final turnOff = (byId['latermark.reminder.once']!['actions']! as List)
+          .cast<Map>()
+          .singleWhere(
+            (action) => action['identifier'] == ReminderAction.turnOff.id,
+          );
+      expect(turnOff['title'], isNotEmpty);
+      expect(turnOff['options'], [2]);
+
+      await service.dispose();
+    });
+
+    test('iOS izin durumu kesin sonuçları yayınlar', () async {
+      final service = ReminderService(supported: true);
+
+      permissionOptions = <String, Object?>{'isEnabled': false};
+      expect(await service.refreshPermission(), ReminderPermissionState.denied);
+      expect(service.permission.value, ReminderPermissionState.denied);
+
+      permissionOptions = <String, Object?>{
+        'isEnabled': false,
+        'isProvisionalEnabled': true,
+      };
+      expect(
+        await service.refreshPermission(),
+        ReminderPermissionState.granted,
+      );
+      expect(service.permission.value, ReminderPermissionState.granted);
+
+      await service.dispose();
+    });
+
+    test('bilinmeyen izin cevabı son kesin durumu silmez', () async {
+      final service = ReminderService(supported: true);
+      await service.refreshPermission();
+      expect(service.permission.value, ReminderPermissionState.granted);
+
+      permissionOptions = null;
+      expect(
+        await service.refreshPermission(),
+        ReminderPermissionState.unknown,
+      );
+      expect(service.permission.value, ReminderPermissionState.granted);
+
+      notificationFailure = (call) => call.method == 'checkPermissions'
+          ? PlatformException(code: 'transient')
+          : null;
+      expect(
+        await service.refreshPermission(),
+        ReminderPermissionState.unknown,
+      );
+      expect(service.permission.value, ReminderPermissionState.granted);
+
+      await service.dispose();
+    });
+
+    test('izin cevabı unknown iken bekleyen alarm değiştirilmez', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final id = reminderNotificationId(26, 0);
+      pendingNotifications = <Map<String, Object?>>[
+        <String, Object?>{'id': id, 'payload': 'note/26/v4/at/1000/art1/none'},
+      ];
+      permissionOptions = null;
+      final note = Note(
+        id: 26,
+        imageName: '26.jpg',
+        body: 'Transient permission read',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 3,
+        reminderAnchorAt: anchor,
+        remindRepeats: false,
+      );
+
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      expect(calls.where((call) => call.method == 'cancel'), isEmpty);
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+      expect(pendingNotifications.single['id'], id);
+      await service.dispose();
+    });
+
+    test('geciken izin okuması kullanıcı reddini ezemez', () async {
+      final check = Completer<Map<String, Object?>?>();
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'initialize') return true;
+        if (call.method == 'getNotificationAppLaunchDetails') {
+          return launchDetails;
+        }
+        if (call.method == 'checkPermissions') return check.future;
+        if (call.method == 'requestPermissions') return false;
+        return null;
+      });
+      final service = ReminderService(supported: true);
+
+      final staleRead = service.refreshPermission();
+      while (!calls.any((call) => call.method == 'checkPermissions')) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(await service.requestPermission(), isFalse);
+      expect(service.permission.value, ReminderPermissionState.denied);
+
+      check.complete(<String, Object?>{'isEnabled': true});
+      expect(await staleRead, ReminderPermissionState.unknown);
+      expect(service.permission.value, ReminderPermissionState.denied);
+
+      await service.dispose();
+    });
 
     test('açık uygulamadaki dokunuş callback payloadını yayınlar', () async {
       final service = ReminderService(supported: true);
@@ -282,11 +467,125 @@ void main() {
         DateTimeComponents.time.index,
       );
       expect(
+        ((arguments['platformSpecifics'] as Map)['categoryIdentifier']),
+        'latermark.reminder.repeat',
+      );
+      expect(
         calls.where((call) => call.method == 'periodicallyShowWithDuration'),
         isEmpty,
       );
       await service.dispose();
     });
+
+    test('debug Pro test bildirimi tek immediate show çağrısı yapar', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final note = Note(
+        id: 404,
+        imageName: '404.jpg',
+        body: 'Test notification body',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 3,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
+
+      requestedPermission = true;
+      calls.clear();
+      expect(
+        await service.sendDebugTestNotification(
+          note: note,
+          l10n: l10n,
+          debugProEnabled: true,
+        ),
+        isTrue,
+      );
+
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+      expect(
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        isEmpty,
+      );
+      final shown = calls.singleWhere((call) => call.method == 'show');
+      final arguments = shown.arguments as Map;
+      expect(arguments['id'], 0);
+      expect(arguments['body'], 'Test notification body');
+      expect(arguments['payload'], 'note/404');
+
+      calls.clear();
+      expect(
+        await service.sendDebugTestNotification(
+          note: note,
+          l10n: l10n,
+          debugProEnabled: false,
+        ),
+        isFalse,
+      );
+      expect(calls.where((call) => call.method == 'show'), isEmpty);
+      await service.dispose();
+    });
+
+    test(
+      'eski 60 exact debug kaydı tek çağrıyla gün programına taşınır',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now();
+        final note = Note(
+          id: 405,
+          imageName: '405.jpg',
+          body: 'Migration',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 3,
+          reminderAnchorAt: anchor,
+          remindRepeats: true,
+        );
+        pendingNotifications = [
+          for (
+            var occurrence = 0;
+            occurrence < kPendingReminderBudget;
+            occurrence++
+          )
+            <String, Object?>{
+              'id': reminderNotificationId(405, occurrence),
+              'payload':
+                  'note/405/v5/at/'
+                  '${anchor.add(Duration(minutes: 3 * (occurrence + 1))).toUtc().millisecondsSinceEpoch}'
+                  '/art1/none',
+            },
+        ];
+
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        expect(
+          calls.where((call) => call.method == 'cancelAllPendingNotifications'),
+          hasLength(1),
+        );
+        expect(calls.where((call) => call.method == 'cancel'), isEmpty);
+        expect(
+          calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+          isEmpty,
+        );
+        expect(
+          calls.where((call) => call.method == 'zonedSchedule'),
+          hasLength(kRollingReminderWindowPerNote),
+        );
+        expect(pendingNotifications, hasLength(kRollingReminderWindowPerNote));
+        await service.dispose();
+      },
+    );
 
     test('bildirim başlığı uygulamanın adı, gövdesi notun kendisi', () async {
       final service = ReminderService(supported: true);
@@ -321,6 +620,10 @@ void main() {
       // gibi genel bir sözcük her uygulamada aynı görünüyordu.
       expect(arguments['title'], 'Latermark Pro');
       expect(arguments['body'], 'Şelale fotoğrafı');
+      expect(
+        ((arguments['platformSpecifics'] as Map)['categoryIdentifier']),
+        'latermark.reminder.once',
+      );
       await service.dispose();
     });
 
@@ -371,51 +674,206 @@ void main() {
       expect(attached, isNot(photo.path));
       expect(attached, endsWith('.png'));
       expect(File(attached).existsSync(), isTrue);
+      expect(File(attached).lengthSync(), lessThanOrEqualTo(10 * 1024 * 1024));
       expect(photo.existsSync(), isTrue);
       await service.dispose();
     });
 
-    test('desteklenmeyen kare eklenmez ama hatırlatma yine kurulur', () async {
-      final sandbox = Directory.systemTemp.createTempSync('lm_heic');
-      addTearDown(() => sandbox.deleteSync(recursive: true));
-      // Galeriden ve paylaşımdan HEIC gelebiliyor. Apple bunu ek olarak kabul
-      // etmiyor ve hata döndürüyor; hata sync döngüsünü keserdi.
-      final photo = File('${sandbox.path}/502.heic')
-        ..writeAsBytesSync(<int>[1, 2, 3]);
+    test(
+      'uzantısı desteklenmeyen ve 10 MB üstü kaynak destekli çıktıya çevrilir',
+      () async {
+        final sandbox = Directory.systemTemp.createTempSync('lm_heic');
+        addTearDown(() => sandbox.deleteSync(recursive: true));
+        final photo = File('${sandbox.path}/502.heic')
+          ..writeAsBytesSync(_oversizedBmp(), flush: true);
+        expect(photo.lengthSync(), greaterThan(10 * 1024 * 1024));
 
-      final service = ReminderService(supported: true);
-      await service.initialize();
-      service.photoOf = (_) => photo;
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      final anchor = DateTime.now().subtract(const Duration(days: 1));
-      final note = Note(
-        id: 502,
-        imageName: '502.heic',
-        body: 'HEIC kare',
-        createdAt: anchor,
-        retention: Retention.off,
-        customMinutes: 0,
-        remindAfterDays: 3,
-        reminderAnchorAt: anchor,
-        remindRepeats: false,
-        updatedAt: anchor,
-      );
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        service.photoOf = (_) => photo;
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now().subtract(const Duration(days: 1));
+        final note = Note(
+          id: 502,
+          imageName: '502.heic',
+          body: 'HEIC kare',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 3,
+          reminderAnchorAt: anchor,
+          remindRepeats: false,
+          updatedAt: anchor,
+        );
 
-      calls.clear();
-      await service.sync(
-        [note],
-        const AppSettings(reminderEnabled: true, proUnlocked: true),
-        l10n,
-      );
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
 
-      final scheduled = calls.where((call) => call.method == 'zonedSchedule');
-      expect(scheduled, isNotEmpty, reason: 'hatırlatma yine kurulmalı');
-      final specifics =
-          ((scheduled.first.arguments as Map)['platformSpecifics']! as Map)
+        final scheduled = calls.where((call) => call.method == 'zonedSchedule');
+        expect(scheduled, isNotEmpty, reason: 'hatırlatma yine kurulmalı');
+        final specifics =
+            ((scheduled.first.arguments as Map)['platformSpecifics']! as Map)
+                .cast<String, Object?>();
+        final attachments = (specifics['attachments']! as List)
+            .cast<Map<Object?, Object?>>();
+        expect(attachments, hasLength(1));
+        final attached = attachments.single['filePath']! as String;
+        expect(attached, endsWith('.png'));
+        expect(
+          File(attached).lengthSync(),
+          lessThanOrEqualTo(10 * 1024 * 1024),
+        );
+        await service.dispose();
+      },
+    );
+
+    test(
+      'ilk karesiz kurulum fotoğraf gelince fingerprint ile onarılır',
+      () async {
+        final sandbox = Directory.systemTemp.createTempSync('lm_art_repair');
+        addTearDown(() => sandbox.deleteSync(recursive: true));
+        final photo = File('${sandbox.path}/503.heic');
+
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        service.photoOf = (_) => photo;
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now().subtract(const Duration(days: 1));
+        final note = Note(
+          id: 503,
+          imageName: '503.heic',
+          body: 'Sonradan gelen kare',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 3,
+          reminderAnchorAt: anchor,
+          remindRepeats: false,
+          updatedAt: anchor,
+        );
+        const settings = AppSettings(reminderEnabled: true, proUnlocked: true);
+
+        calls.clear();
+        await service.sync([note], settings, l10n);
+        final first = calls.singleWhere(
+          (call) => call.method == 'zonedSchedule',
+        );
+        final firstArguments = (first.arguments as Map).cast<String, Object?>();
+        final firstPayload = firstArguments['payload']! as String;
+        expect(firstPayload, contains('/v5/'));
+        expect(firstPayload, endsWith('/art1/none'));
+        final firstSpecifics = (firstArguments['platformSpecifics']! as Map)
+            .cast<String, Object?>();
+        expect(firstSpecifics['attachments'], anyOf(isNull, isEmpty));
+
+        photo.writeAsBytesSync(_png, flush: true);
+        calls.clear();
+        await service.sync([note], settings, l10n);
+
+        final id = reminderNotificationId(503, 0);
+        expect(
+          calls.where(
+            (call) => call.method == 'cancel' && call.arguments == id,
+          ),
+          hasLength(1),
+        );
+        final repaired = calls.singleWhere(
+          (call) => call.method == 'zonedSchedule',
+        );
+        final repairedArguments = (repaired.arguments as Map)
+            .cast<String, Object?>();
+        expect(repairedArguments['payload'], isNot(firstPayload));
+        final repairedSpecifics =
+            (repairedArguments['platformSpecifics']! as Map)
+                .cast<String, Object?>();
+        expect(repairedSpecifics['attachments'], isNotEmpty);
+        await service.dispose();
+      },
+    );
+
+    test(
+      'native attachment reddi karesiz denenir ve sonraki kayıt yine kurulur',
+      () async {
+        final sandbox = Directory.systemTemp.createTempSync('lm_art_retry');
+        addTearDown(() => sandbox.deleteSync(recursive: true));
+        final photo = File('${sandbox.path}/retry.png')
+          ..writeAsBytesSync(_png, flush: true);
+        final firstId = reminderNotificationId(610, 0);
+        var rejected = false;
+        notificationFailure = (call) {
+          if (rejected || call.method != 'zonedSchedule') return null;
+          final arguments = (call.arguments as Map).cast<String, Object?>();
+          if (arguments['id'] != firstId) return null;
+          final specifics = (arguments['platformSpecifics']! as Map)
               .cast<String, Object?>();
-      expect(specifics['attachments'], anyOf(isNull, isEmpty));
-      await service.dispose();
-    });
+          final attachments = specifics['attachments'];
+          if (attachments is! List || attachments.isEmpty) return null;
+          rejected = true;
+          return PlatformException(
+            code: 'attachment_invalid',
+            message: 'UNNotificationAttachment rejected the file',
+          );
+        };
+
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        service.photoOf = (_) => photo;
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now().subtract(const Duration(days: 1));
+        Note note(int id) => Note(
+          id: id,
+          imageName: '$id.png',
+          body: 'Kare $id',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 3,
+          reminderAnchorAt: anchor,
+          remindRepeats: false,
+          updatedAt: anchor,
+        );
+
+        calls.clear();
+        await service.sync(
+          [note(610), note(611)],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        final scheduled = calls
+            .where((call) => call.method == 'zonedSchedule')
+            .toList();
+        final firstCalls = scheduled.where(
+          (call) => (call.arguments as Map)['id'] == firstId,
+        );
+        expect(firstCalls, hasLength(2));
+        final firstAttachments = firstCalls.map(
+          (call) =>
+              ((call.arguments as Map)['platformSpecifics']
+                  as Map)['attachments'],
+        );
+        expect(firstAttachments.first, isNotEmpty);
+        expect(firstAttachments.last, anyOf(isNull, isEmpty));
+
+        final secondId = reminderNotificationId(611, 0);
+        final secondCalls = scheduled.where(
+          (call) => (call.arguments as Map)['id'] == secondId,
+        );
+        expect(secondCalls, hasLength(1));
+        final secondSpecifics =
+            ((secondCalls.single.arguments as Map)['platformSpecifics'] as Map);
+        expect(secondSpecifics['attachments'], isNotEmpty);
+        expect(
+          pendingNotifications.map((request) => request['id']),
+          containsAll(<int>[firstId, secondId]),
+        );
+        await service.dispose();
+      },
+    );
 
     test(
       'kare kopyası kalıcı dizinde yaşar ve plandan düşünce silinir',
@@ -511,13 +969,13 @@ void main() {
         expect(scheduled, hasLength(1));
         expect(
           (scheduled.single.arguments as Map)['payload'],
-          contains('/v3/'),
+          contains('/v5/'),
         );
         await service.dispose();
       },
     );
 
-    test('uygulama yeniden senkron olunca native tekrar başa sarmaz', () async {
+    test('iOS exact tekrar lifecycle syncinde yeniden kurulmaz', () async {
       final service = ReminderService(supported: true);
       await service.initialize();
       final l10n = await L10n.delegate.load(const Locale('en'));
@@ -547,45 +1005,58 @@ void main() {
       );
 
       expect(
-        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
-        hasLength(1),
-      );
-      await service.dispose();
-    });
-
-    test('365 günlük tekrar 64-bit milisaniye aralığıyla kurulur', () async {
-      final service = ReminderService(supported: true);
-      await service.initialize();
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      final anchor = DateTime.now();
-      final note = Note(
-        id: 402,
-        imageName: '402.jpg',
-        body: 'Her yıl',
-        createdAt: anchor,
-        retention: Retention.off,
-        customMinutes: 0,
-        remindAfterDays: 365,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
-      );
-
-      calls.clear();
-      await service.sync(
-        [note],
-        const AppSettings(reminderEnabled: true, proUnlocked: true),
-        l10n,
-      );
-
-      final call = calls.singleWhere(
-        (item) => item.method == 'periodicallyShowWithDuration',
+        calls.where((call) => call.method == 'zonedSchedule'),
+        hasLength(kRollingReminderWindowPerNote),
       );
       expect(
-        (call.arguments as Map)['repeatIntervalMilliseconds'],
-        const Duration(days: 365).inMilliseconds,
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        isEmpty,
       );
       await service.dispose();
     });
+
+    test(
+      'iOS 365 günlük tekrar anchor fazında kesin tarihlerle kurulur',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now();
+        final note = Note(
+          id: 402,
+          imageName: '402.jpg',
+          body: 'Her yıl',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAfterDays: 365,
+          reminderAnchorAt: anchor,
+          remindRepeats: true,
+        );
+
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
+
+        final exact = calls.where((item) => item.method == 'zonedSchedule');
+        expect(exact, hasLength(kRollingReminderWindowPerNote));
+        expect(
+          (exact.first.arguments as Map)['payload'],
+          contains(
+            '/at/'
+            '${anchor.add(const Duration(days: 365)).toUtc().millisecondsSinceEpoch}',
+          ),
+        );
+        expect(
+          calls.where((item) => item.method == 'periodicallyShowWithDuration'),
+          isEmpty,
+        );
+        await service.dispose();
+      },
+    );
 
     test('otomatik silinen tekrar native değil sonlu kurulur', () async {
       final service = ReminderService(supported: true);
@@ -826,52 +1297,53 @@ void main() {
       await service.dispose();
     });
 
-    test(
-      'aralık düzenlenince eski tekrar sökülüp yeni aralık kurulur',
-      () async {
-        final service = ReminderService(supported: true);
-        await service.initialize();
-        final l10n = await L10n.delegate.load(const Locale('en'));
-        final anchor = DateTime.now();
-        final id = reminderNotificationId(54, 0);
-        pendingNotifications = <Map<String, Object?>>[
-          <String, Object?>{'id': id, 'payload': 'note/54/v2/every/3/1000'},
-        ];
-        final note = Note(
-          id: 54,
-          imageName: '54.jpg',
-          body: 'Yeni aralık',
-          createdAt: anchor,
-          retention: Retention.off,
-          customMinutes: 0,
-          remindAfterDays: 30,
-          reminderAnchorAt: anchor,
-          remindRepeats: true,
-        );
+    test('aralık düzenlenince eski tekrar sökülüp yeni aralık kurulur', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final id = reminderNotificationId(54, 0);
+      pendingNotifications = <Map<String, Object?>>[
+        <String, Object?>{'id': id, 'payload': 'note/54/v2/every/3/1000'},
+      ];
+      final note = Note(
+        id: 54,
+        imageName: '54.jpg',
+        body: 'Yeni aralık',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 30,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
 
-        calls.clear();
-        await service.sync(
-          [note],
-          const AppSettings(reminderEnabled: true, proUnlocked: true),
-          l10n,
-        );
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
 
-        expect(
-          calls.where(
-            (call) => call.method == 'cancel' && call.arguments == id,
-          ),
-          hasLength(1),
-        );
-        final periodic = calls.singleWhere(
-          (call) => call.method == 'periodicallyShowWithDuration',
-        );
-        expect(
-          (periodic.arguments as Map)['repeatIntervalMilliseconds'],
-          const Duration(days: 30).inMilliseconds,
-        );
-        await service.dispose();
-      },
-    );
+      expect(
+        calls.where((call) => call.method == 'cancel' && call.arguments == id),
+        hasLength(1),
+      );
+      final exact = calls.where((call) => call.method == 'zonedSchedule');
+      expect(exact, hasLength(kRollingReminderWindowPerNote));
+      expect(
+        (exact.first.arguments as Map)['payload'],
+        contains(
+          '/at/'
+          '${anchor.add(const Duration(days: 30)).toUtc().millisecondsSinceEpoch}',
+        ),
+      );
+      expect(
+        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+        isEmpty,
+      );
+      await service.dispose();
+    });
 
     test(
       'Pro hakkı geri alınınca açık ana şalter de tümünü iptal eder',
@@ -897,8 +1369,143 @@ void main() {
     );
   });
 
+  group('Android bildirim teslimat hakkı', () {
+    var appEnabled = true;
+    List<Map<String, Object?>>? channels;
+    late List<MethodCall> androidCalls;
+
+    Map<String, Object?> reminderChannel({required int importance}) =>
+        <String, Object?>{
+          'id': 'latermark_reminders_v3',
+          'name': 'Reminders',
+          'description': 'Latermark reminders',
+          'groupId': null,
+          'showBadge': true,
+          'importance': importance,
+          'bypassDnd': false,
+          'playSound': true,
+          'enableLights': false,
+          'enableVibration': true,
+          'vibrationPattern': null,
+          'ledColor': 0,
+          'audioAttributesUsage': 5,
+        };
+
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      AndroidFlutterLocalNotificationsPlugin.registerWith();
+      appEnabled = true;
+      channels = <Map<String, Object?>>[];
+      androidCalls = <MethodCall>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        androidCalls.add(call);
+        if (call.method == 'initialize') return true;
+        if (call.method == 'getNotificationAppLaunchDetails') {
+          return <String, Object?>{'notificationLaunchedApp': false};
+        }
+        if (call.method == 'areNotificationsEnabled') return appEnabled;
+        if (call.method == 'getNotificationChannels') return channels;
+        if (call.method == 'getActiveNotifications' ||
+            call.method == 'pendingNotificationRequests') {
+          return <Map<String, Object?>>[];
+        }
+        return null;
+      });
+    });
+
+    tearDown(() {
+      messenger.setMockMethodCallHandler(channel, null);
+      debugDefaultTargetPlatformOverride = null;
+      IOSFlutterLocalNotificationsPlugin.registerWith();
+    });
+
+    test('uygulama bildirimi kapalıysa denied', () async {
+      appEnabled = false;
+      final service = ReminderService(supported: true);
+      expect(await service.refreshPermission(), ReminderPermissionState.denied);
+      await service.dispose();
+    });
+
+    test('yalnız Latermark reminder kanalı kapalıysa denied', () async {
+      channels = [reminderChannel(importance: Importance.none.value)];
+      final service = ReminderService(supported: true);
+      expect(await service.refreshPermission(), ReminderPermissionState.denied);
+      await service.dispose();
+    });
+
+    test('kanal henüz oluşmadıysa uygulama izni yeterlidir', () async {
+      final service = ReminderService(supported: true);
+      expect(
+        await service.refreshPermission(),
+        ReminderPermissionState.granted,
+      );
+      await service.dispose();
+    });
+
+    test('kanal listesi okunamıyorsa unknown kalır', () async {
+      channels = null;
+      final service = ReminderService(supported: true);
+      expect(
+        await service.refreshPermission(),
+        ReminderPermissionState.unknown,
+      );
+      expect(service.permission.value, ReminderPermissionState.unknown);
+      await service.dispose();
+    });
+
+    test('native tekrar ilk kesin anchor oluşumundan başlar', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now().subtract(const Duration(days: 22));
+      final expected = pendingReminderAt(
+        anchorAt: anchor,
+        remindAfterDays: 30,
+        repeats: true,
+        now: DateTime.now(),
+      );
+      final note = Note(
+        id: 90,
+        imageName: '90.jpg',
+        body: 'Android phase',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAfterDays: 30,
+        reminderAnchorAt: anchor,
+        remindRepeats: true,
+      );
+
+      androidCalls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final periodic = androidCalls.singleWhere(
+        (call) => call.method == 'periodicallyShowWithDuration',
+      );
+      final arguments = periodic.arguments as Map;
+      expect(arguments['calledAt'], expected!.millisecondsSinceEpoch);
+      expect(
+        arguments['repeatIntervalMilliseconds'],
+        const Duration(days: 30).inMilliseconds,
+      );
+      await service.dispose();
+    });
+  });
+
   test('yalnız geçerli reminder payloadı not kimliğine çevrilir', () {
     expect(noteIdFromReminderPayload('note/19'), 19);
+    expect(noteIdFromReminderPayload('note/19/v2/every/3/1000'), 19);
+    expect(noteIdFromReminderPayload('note/19/v3/every_minutes/3/1000'), 19);
+    expect(
+      noteIdFromReminderPayload('note/19/v4/every_minutes/3/1000/art1/a-b'),
+      19,
+    );
+    expect(noteIdFromReminderPayload('note/19/v4/at/1000/art1/none'), 19);
+    expect(noteIdFromReminderPayload('note/19/v5/at/1000/art1/none'), 19);
     expect(noteIdFromReminderPayload(null), isNull);
     expect(noteIdFromReminderPayload(''), isNull);
     expect(noteIdFromReminderPayload('note/0'), isNull);
@@ -906,5 +1513,34 @@ void main() {
     expect(noteIdFromReminderPayload('note/not-a-number'), isNull);
     expect(noteIdFromReminderPayload('other/19'), isNull);
     expect(noteIdFromReminderPayload('note/19/extra'), isNull);
+    expect(noteIdFromReminderPayload('note/19/v4/at/1000'), isNull);
+    expect(noteIdFromReminderPayload('note/19/v5/at/1000'), isNull);
+    expect(
+      noteIdFromReminderPayload('note/19/v4/at/1000/art1/not!valid'),
+      isNull,
+    );
+  });
+
+  test('arayüzdeki Next her derlemede gün programını kullanır', () async {
+    final anchor = DateTime(2026, 8, 21, 10);
+    final note = Note(
+      id: 81,
+      imageName: '81.jpg',
+      body: 'Next parity',
+      createdAt: anchor,
+      retention: Retention.off,
+      customMinutes: 0,
+      remindAfterDays: 3,
+      reminderAnchorAt: anchor,
+      remindRepeats: true,
+    );
+    const settings = AppSettings(reminderEnabled: true, proUnlocked: true);
+
+    final service = ReminderService(supported: false);
+    expect(
+      service.nextReminderAt(note, settings, now: anchor),
+      DateTime(2026, 8, 24, 10),
+    );
+    await service.dispose();
   });
 }

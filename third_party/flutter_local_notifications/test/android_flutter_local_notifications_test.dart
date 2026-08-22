@@ -2435,6 +2435,38 @@ void main() {
           });
         });
       }
+
+      test(
+        'uses the explicit first scheduled time as the repeat origin',
+        () async {
+          final DateTime firstScheduledAt = now.add(const Duration(days: 8));
+          final AndroidFlutterLocalNotificationsPlugin androidPlugin =
+              flutterLocalNotificationsPlugin
+                  .resolvePlatformSpecificImplementation<
+                    AndroidFlutterLocalNotificationsPlugin
+                  >()!;
+
+          await androidPlugin.periodicallyShowWithDuration(
+            id: 1,
+            title: 'notification title',
+            body: 'notification body',
+            repeatDurationInterval: const Duration(days: 30),
+            firstScheduledAt: firstScheduledAt,
+          );
+
+          final Map<Object?, Object?> arguments =
+              log.last.arguments! as Map<Object?, Object?>;
+          expect(log.last.method, 'periodicallyShowWithDuration');
+          expect(
+            arguments['calledAt'],
+            firstScheduledAt.millisecondsSinceEpoch,
+          );
+          expect(
+            arguments['repeatIntervalMilliseconds'],
+            const Duration(days: 30).inMilliseconds,
+          );
+        },
+      );
     });
 
     group('zonedSchedule', () {

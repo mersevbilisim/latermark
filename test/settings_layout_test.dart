@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:latermark/features/notes/data/notes_database.dart'
     hide SettingsRow;
 import 'package:latermark/features/notes/data/notes_repository.dart';
 import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/reminders/reminder_service.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
@@ -86,15 +88,18 @@ void main() {
     WidgetTester tester, {
     required AppLocale locale,
     bool remindersEnabled = false,
+    ReminderService? reminders,
   }) async {
     await settings.setLocale(locale);
     await settings.setThemeMode(AppThemeMode.light);
+    if (remindersEnabled) await settings.setProUnlocked(true);
     await settings.setReminderEnabled(remindersEnabled);
 
     await tester.pumpWidget(
       AppScope(
         notes: notes,
         settings: settings,
+        reminders: reminders,
         child: MaterialApp(
           locale: locale.locale,
           supportedLocales: L10n.supportedLocales,
@@ -201,6 +206,55 @@ void main() {
     expect(find.text('Yedek al'), findsNothing);
     expect(find.text('Yedeği geri yükle'), findsNothing);
     expect(tester.takeException(), isNull);
+
+    await disposeTree(tester);
+  });
+
+  testWidgets('debug bildirim aracı normal ayarlar ağacına sızmaz', (
+    tester,
+  ) async {
+    // FLUTTER_TEST, DebugEntitlement.available kapısını kapatır. Aynı bölüm
+    // release'de ayrıca derleme zamanı `kDebugMode == false` ile elenir.
+    useSurface(tester, const Size(393, 3000));
+    await pumpSettingsPage(tester, locale: AppLocale.turkish);
+
+    expect(find.text('Pro (debug)'), findsNothing);
+    expect(find.byKey(const Key('debug-test-notification')), findsNothing);
+    await disposeTree(tester);
+  });
+
+  testWidgets('sistem izni kapanınca intent korunur ve ayarlar blocked olur', (
+    tester,
+  ) async {
+    // Hatırlatma bölümü SliverList içinde tembel kurulur. Bu davranışın
+    // kendisi test konusu değil; uzun yüzey bölümü doğrudan ağaca alır.
+    useSurface(tester, const Size(393, 3000));
+    final reminders = _FakeReminderService(ReminderPermissionState.denied);
+    await pumpSettingsPage(
+      tester,
+      locale: AppLocale.turkish,
+      remindersEnabled: true,
+      reminders: reminders,
+    );
+    expect(
+      find.text(
+        'Bildirimler sistem ayarlarında kapalı. İzin verdiğinde '
+        'hatırlatmalar yeniden çalışır.',
+      ),
+      findsOneWidget,
+    );
+    expect((await settings.read()).reminderEnabled, isTrue);
+
+    reminders.setPermission(ReminderPermissionState.granted);
+    await tester.pump();
+    expect(
+      find.text(
+        'Yalnızca kaydederken süre verdiğin notlar için bildirim gönderilir. '
+        'Diğerleri sessiz kalır.',
+      ),
+      findsOneWidget,
+    );
+    expect((await settings.read()).reminderEnabled, isTrue);
 
     await disposeTree(tester);
   });
@@ -388,4 +442,34 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
+}
+
+class _FakeReminderService extends ReminderService {
+  _FakeReminderService(ReminderPermissionState initial)
+    : _state = ValueNotifier(initial),
+      super(supported: false);
+
+  final ValueNotifier<ReminderPermissionState> _state;
+
+  @override
+  ValueListenable<ReminderPermissionState> get permission => _state;
+
+  void setPermission(ReminderPermissionState value) => _state.value = value;
+
+  @override
+  Future<ReminderPermissionState> refreshPermission() async => _state.value;
+
+  @override
+  Future<bool> hasPermission() async =>
+      _state.value == ReminderPermissionState.granted;
+
+  @override
+  Future<ReminderPermissionState> requestPermissionState() async =>
+      _state.value;
+
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    _state.dispose();
+  }
 }

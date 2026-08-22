@@ -1606,6 +1606,18 @@ abstract class L10n {
   /// **'Restore Purchases'**
   String get paywallRestore;
 
+  /// No description provided for @paywallRestoreNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No previous Latermark Pro purchase was found.'**
+  String get paywallRestoreNotFound;
+
+  /// No description provided for @paywallRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchases couldn’t be restored. Please try again.'**
+  String get paywallRestoreFailed;
+
   /// No description provided for @paywallClose.
   ///
   /// In en, this message translates to:
@@ -1671,6 +1683,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Next week'**
   String get reminderActionNextWeek;
+
+  /// Notification action button: disable only the reminder belonging to this note.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off this reminder'**
+  String get reminderActionTurnOff;
 
   /// No description provided for @actionOK.
   ///

@@ -33,7 +33,7 @@ class SpotlightBridge {
 
   static const _channelName = 'latermark/spotlight';
   static const _stateFileName = 'spotlight_index.json';
-  static const _stateVersion = 2;
+  static const _stateVersion = 3;
 
   /// Tek turda kaç kaydın metni belleğe alınır.
   ///
@@ -135,6 +135,24 @@ class SpotlightBridge {
       final state = await _readState();
       _indexed = Map<int, String>.of(state.items);
       _requiresFullRebuild = _requiresFullRebuild || state.requiresRebuild;
+
+      // Uygulamanın imza dosyası ile Core Spotlight'ın kendi deposu ayrı
+      // yaşıyor. iOS indeksi yeniden kurduğunda (simülatör reset'i ve
+      // düşük disk alanı dâhil) uygulama dosyası yerinde kalabiliyor. Yalnız
+      // bu dosyaya güvenmek, aslında kayıp bir kaydı sonsuza dek "değişmedi"
+      // sanmamıza yol açar. Core Spotlight'taki bütün Latermark kimliklerini
+      // tek sorguda okuyup yerel imzalarla birebir karşılaştırmak hem tam hem
+      // de kısmi indeks kaybını yakalar. Fazladan/hayalet bir kayıt da aynı
+      // şekilde temiz bir rebuild'e yükseltilir.
+      if (!_requiresFullRebuild) {
+        final nativeIds =
+            (await _channel.invokeListMethod<int>('indexedIds'))?.toSet() ??
+            <int>{};
+        if (nativeIds.length != _indexed!.length ||
+            !nativeIds.containsAll(_indexed!.keys)) {
+          _requiresFullRebuild = true;
+        }
+      }
     }
     final indexed = _indexed!;
     final photoFingerprints = await _repository.spotlightPhotoFingerprints();
