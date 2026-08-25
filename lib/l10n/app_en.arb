@@ -132,9 +132,9 @@
   "backupManageDescription": "Create an encrypted copy or bring an existing backup back.",
   "backupCreateTitle": "Create a backup",
   "backupNothingToSave": "There’s nothing to back up yet.",
-  "backupCreateDescription": "Everything on this device, sealed into one encrypted file.",
+  "backupCreateDescription": "Everything in your Latermark, in one encrypted file.",
   "backupRestoreTitle": "Restore a backup",
-  "backupRestoreDescription": "Replace everything here with a backup file.",
+  "backupRestoreDescription": "Restore your backup and get every note back.",
   "backupPasswordTitle": "Choose a password",
   "backupPasswordSubtitle": "This password is the only key to your backup.",
   "backupPasswordLabel": "Password",
@@ -216,7 +216,7 @@
   "backupErrorCorrupt": "This file is damaged or incomplete.",
   "backupErrorUnsupported": "This backup was made by a newer version of Latermark.",
   "backupErrorGeneric": "Something went wrong. Try again.",
-  "paywallFeatureBackup": "Encrypted backup",
+  "paywallFeatureBackup": "Secure backup",
   "paywallFeatureBackupDetail": "Take your notes and frames to a new phone.",
   "reminderSuffixRepeating": "days · repeating",
   "reminderRepeatToggle": "Repeat reminder",
@@ -300,6 +300,19 @@
   "settingsTitle": "Settings",
   "sectionAppearance": "Appearance",
   "sectionReminder": "Reminders",
+  "sectionSharing": "Sharing",
+  "shareSignatureTitle": "Share signature",
+  "shareSignatureDescription": "Notes you share end with a line naming Latermark. Turn it off and your words go exactly as you wrote them.",
+  "shareSignature": "Sent with Latermark for {platform}",
+  "@shareSignature": {
+    "description": "Line appended to shared notes when the share signature is on.",
+    "placeholders": {
+      "platform": {
+        "type": "String",
+        "example": "iOS"
+      }
+    }
+  },
   "themeTitle": "Theme",
   "themeDescription": "Follow your system appearance or choose one to keep.",
   "themeSystem": "System",
@@ -468,8 +481,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "Some frames should stay.",
-  "paywallSubtitle": "Latermark is made for letting go. Pro is for what you want to keep.",
+  "paywallHeadline": "Don’t leave what matters behind.",
+  "paywallSubtitle": "Latermark Pro brings back everything you’ll want to return to — at exactly the right time.",
   "paywallOwnedCount": "{count, plural, one{You have 1 frame right now.} other{You have {count} frames right now.}}",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -478,8 +491,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "Unlimited frames",
-  "paywallFeatureUnlimitedDetail": "Free keeps up to {limit} frames.",
+  "paywallFeatureUnlimited": "Unlimited notes",
+  "paywallFeatureUnlimitedDetail": "Not {limit} — completely unlimited.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -490,7 +503,7 @@
   "paywallFeatureCustomRetention": "Choose any duration",
   "paywallFeatureCustomRetentionDetail": "Go beyond 3 days and 1 week.",
   "paywallFeatureReminders": "Reminders",
-  "paywallFeatureRemindersDetail": "A quiet nudge for what matters.",
+  "paywallFeatureRemindersDetail": "Reminds you exactly when you need it.",
   "paywallFeatureWidget": "Home & Lock Screen widgets",
   "paywallFeatureWidgetDetail": "Your latest frame, always a glance away.",
   "@paywallPerMonth": {
@@ -519,7 +532,7 @@
   "paywallNoSubscription": "No subscription. Pay once, keep Pro.",
   "paywallOwned": "Latermark Pro is yours.",
   "paywallFeatureNoSubscription": "No subscription",
-  "paywallFeatureNoSubscriptionDetail": "Most apps charge monthly. Latermark doesn’t.",
+  "paywallFeatureNoSubscriptionDetail": "No subscription in Latermark — it’s yours for life.",
   "paywallCta": "Unlock Pro",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -572,5 +585,41 @@
   "cameraUsageDescription": "Camera access lets you capture photos for your notes.",
   "photoLibraryUsageDescription": "Photo access lets you add images from your library to your notes.",
   "actionShare": "Share",
-  "shareNoteSemantic": "Share photo and note"
+  "shareNoteSemantic": "Share photo and note",
+  "reminderSwitchLabel": "Remind me about this",
+  "@reminderSwitchLabel": {
+    "description": "Compose/Edit: the single reminder decision, next to the switch."
+  },
+  "actionSaveAndRemind": "Save and set reminder",
+  "@actionSaveAndRemind": {
+    "description": "Bottom action when the reminder switch is on: saving continues on the scheduling screen."
+  },
+  "reminderScheduleSaved": "Saved",
+  "@reminderScheduleSaved": {
+    "description": "Scheduling screen: overline confirming the frame is already stored."
+  },
+  "reminderScheduleQuestion": "When should this frame come back?",
+  "@reminderScheduleQuestion": {
+    "description": "Scheduling screen title."
+  },
+  "reminderTimeLabel": "Time",
+  "@reminderTimeLabel": {
+    "description": "Scheduling screen: label above the hour and minute fields."
+  },
+  "reminderOnceTitle": "Remind once",
+  "@reminderOnceTitle": {
+    "description": "Scheduling screen: fires once and stops."
+  },
+  "reminderRepeatTitle": "Remind repeatedly",
+  "@reminderRepeatTitle": {
+    "description": "Scheduling screen: keeps coming back at the chosen interval."
+  },
+  "reminderSkip": "Not now",
+  "@reminderSkip": {
+    "description": "Scheduling screen: leave without setting a reminder; the note stays saved."
+  },
+  "reminderDeleteAfterLabel": "Delete 1 hour after reminding",
+  "@reminderDeleteAfterLabel": {
+    "description": "Scheduling screen: after the single reminder fires, the note and its photo are deleted an hour later."
+  }
 }

@@ -114,9 +114,9 @@
   "backupManageDescription": "Cria uma cópia encriptada ou repõe uma cópia existente.",
   "backupCreateTitle": "Criar uma cópia",
   "backupNothingToSave": "Ainda não há nada para copiar.",
-  "backupCreateDescription": "Tudo o que está neste dispositivo, selado num ficheiro encriptado.",
+  "backupCreateDescription": "Tudo o que tem no Latermark, num único ficheiro encriptado.",
   "backupRestoreTitle": "Restaurar uma cópia",
-  "backupRestoreDescription": "Substituir tudo aqui por um ficheiro de cópia.",
+  "backupRestoreDescription": "Restaure a sua cópia e recupere todas as notas.",
   "backupPasswordTitle": "Escolhe uma palavra-passe",
   "backupPasswordSubtitle": "Esta palavra-passe é a única chave da tua cópia.",
   "backupPasswordLabel": "Palavra-passe",
@@ -154,7 +154,7 @@
   "backupErrorCorrupt": "Este ficheiro está danificado ou incompleto.",
   "backupErrorUnsupported": "Esta cópia foi criada por uma versão mais recente do Latermark.",
   "backupErrorGeneric": "Algo correu mal. Tenta novamente.",
-  "paywallFeatureBackup": "Cópia encriptada",
+  "paywallFeatureBackup": "Cópia de segurança protegida",
   "paywallFeatureBackupDetail": "Leva as tuas notas e fotos para um telemóvel novo.",
   "reminderSuffixRepeating": "dias · repetindo",
   "reminderRepeatToggle": "Repetir lembrete",
@@ -221,6 +221,10 @@
   "settingsTitle": "Definições",
   "sectionAppearance": "Aspeto",
   "sectionReminder": "Lembretes",
+  "sectionSharing": "Partilha",
+  "shareSignatureTitle": "Assinatura ao partilhar",
+  "shareSignatureDescription": "As notas que partilha terminam com uma linha a mencionar o Latermark. Se desligar, o seu texto segue tal como o escreveu.",
+  "shareSignature": "Enviado com o Latermark para {platform}",
   "themeTitle": "Tema",
   "themeDescription": "Siga o aspeto do sistema ou escolha um para manter.",
   "themeSystem": "Sistema",
@@ -382,8 +386,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "Há imagens que merecem ficar.",
-  "paywallSubtitle": "O Latermark foi feito para deixar ir. O Pro é para aquilo que quer guardar.",
+  "paywallHeadline": "Não deixe para trás o que importa.",
+  "paywallSubtitle": "O Latermark Pro traz de volta tudo aquilo a que vai querer voltar, no momento certo.",
   "paywallOwnedCount": "{count, plural, one{Tem atualmente 1 captura.} other{Tem atualmente {count} capturas.}}",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -392,8 +396,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "Capturas ilimitadas",
-  "paywallFeatureUnlimitedDetail": "A versão gratuita mantém até {limit}.",
+  "paywallFeatureUnlimited": "Notas ilimitadas",
+  "paywallFeatureUnlimitedDetail": "Não {limit}: totalmente ilimitadas.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -404,7 +408,7 @@
   "paywallFeatureCustomRetention": "Escolha qualquer duração",
   "paywallFeatureCustomRetentionDetail": "Mais do que 3 dias ou 1 semana.",
   "paywallFeatureReminders": "Lembretes",
-  "paywallFeatureRemindersDetail": "Um aviso discreto para o que importa.",
+  "paywallFeatureRemindersDetail": "Avisa exatamente quando é preciso.",
   "paywallFeatureWidget": "Widgets do ecrã principal e bloqueado",
   "paywallFeatureWidgetDetail": "A captura mais recente, sempre à vista.",
   "@paywallPerMonth": {
@@ -433,7 +437,7 @@
   "paywallNoSubscription": "Sem subscrição. Pague uma vez e mantenha o Pro.",
   "paywallOwned": "O Latermark Pro é seu.",
   "paywallFeatureNoSubscription": "Sem subscrição",
-  "paywallFeatureNoSubscriptionDetail": "A maioria das aplicações cobra todos os meses. O Latermark não.",
+  "paywallFeatureNoSubscriptionDetail": "O Latermark não precisa de subscrição. É seu para sempre.",
   "paywallCta": "Desbloquear Pro",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "O acesso à câmara permite tirar fotografias para as suas notas.",
   "photoLibraryUsageDescription": "O acesso às fotografias permite adicionar imagens da biblioteca às suas notas.",
   "actionShare": "Partilhar",
-  "shareNoteSemantic": "Partilhar foto e nota"
+  "shareNoteSemantic": "Partilhar foto e nota",
+  "reminderSwitchLabel": "Lembre-me disto",
+  "actionSaveAndRemind": "Guardar e lembrar",
+  "reminderScheduleSaved": "Guardado",
+  "reminderScheduleQuestion": "Quando deve esta foto voltar?",
+  "reminderTimeLabel": "Hora",
+  "reminderOnceTitle": "Lembrar uma vez",
+  "reminderRepeatTitle": "Lembrar sempre",
+  "reminderSkip": "Agora não",
+  "reminderDeleteAfterLabel": "Apagar 1 hora depois de lembrar"
 }

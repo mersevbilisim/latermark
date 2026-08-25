@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../../notes/data/notes_database.dart';
 import '../../notes/data/photo_store.dart';
 import '../../notes/data/search_text.dart';
+import '../../notes/domain/note_reminder.dart';
 import '../../notes/domain/retention.dart';
 import '../../settings/domain/app_locale.dart';
 import '../../settings/domain/app_settings.dart';
@@ -65,8 +66,8 @@ class BackupRepository {
     updatedAt: note.updatedAt,
     latitude: note.latitude,
     longitude: note.longitude,
-    remindAfterDays: note.remindAfterDays,
-    remindRepeats: note.remindRepeats,
+    remindAt: note.remindAt,
+    remindEveryDays: note.remindEveryDays,
     photoText: photoFolded,
   );
 
@@ -110,7 +111,24 @@ class BackupRepository {
                   createdAt: note.createdAt,
                   currentExpiresAt: note.expiresAt,
                 );
-          final reminderDays = isPro ? note.remindAfterDays : 0;
+          // Native bildirim kaydı yedek dosyasının parçası değildir; program
+          // geri yüklemeden sonraki ilk senkronda yeniden kurulur.
+          //
+          // Eski arşivlerde mutlak an yok, yalnızca "kaç gün sonra" var: o
+          // kayıtlar için geri sayı **geri yükleme anından** başlar.
+          final restored = !isPro
+              ? const ReminderChoice.off()
+              : ReminderChoice(
+                  at:
+                      note.remindAt ??
+                      (note.legacyRemindAfterDays > 0
+                          ? shiftLocalCalendarDays(
+                              restoredAt,
+                              note.legacyRemindAfterDays,
+                            )
+                          : null),
+                  everyDays: note.remindEveryDays,
+                );
 
           final id = await _db
               .into(_db.notes)
@@ -126,12 +144,10 @@ class BackupRepository {
                   updatedAt: Value(note.updatedAt),
                   latitude: Value(note.latitude),
                   longitude: Value(note.longitude),
-                  remindAfterDays: Value(reminderDays),
-                  // Native bildirim kaydı yedek dosyasının parçası değildir.
-                  // Geri yüklenen "30 gün" bu cihazdaki geri yükleme anından
-                  // başlar.
-                  reminderAnchorAt: Value(reminderDays > 0 ? restoredAt : null),
-                  remindRepeats: Value(reminderDays > 0 && note.remindRepeats),
+                  remindAt: Value(restored.at),
+                  remindEveryDays: Value(
+                    restored.repeats ? restored.everyDays : 0,
+                  ),
                 ),
               );
 

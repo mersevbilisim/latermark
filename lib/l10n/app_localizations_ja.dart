@@ -300,13 +300,13 @@ class L10nJa extends L10n {
   String get backupNothingToSave => 'まだバックアップするものがありません。';
 
   @override
-  String get backupCreateDescription => 'この端末のすべてを、暗号化された1つのファイルに。';
+  String get backupCreateDescription => 'Latermarkの中のすべてを、暗号化されたひとつのファイルに。';
 
   @override
   String get backupRestoreTitle => 'バックアップから復元';
 
   @override
-  String get backupRestoreDescription => 'ここにあるすべてをバックアップファイルで置き換えます。';
+  String get backupRestoreDescription => 'バックアップから、すべてのメモを取り戻します。';
 
   @override
   String get backupPasswordTitle => 'パスワードを設定';
@@ -431,7 +431,7 @@ class L10nJa extends L10n {
   String get backupErrorGeneric => '問題が発生しました。もう一度お試しください。';
 
   @override
-  String get paywallFeatureBackup => '暗号化バックアップ';
+  String get paywallFeatureBackup => '安全なバックアップ';
 
   @override
   String get paywallFeatureBackupDetail => 'メモと写真を新しい端末へ。';
@@ -592,6 +592,21 @@ class L10nJa extends L10n {
 
   @override
   String get sectionReminder => 'リマインダー';
+
+  @override
+  String get sectionSharing => '共有';
+
+  @override
+  String get shareSignatureTitle => '共有時の署名';
+
+  @override
+  String get shareSignatureDescription =>
+      '共有するノートの末尾に Latermark の一行が付きます。オフにすると、書いたままの文章だけが送られます。';
+
+  @override
+  String shareSignature(String platform) {
+    return 'Latermark for $platform から送信';
+  }
 
   @override
   String get themeTitle => 'テーマ';
@@ -777,10 +792,11 @@ class L10nJa extends L10n {
   String get proBadge => 'PRO';
 
   @override
-  String get paywallHeadline => '残しておきたい一枚もある。';
+  String get paywallHeadline => '大切なものを、置き去りにしない。';
 
   @override
-  String get paywallSubtitle => 'Latermarkは、忘れるためのアプリ。Proは、忘れたくない一枚のために。';
+  String get paywallSubtitle =>
+      'Latermark Proは、もう一度見返したいすべてを、ちょうどいいタイミングで目の前に戻します。';
 
   @override
   String paywallOwnedCount(int count) {
@@ -788,11 +804,11 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallFeatureUnlimited => '保存枚数が無制限';
+  String get paywallFeatureUnlimited => 'メモは無制限';
 
   @override
   String paywallFeatureUnlimitedDetail(int limit) {
-    return '無料版は$limit枚まで。';
+    return '$limit件までではなく、完全に無制限。';
   }
 
   @override
@@ -805,7 +821,7 @@ class L10nJa extends L10n {
   String get paywallFeatureReminders => 'リマインダー';
 
   @override
-  String get paywallFeatureRemindersDetail => '大切な一枚を、そっとお知らせ。';
+  String get paywallFeatureRemindersDetail => '必要になったそのときに知らせます。';
 
   @override
   String get paywallFeatureWidget => 'ホーム・ロック画面ウィジェット';
@@ -831,7 +847,8 @@ class L10nJa extends L10n {
   String get paywallFeatureNoSubscription => 'サブスクリプションなし';
 
   @override
-  String get paywallFeatureNoSubscriptionDetail => '毎月の支払いはありません。購入は一度だけ。';
+  String get paywallFeatureNoSubscriptionDetail =>
+      'Latermarkにサブスクリプションは不要。ずっとあなたのものです。';
 
   @override
   String get paywallCta => 'Proを購入';
@@ -934,4 +951,31 @@ class L10nJa extends L10n {
 
   @override
   String get shareNoteSemantic => '写真とメモを共有';
+
+  @override
+  String get reminderSwitchLabel => 'これをあとで知らせる';
+
+  @override
+  String get actionSaveAndRemind => '保存して知らせる';
+
+  @override
+  String get reminderScheduleSaved => '保存しました';
+
+  @override
+  String get reminderScheduleQuestion => 'この一枚をいつ戻しますか？';
+
+  @override
+  String get reminderTimeLabel => '時刻';
+
+  @override
+  String get reminderOnceTitle => '1回だけ知らせる';
+
+  @override
+  String get reminderRepeatTitle => 'くり返し知らせる';
+
+  @override
+  String get reminderSkip => '今はしない';
+
+  @override
+  String get reminderDeleteAfterLabel => '通知の1時間後に削除';
 }

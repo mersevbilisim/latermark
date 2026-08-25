@@ -673,7 +673,7 @@ abstract class L10n {
   /// No description provided for @backupCreateDescription.
   ///
   /// In en, this message translates to:
-  /// **'Everything on this device, sealed into one encrypted file.'**
+  /// **'Everything in your Latermark, in one encrypted file.'**
   String get backupCreateDescription;
 
   /// No description provided for @backupRestoreTitle.
@@ -685,7 +685,7 @@ abstract class L10n {
   /// No description provided for @backupRestoreDescription.
   ///
   /// In en, this message translates to:
-  /// **'Replace everything here with a backup file.'**
+  /// **'Restore your backup and get every note back.'**
   String get backupRestoreDescription;
 
   /// No description provided for @backupPasswordTitle.
@@ -913,7 +913,7 @@ abstract class L10n {
   /// No description provided for @paywallFeatureBackup.
   ///
   /// In en, this message translates to:
-  /// **'Encrypted backup'**
+  /// **'Secure backup'**
   String get paywallFeatureBackup;
 
   /// No description provided for @paywallFeatureBackupDetail.
@@ -1185,6 +1185,30 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Reminders'**
   String get sectionReminder;
+
+  /// No description provided for @sectionSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing'**
+  String get sectionSharing;
+
+  /// No description provided for @shareSignatureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share signature'**
+  String get shareSignatureTitle;
+
+  /// No description provided for @shareSignatureDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes you share end with a line naming Latermark. Turn it off and your words go exactly as you wrote them.'**
+  String get shareSignatureDescription;
+
+  /// Line appended to shared notes when the share signature is on.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent with Latermark for {platform}'**
+  String shareSignature(String platform);
 
   /// No description provided for @themeTitle.
   ///
@@ -1495,13 +1519,13 @@ abstract class L10n {
   /// No description provided for @paywallHeadline.
   ///
   /// In en, this message translates to:
-  /// **'Some frames should stay.'**
+  /// **'Don’t leave what matters behind.'**
   String get paywallHeadline;
 
   /// No description provided for @paywallSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Latermark is made for letting go. Pro is for what you want to keep.'**
+  /// **'Latermark Pro brings back everything you’ll want to return to — at exactly the right time.'**
   String get paywallSubtitle;
 
   /// No description provided for @paywallOwnedCount.
@@ -1513,13 +1537,13 @@ abstract class L10n {
   /// No description provided for @paywallFeatureUnlimited.
   ///
   /// In en, this message translates to:
-  /// **'Unlimited frames'**
+  /// **'Unlimited notes'**
   String get paywallFeatureUnlimited;
 
   /// No description provided for @paywallFeatureUnlimitedDetail.
   ///
   /// In en, this message translates to:
-  /// **'Free keeps up to {limit} frames.'**
+  /// **'Not {limit} — completely unlimited.'**
   String paywallFeatureUnlimitedDetail(int limit);
 
   /// No description provided for @paywallFeatureCustomRetention.
@@ -1543,7 +1567,7 @@ abstract class L10n {
   /// No description provided for @paywallFeatureRemindersDetail.
   ///
   /// In en, this message translates to:
-  /// **'A quiet nudge for what matters.'**
+  /// **'Reminds you exactly when you need it.'**
   String get paywallFeatureRemindersDetail;
 
   /// No description provided for @paywallFeatureWidget.
@@ -1591,7 +1615,7 @@ abstract class L10n {
   /// No description provided for @paywallFeatureNoSubscriptionDetail.
   ///
   /// In en, this message translates to:
-  /// **'Most apps charge monthly. Latermark doesn’t.'**
+  /// **'No subscription in Latermark — it’s yours for life.'**
   String get paywallFeatureNoSubscriptionDetail;
 
   /// No description provided for @paywallCta.
@@ -1797,6 +1821,60 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Share photo and note'**
   String get shareNoteSemantic;
+
+  /// Compose/Edit: the single reminder decision, next to the switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me about this'**
+  String get reminderSwitchLabel;
+
+  /// Bottom action when the reminder switch is on: saving continues on the scheduling screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and set reminder'**
+  String get actionSaveAndRemind;
+
+  /// Scheduling screen: overline confirming the frame is already stored.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get reminderScheduleSaved;
+
+  /// Scheduling screen title.
+  ///
+  /// In en, this message translates to:
+  /// **'When should this frame come back?'**
+  String get reminderScheduleQuestion;
+
+  /// Scheduling screen: label above the hour and minute fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get reminderTimeLabel;
+
+  /// Scheduling screen: fires once and stops.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind once'**
+  String get reminderOnceTitle;
+
+  /// Scheduling screen: keeps coming back at the chosen interval.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind repeatedly'**
+  String get reminderRepeatTitle;
+
+  /// Scheduling screen: leave without setting a reminder; the note stays saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get reminderSkip;
+
+  /// Scheduling screen: after the single reminder fires, the note and its photo are deleted an hour later.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete 1 hour after reminding'**
+  String get reminderDeleteAfterLabel;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

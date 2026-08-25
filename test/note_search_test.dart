@@ -7,6 +7,7 @@ import 'package:latermark/features/notes/data/notes_database.dart';
 import 'package:latermark/features/notes/data/notes_repository.dart';
 import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/notes/data/search_text.dart';
+import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:sqlite3/sqlite3.dart' as raw;
 
@@ -164,7 +165,11 @@ void main() {
       final id = await addNote('ilk hâli');
       final note = (await repository.watchNotes().first).single;
 
-      await repository.update(note, body: 'ikinci hâli', remindAfterDays: 0);
+      await repository.update(
+        note,
+        body: 'ikinci hâli',
+        reminder: const ReminderChoice.off(),
+      );
 
       expect((await repository.search('ilk')).ids, isEmpty);
       expect((await repository.search('ikinci')).ids, {id});
@@ -257,8 +262,17 @@ void main() {
       await seed.close();
 
       final v6 = raw.sqlite3.open(path);
+      // v7 sütununu ve v8'in hatırlatma şeklini geri alıyoruz: o sürümde
+      // hatırlatma "çıpa + kaç gün sonra" olarak duruyordu.
       v6.execute(
+        'ALTER TABLE settings DROP COLUMN share_signature; '
         'ALTER TABLE note_search DROP COLUMN photo_fingerprint; '
+        'ALTER TABLE notes DROP COLUMN remind_at; '
+        'ALTER TABLE notes RENAME COLUMN remind_every_days '
+        'TO remind_after_days; '
+        'ALTER TABLE notes ADD COLUMN reminder_anchor_at INTEGER NULL; '
+        'ALTER TABLE notes ADD COLUMN remind_repeats '
+        'INTEGER NOT NULL DEFAULT 0; '
         'PRAGMA user_version = 6;',
       );
       v6.execute(

@@ -18,6 +18,7 @@ import 'package:latermark/features/settings/domain/app_settings.dart';
 import 'package:latermark/features/settings/presentation/settings_page.dart';
 import 'package:latermark/features/settings/presentation/your_data_page.dart';
 import 'package:latermark/features/settings/presentation/widgets/settings_pieces.dart';
+import 'package:latermark/shared/widgets/choice_rail.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 

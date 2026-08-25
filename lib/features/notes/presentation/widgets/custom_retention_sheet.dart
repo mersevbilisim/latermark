@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_shape.dart';
 import '../../../../l10n/enum_labels.dart';
@@ -22,6 +23,14 @@ Future<int?> showCustomRetentionSheet(
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.6),
     isScrollControlled: true,
+    // Hatırlatma paneliyle aynı ritim: iki yüzey aynı uygulamada aynı hızla
+    // açılmalı.
+    sheetAnimationStyle: AnimationStyle(
+      curve: AppMotion.ease,
+      duration: AppMotion.medium,
+      reverseCurve: AppMotion.exit,
+      reverseDuration: AppMotion.fast,
+    ),
     builder: (context) => _CustomRetentionSheet(initialMinutes: initialMinutes),
   );
 }
@@ -74,10 +83,7 @@ class _CustomRetentionSheetState extends State<_CustomRetentionSheet> {
 
   int get _minutes {
     final value = int.tryParse(_amount.text) ?? 0;
-    return (value * _unit.minutes).clamp(
-      0,
-      RetentionChoice.maxCustomMinutes,
-    );
+    return (value * _unit.minutes).clamp(0, RetentionChoice.maxCustomMinutes);
   }
 
   bool get _valid => _minutes >= RetentionChoice.minCustomMinutes;
@@ -154,7 +160,9 @@ class _CustomRetentionSheetState extends State<_CustomRetentionSheet> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  Expanded(child: _UnitRail(value: _unit, onChanged: _setUnit)),
+                  Expanded(
+                    child: _UnitRail(value: _unit, onChanged: _setUnit),
+                  ),
                 ],
               ),
 
@@ -247,9 +255,7 @@ class _UnitRail extends StatelessWidget {
                         labelOf(unit),
                         textAlign: TextAlign.center,
                         style: palette.label.copyWith(
-                          color: unit == value
-                              ? palette.ink
-                              : palette.inkSoft,
+                          color: unit == value ? palette.ink : palette.inkSoft,
                           fontWeight: unit == value
                               ? FontWeight.w600
                               : FontWeight.w500,

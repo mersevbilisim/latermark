@@ -21,6 +21,7 @@ import '../domain/app_locale.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import 'widgets/pro_callout.dart';
+import '../../../shared/widgets/choice_rail.dart';
 import 'widgets/settings_pieces.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../paywall/presentation/paywall_host.dart';
@@ -267,6 +268,22 @@ class _SettingsPageState extends State<SettingsPage>
                 ),
 
                 SettingsSection(
+                  title: context.l10n.sectionSharing,
+                  children: [
+                    SettingsRow(
+                      title: context.l10n.shareSignatureTitle,
+                      description: context.l10n.shareSignatureDescription,
+                      trailing: InkSwitch(
+                        key: const Key('settings-share-signature'),
+                        value: settings.shareSignature,
+                        semanticLabel: context.l10n.shareSignatureTitle,
+                        onChanged: repository.setShareSignature,
+                      ),
+                    ),
+                  ],
+                ),
+
+                SettingsSection(
                   title: context.l10n.backupSectionTitle,
                   children: [
                     Pressable(
@@ -356,11 +373,18 @@ class _SettingsPageState extends State<SettingsPage>
 
     // Kayıt sayısı tek bir COUNT(*) ile geliyor; boş bir arşivden yedek almak
     // içi boş bir dosya üretirdi ve bunu kullanıcıya seçim anında söylemek
-    // gerekiyor.
-    final noteCount = await AppScope.of(context).watchNoteCount().first;
+    // gerekiyor. Panelin şeridi için de son üç kare okunuyor: yedek soyut bir
+    // tercih değil, kullanıcının kendi kareleri.
+    final repository = AppScope.of(context);
+    final noteCount = await repository.watchNoteCount().first;
+    final recent = await repository.watchRecent(limit: 3).first;
     if (!mounted) return;
 
-    final mode = await showBackupActionsSheet(context, hasData: noteCount > 0);
+    final mode = await showBackupActionsSheet(
+      context,
+      noteCount: noteCount,
+      previews: [for (final note in recent) repository.imageOf(note)],
+    );
     if (mode == null || !mounted) return;
     await _openBackup(mode);
   }
@@ -445,13 +469,11 @@ class _DebugSectionState extends State<_DebugSection> {
       final repository = AppScope.of(context);
       final candidates =
           (await repository.watchNotes().first)
-              .where((note) => note.remindAfterDays > 0)
+              .where((note) => note.remindAt != null)
               .toList()
             ..sort((a, b) {
-              final byAnchor = (b.reminderAnchorAt ?? b.createdAt).compareTo(
-                a.reminderAnchorAt ?? a.createdAt,
-              );
-              return byAnchor != 0 ? byAnchor : b.id.compareTo(a.id);
+              final byMoment = b.remindAt!.compareTo(a.remindAt!);
+              return byMoment != 0 ? byMoment : b.id.compareTo(a.id);
             });
       if (!mounted) return;
       if (candidates.isEmpty) {

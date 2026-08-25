@@ -16,6 +16,7 @@ import '../../../reminders/reminder_service.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
+import '../../domain/note_reminder.dart';
 import '../../domain/retention.dart';
 import '../compose/compose_page.dart';
 import '../capture/capture_page.dart';
@@ -285,7 +286,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 customMinutes: settings.defaultCustomMinutes,
               ),
               createdAt: shared.createdAt,
-              remindAfterDays: shared.remindAfterDays,
+              // Extension "kaç gün sonra" gönderiyor; kayıt mutlak an tutuyor.
+              // Çevrim burada, sınırda yapılıyor: içeride tek bir dil kalsın.
+              reminder: shared.remindAfterDays > 0
+                  ? ReminderChoice(
+                      at: shiftLocalCalendarDays(
+                        DateTime.now(),
+                        shared.remindAfterDays,
+                      ),
+                    )
+                  : const ReminderChoice.off(),
               importId: shared.id,
             );
             if (reviewPrompts != null) {

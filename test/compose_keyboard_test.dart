@@ -16,6 +16,7 @@ import 'package:latermark/features/notes/presentation/compose/widgets/note_compo
 import 'package:latermark/features/notes/presentation/widgets/reminder_control.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
+import 'package:latermark/shared/widgets/ember_switch.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 
 final _pixel = base64Decode(
@@ -96,23 +97,75 @@ void main() {
     );
     expect(bar.bottom, lessThanOrEqualTo(height - keyboard));
 
-    // Hatırlatma artık not klavyesinin içinde ikinci bir form değildir. Özet
-    // satırına dokununca geçici panel klavyenin üstünde açılır; hızlı süre ve
-    // tekrar aynı yerde tamamlanır.
+    // Hatırlatma artık klavyenin altında ikinci bir form değil, tek bir
+    // anahtar: gün ve saat kaydettikten sonraki ekranda soruluyor.
     await tester.ensureVisible(find.byType(ReminderControl));
-    await tester.tap(find.byKey(const Key('reminder-field-control')));
+    await tester.tap(find.byKey(const Key('reminder-switch-row')));
     await _settle(tester);
 
-    final sheet = tester.getRect(find.byKey(const Key('reminder-sheet')));
-    expect(sheet.bottom, lessThanOrEqualTo(height - keyboard));
+    expect(
+      tester
+          .widget<EmberSwitch>(find.byKey(const Key('reminder-switch')))
+          .value,
+      isTrue,
+    );
 
-    await tester.tap(find.byKey(const Key('reminder-preset-7')));
-    await tester.tap(find.byKey(const Key('reminder-mode-repeat')));
-    await tester.ensureVisible(find.byKey(const Key('reminder-sheet-save')));
-    await tester.tap(find.byKey(const Key('reminder-sheet-save')));
+    // Anahtar açıkken alt şeridin kelimesi de değişir: kaydetmek burada
+    // bitmiyor, arkasından planlama ekranı geliyor.
+    expect(find.text('KAYDET VE HATIRLAT'), findsOneWidget);
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey('compose-action-bar')))
+          .bottom,
+      lessThanOrEqualTo(height - keyboard),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('uzun metin seçenekleri aşağı itmez', (tester) async {
+    // Alan metinle birlikte uzasaydı hatırlatma satırı sayfanın altına
+    // kaçardı; kullanıcı yazdıkça seçeneklerini kaybederdi.
+    const height = 852.0;
+    const keyboard = 336.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, height);
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      AppScope(
+        notes: repository,
+        settings: settings,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          locale: const Locale('tr'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: ComposePage(
+            capture: XFile(photo.path),
+            source: ComposeSource.gallery,
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: keyboard);
     await _settle(tester);
 
-    expect(find.text('7 gün'), findsOneWidget);
+    final before = tester.getRect(find.byType(ReminderControl));
+    final fieldBefore = tester.getRect(find.byType(TextField).first);
+
+    await tester.enterText(
+      find.byType(TextField).first,
+      List.filled(120, 'Bu not kasten çok uzun tutuldu.').join(' '),
+    );
+    await _settle(tester);
+
+    expect(tester.getRect(find.byType(ReminderControl)), before);
+    expect(tester.getRect(find.byType(TextField).first), fieldBefore);
+    expect(before.bottom, lessThanOrEqualTo(height - keyboard));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

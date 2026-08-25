@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_palette.dart';
@@ -96,35 +98,34 @@ class NoteComposer extends StatelessWidget {
         if (header != null) ...[header!, const SizedBox(height: 14)],
         Expanded(
           child: LayoutBuilder(
-            builder: (context, viewport) => SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: viewport.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Taban, esnek çocuğun *doğal* boyuna konuyor:
-                      // IntrinsicHeight kolonun boyunu bu taban üzerinden
-                      // hesaplıyor, dolayısıyla yer varken alan yine kalan
-                      // her şeyi kaplıyor, yer yokken kolon viewport'tan
-                      // uzun kalıp kaydırılıyor.
-                      Expanded(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minHeight: minFieldExtent,
-                          ),
-                          child: field,
-                        ),
+            builder: (context, viewport) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Yazı alanı kalan yeri kaplar ve **kendi içinde** kayar.
+                // Eskiden alan metinle birlikte uzuyordu: sayfa kayıyor,
+                // hatırlatma satırı aşağı kaçıyor ve uzun bir notta imleç
+                // ekrandan çıkıyordu. Uzayan şey artık düzen değil, metin.
+                Expanded(child: field),
+                if (extra != null) ...[
+                  const SizedBox(height: 20),
+                  // Seçenekler yerinde duruyor; yalnızca aşırı yazı
+                  // ölçeğinde kendi içinde kayıyor. Sınır, yazı alanının
+                  // tabanını her koşulda koruyor.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: math.max(
+                        0,
+                        viewport.maxHeight - minFieldExtent - 20,
                       ),
-                      if (extra != null) ...[
-                        const SizedBox(height: 20),
-                        extra!,
-                      ],
-                    ],
+                    ),
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: extra!,
+                    ),
                   ),
-                ),
-              ),
+                ],
+              ],
             ),
           ),
         ),

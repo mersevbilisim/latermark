@@ -27,9 +27,11 @@ abstract final class PhotoAspect {
     final missing = files.entries.where((e) => !_cache.containsKey(e.key));
     if (missing.isEmpty) return;
 
-    await Future.wait(missing.map((entry) async {
-      _cache[entry.key] = await _read(entry.value);
-    }));
+    await Future.wait(
+      missing.map((entry) async {
+        _cache[entry.key] = await _read(entry.value);
+      }),
+    );
   }
 
   static Future<double> _read(File file) async {

@@ -10,6 +10,7 @@ import 'package:latermark/features/notes/data/notes_database.dart';
 import 'package:latermark/features/notes/data/notes_repository.dart';
 import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
+import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/settings/domain/app_settings.dart';
 import 'package:latermark/features/settings/presentation/widgets/settings_pieces.dart';
 import 'package:sqlite3/sqlite3.dart' as raw;
@@ -140,16 +141,18 @@ void main() {
     expect(migrated.accent, AppAccent.orange);
 
     // Kayıt göçten sağ çıktı ve v1'de olmayan sütunlar dürüst varsayılanlarla
-    // doldu. Bu sürümün eklediği iki sütun da burada sınanıyor: `remind_repeats`
-    // kapalı (eski hatırlatmaların hepsi tek atışlıktı) ve `reminder_anchor_at`
-    // boş (tekrar etmeyen bir kayda sayaç başlangıcı yazmanın anlamı yok).
+    // doldu. v1'deki "7 gün sonra" mutlak ana çevrildi: o sürümde sayaç
+    // başlangıcı olmadığı için kaydın kendi zamanından sayılır. Tek atışlıktı,
+    // öyle de kaldı — aralık sıfır.
     final notes = NotesRepository(database: database, photos: photoStore);
     final restored = await notes.watchNotes().first;
     expect(restored, hasLength(1));
     expect(restored.single.body, 'v1 kaydı');
-    expect(restored.single.remindAfterDays, 7);
-    expect(restored.single.remindRepeats, isFalse);
-    expect(restored.single.reminderAnchorAt, isNull);
+    expect(
+      restored.single.remindAt,
+      shiftLocalCalendarDays(restored.single.createdAt, 7),
+    );
+    expect(restored.single.remindEveryDays, 0);
     expect(restored.single.updatedAt, isNull);
     expect(restored.single.latitude, isNull);
 

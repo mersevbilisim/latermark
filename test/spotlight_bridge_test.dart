@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
 import 'package:latermark/features/notes/data/notes_repository.dart';
 import 'package:latermark/features/notes/data/photo_store.dart';
+import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/spotlight/spotlight_bridge.dart';
 import 'package:latermark/features/spotlight/spotlight_item.dart';
@@ -194,7 +195,7 @@ void main() {
     await repository.update(
       (await repository.noteById(id))!,
       body: 'Kombi fişi',
-      remindAfterDays: 0,
+      reminder: const ReminderChoice.off(),
     );
     await settle(bridge);
 

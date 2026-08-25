@@ -105,17 +105,41 @@ void main() {
       final at = DateTime(2026, 8, 9, 14, 32);
 
       expect(
-        tr.reminderValue(at: at, repeats: true, everyDays: 3),
+        tr.reminderValue(at: at, everyDays: 3),
         'Her 3 günde bir · sonraki 9 Ağustos 2026 · 14:32',
       );
     });
 
     test('tek atışta cadence eki yazılmaz', () {
       final at = DateTime(2026, 8, 9, 14, 32);
+      expect(tr.reminderValue(at: at, everyDays: 0), '9 Ağustos 2026 · 14:32');
+    });
+  });
+
+  group('saat biçimi', () {
+    test('yerelin kendi kalıbı kullanılır', () async {
+      final en = await L10n.delegate.load(const Locale('en'));
+      final at = DateTime(2026, 8, 9, 14, 32);
+
+      expect(tr.time(at), '14:32');
+      // intl yeni sürümlerde PM'den önce dar bir boşluk (U+202F) koyuyor.
+      expect(en.time(at).replaceAll('\u202f', ' '), '2:32 PM');
+    });
+
+    test('cihazın 24 saat tercihi yerelin varsayılanını ezer', () async {
+      // Ayarlardan "24 Saat"i açmış bir ABD kullanıcısı da 14:32 görmeli;
+      // yerelin varsayılanı bu tercihi bilmiyor.
+      final en = await L10n.delegate.load(const Locale('en'));
+      final at = DateTime(2026, 8, 9, 14, 32);
+
+      expect(en.time(at, use24Hour: true), '14:32');
+      expect(en.stamp(at, use24Hour: true), 'August 9, 2026 · 14:32');
       expect(
-        tr.reminderValue(at: at, repeats: false, everyDays: 3),
-        '9 Ağustos 2026 · 14:32',
+        en.reminderValue(at: at, everyDays: 3, use24Hour: true),
+        'Every 3 days · next August 9, 2026 · 14:32',
       );
+      // Zaten 24 saat yazan bir dilde anahtar hiçbir şeyi değiştirmez.
+      expect(tr.time(at, use24Hour: true), tr.time(at));
     });
   });
 

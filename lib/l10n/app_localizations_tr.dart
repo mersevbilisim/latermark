@@ -313,14 +313,14 @@ class L10nTr extends L10n {
 
   @override
   String get backupCreateDescription =>
-      'Bu cihazdaki her şey, tek bir şifreli dosyada.';
+      'Latermark\'ındaki her şey tek ve şifreli dosyada.';
 
   @override
   String get backupRestoreTitle => 'Yedeği geri yükle';
 
   @override
   String get backupRestoreDescription =>
-      'Buradaki her şeyi bir yedek dosyasıyla değiştir.';
+      'Yedeğini geri yükleyerek tüm notlarını al.';
 
   @override
   String get backupPasswordTitle => 'Bir parola seç';
@@ -448,7 +448,7 @@ class L10nTr extends L10n {
   String get backupErrorGeneric => 'Bir şeyler ters gitti. Tekrar dene.';
 
   @override
-  String get paywallFeatureBackup => 'Şifreli yedek';
+  String get paywallFeatureBackup => 'Güvenli yedekleme';
 
   @override
   String get paywallFeatureBackupDetail =>
@@ -631,6 +631,21 @@ class L10nTr extends L10n {
 
   @override
   String get sectionReminder => 'Hatırlatma';
+
+  @override
+  String get sectionSharing => 'Paylaşım';
+
+  @override
+  String get shareSignatureTitle => 'Paylaşım imzası';
+
+  @override
+  String get shareSignatureDescription =>
+      'Paylaştığın notun sonuna Latermark satırı eklenir. Kapatırsan yazdığın metin olduğu gibi gider.';
+
+  @override
+  String shareSignature(String platform) {
+    return 'Latermark $platform ile gönderildi';
+  }
 
   @override
   String get themeTitle => 'Tema';
@@ -873,11 +888,11 @@ class L10nTr extends L10n {
   String get proBadge => 'PRO';
 
   @override
-  String get paywallHeadline => 'Bazı kareler kalmalı.';
+  String get paywallHeadline => 'Önemli olanı geride bırakma.';
 
   @override
   String get paywallSubtitle =>
-      'Latermark unutmak için tasarlandı. Pro, unutulmasını istemediklerin için.';
+      'Latermark Pro, geri dönmek istediğin her şeyi doğru zamanda yeniden önüne getirir.';
 
   @override
   String paywallOwnedCount(int count) {
@@ -890,11 +905,11 @@ class L10nTr extends L10n {
   }
 
   @override
-  String get paywallFeatureUnlimited => 'Sınırsız kayıt';
+  String get paywallFeatureUnlimited => 'Sınırsız not';
 
   @override
   String paywallFeatureUnlimitedDetail(int limit) {
-    return 'Ücretsizde $limit kare tutulur.';
+    return '$limit adet değil, tümüyle sınırsız.';
   }
 
   @override
@@ -909,7 +924,7 @@ class L10nTr extends L10n {
 
   @override
   String get paywallFeatureRemindersDetail =>
-      'Unutmak istemediklerin için bildirim.';
+      'Ne zaman gerekiyorsa o zaman hatırlatır.';
 
   @override
   String get paywallFeatureWidget => 'Ana ekran widget\'ı';
@@ -937,7 +952,7 @@ class L10nTr extends L10n {
 
   @override
   String get paywallFeatureNoSubscriptionDetail =>
-      'Çoğu uygulama bunu her ay satar. Bu bir kez.';
+      'Latermark\'ta aboneliğe gerek yok. Ömür boyu senin.';
 
   @override
   String get paywallCta => 'Pro\'ya geç';
@@ -1046,4 +1061,31 @@ class L10nTr extends L10n {
 
   @override
   String get shareNoteSemantic => 'Fotoğrafı ve notu paylaş';
+
+  @override
+  String get reminderSwitchLabel => 'Bunu bana hatırlat';
+
+  @override
+  String get actionSaveAndRemind => 'Kaydet ve hatırlat';
+
+  @override
+  String get reminderScheduleSaved => 'Kaydedildi';
+
+  @override
+  String get reminderScheduleQuestion => 'Bu kare ne zaman dönsün?';
+
+  @override
+  String get reminderTimeLabel => 'Saat';
+
+  @override
+  String get reminderOnceTitle => 'Bir kere hatırlat';
+
+  @override
+  String get reminderRepeatTitle => 'Sürekli hatırlat';
+
+  @override
+  String get reminderSkip => 'Şimdi değil';
+
+  @override
+  String get reminderDeleteAfterLabel => 'Hatırlattıktan 1 saat sonra sil';
 }

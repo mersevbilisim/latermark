@@ -26,7 +26,7 @@ void main() {
 
   test('ürün dili ve paywall metinleri İngilizceye düşmez', () {
     expect(it.inviteTitle, 'Tocca per scattare');
-    expect(it.paywallHeadline, 'Alcuni scatti meritano di restare.');
+    expect(it.paywallHeadline, 'Non lasciare indietro ciò che conta.');
     expect(it.notificationTitle, 'Promemoria');
   });
 }

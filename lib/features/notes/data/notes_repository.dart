@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/drift.dart';
 
+import '../domain/note_reminder.dart';
 import '../domain/reminder_action.dart';
 import '../domain/retention.dart';
 import '../../settings/domain/pro_downgrade_policy.dart';
@@ -120,8 +122,7 @@ class NotesRepository {
     required XFile capture,
     required String body,
     required RetentionChoice retention,
-    int remindAfterDays = 0,
-    bool remindRepeats = false,
+    ReminderChoice reminder = const ReminderChoice.off(),
     DateTime? createdAt,
     NoteLocation? location,
     String? importId,
@@ -143,7 +144,6 @@ class NotesRepository {
     }
 
     final stamp = createdAt ?? DateTime.now();
-    final reminderAnchor = DateTime.now();
     final imageName = await _store.persist(capture);
     final text = body.trim();
 
@@ -180,10 +180,8 @@ class NotesRepository {
           imageName: imageName,
           text: text,
           stamp: stamp,
-          reminderAnchor: reminderAnchor,
           retention: retention,
-          remindAfterDays: remindAfterDays,
-          remindRepeats: remindRepeats,
+          reminder: reminder,
           location: location,
         );
         if (normalizedImportId != null) {
@@ -215,20 +213,15 @@ class NotesRepository {
     required String imageName,
     required String text,
     required DateTime stamp,
-    required DateTime reminderAnchor,
     required RetentionChoice retention,
-    required int remindAfterDays,
-    required bool remindRepeats,
+    required ReminderChoice reminder,
     required NoteLocation? location,
   }) async {
     final isPro = await _isProUnlocked();
     final effectiveRetention = isPro
         ? retention
         : freeRetentionFallback(retention);
-    final effectiveReminder = isPro && remindAfterDays > 0
-        ? remindAfterDays
-        : 0;
-    final effectiveRepeats = effectiveReminder > 0 && remindRepeats;
+    final effectiveReminder = isPro ? reminder : const ReminderChoice.off();
     final id = await _db
         .into(_db.notes)
         .insert(
@@ -239,11 +232,10 @@ class NotesRepository {
             retention: Value(effectiveRetention.retention),
             customMinutes: Value(effectiveRetention.customMinutes),
             expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
-            remindAfterDays: Value(effectiveReminder),
-            reminderAnchorAt: Value(
-              effectiveReminder > 0 ? reminderAnchor : null,
+            remindAt: Value(effectiveReminder.at),
+            remindEveryDays: Value(
+              effectiveReminder.repeats ? effectiveReminder.everyDays : 0,
             ),
-            remindRepeats: Value(effectiveRepeats),
             latitude: Value(location?.latitude),
             longitude: Value(location?.longitude),
           ),
@@ -293,37 +285,44 @@ class NotesRepository {
   Future<void> update(
     Note note, {
     required String body,
-    required int remindAfterDays,
-    bool remindRepeats = false,
+    required ReminderChoice reminder,
   }) {
     final text = body.trim();
 
     return _db.transaction(() async {
       final isPro = await _isProUnlocked();
-      final reminder = isPro && remindAfterDays > 0 ? remindAfterDays : 0;
-      final repeats = reminder > 0 && remindRepeats;
-      final reminderChanged =
-          reminder != note.remindAfterDays || repeats != note.remindRepeats;
-      final reminderAnchor = reminder == 0
-          ? null
-          : reminderChanged
-          ? DateTime.now()
-          : note.reminderAnchorAt;
+      final effective = isPro ? reminder : const ReminderChoice.off();
+      final everyDays = effective.repeats ? effective.everyDays : 0;
 
       // Damga yalnızca gerçekten bir şey değiştiyse vurulur. Düzenleme
       // ekranını açıp hiçbir şeye dokunmadan kaydetmek notu "düzenlenmiş"
       // yapmamalı; aksi hâlde damga zamanla anlamını yitirirdi.
       final changed =
           text != note.body ||
-          reminder != note.remindAfterDays ||
-          repeats != note.remindRepeats;
+          effective.at != note.remindAt ||
+          everyDays != note.remindEveryDays;
+
+      // Hatırlatmadan türeyen silinme sözü hatırlatmayla birlikte kalkar.
+      // Kullanıcı anahtarı kapattığında geriye çalmayacak bir bildirimin
+      // saatine ayarlanmış bir silme kalmamalı.
+      final dropsReminderExpiry =
+          effective.at == null &&
+          isReminderExpiry(remindAt: note.remindAt, expiresAt: note.expiresAt);
 
       await (_db.update(_db.notes)..where((t) => t.id.equals(note.id))).write(
         NotesCompanion(
           body: Value(text),
-          remindAfterDays: Value(reminder),
-          reminderAnchorAt: Value(reminderAnchor),
-          remindRepeats: Value(repeats),
+          remindAt: Value(effective.at),
+          remindEveryDays: Value(everyDays),
+          retention: dropsReminderExpiry
+              ? const Value(Retention.off)
+              : const Value.absent(),
+          customMinutes: dropsReminderExpiry
+              ? const Value(0)
+              : const Value.absent(),
+          expiresAt: dropsReminderExpiry
+              ? const Value(null)
+              : const Value.absent(),
           updatedAt: changed ? Value(DateTime.now()) : const Value.absent(),
         ),
       );
@@ -332,6 +331,80 @@ class NotesRepository {
       // bulunmaya devam ederse arama yalan söylüyor demektir.
       await (_db.update(_db.noteSearch)..where((t) => t.noteId.equals(note.id)))
           .write(NoteSearchCompanion(bodyFolded: Value(SearchText.fold(text))));
+    });
+  }
+
+  /// Kaydedilmiş bir nota, planlama ekranında seçilen hatırlatmayı yazar.
+  ///
+  /// [update]'ten ayrı duruyor çünkü burada not düzenlenmiyor: gövde el
+  /// değmeden kalıyor ve [Note.updatedAt] damgası vurulmuyor. Aksi hâlde
+  /// kaydettiği kareye hatırlatma kuran herkesin notu, daha ilk dakikasında
+  /// "düzenlenmiş" görünürdü.
+  ///
+  /// Hak kontrolü aynı transaction içinde: hakkı düşmüş bir kullanıcı
+  /// hatırlatma kuramaz.
+  ///
+  /// [deleteAfterReminder] açıkken notun silinme anı hatırlatmadan türetilir
+  /// ([reminderExpiryFor]). Ayrı bir sütun eklenmiyor: uygulamanın otomatik
+  /// silme düzeneği zaten `expiresAt` üzerinden çalışıyor ve kayıt bu değeri
+  /// oluşturma anından türeyen bir saklama süresi olarak taşımaya devam
+  /// ediyor — yedekleme, hak düşümü ve kalan ömür göstergesi olduğu gibi
+  /// çalışsın diye.
+  ///
+  /// Söz **hatırlatmaya bağlı**: hatırlatma kalkarsa ya da tekrarlıya
+  /// dönerse ondan türeyen silinme anı da kalkar. Aksi hâlde hiç çalmayacak
+  /// bir bildirimin ardından not sessizce kaybolurdu.
+  Future<void> setReminder(
+    int noteId,
+    ReminderChoice reminder, {
+    bool deleteAfterReminder = false,
+  }) {
+    return _db.transaction(() async {
+      final note = await noteById(noteId);
+      if (note == null) return;
+
+      final isPro = await _isProUnlocked();
+      final effective = isPro ? reminder : const ReminderChoice.off();
+      final at = effective.at;
+
+      // Tekrarlı bir hatırlatmanın ardından silmek kendi kendini yiyen bir
+      // söz olurdu: ikinci oluşum hiç gelmez.
+      final wantsExpiry =
+          deleteAfterReminder && at != null && !effective.repeats;
+      final hadReminderExpiry = isReminderExpiry(
+        remindAt: note.remindAt,
+        expiresAt: note.expiresAt,
+      );
+
+      var retention = const Value<Retention>.absent();
+      var customMinutes = const Value<int>.absent();
+      var expiresAt = const Value<DateTime?>.absent();
+
+      if (wantsExpiry) {
+        final expiry = reminderExpiryFor(at);
+        retention = const Value(Retention.custom);
+        // Süre kaydın kendi başlangıcından ölçülür: bütün saklama düzeneği
+        // ömrü `createdAt`ten sayıyor ve hak düşümü de oradan yeniden
+        // hesaplıyor.
+        customMinutes = Value(
+          math.max(1, expiry.difference(note.createdAt).inMinutes),
+        );
+        expiresAt = Value(expiry);
+      } else if (hadReminderExpiry) {
+        retention = const Value(Retention.off);
+        customMinutes = const Value(0);
+        expiresAt = const Value(null);
+      }
+
+      await (_db.update(_db.notes)..where((t) => t.id.equals(noteId))).write(
+        NotesCompanion(
+          remindAt: Value(effective.at),
+          remindEveryDays: Value(effective.repeats ? effective.everyDays : 0),
+          retention: retention,
+          customMinutes: customMinutes,
+          expiresAt: expiresAt,
+        ),
+      );
     });
   }
 
@@ -374,19 +447,40 @@ class NotesRepository {
 
       final outcome = reminderOutcomeFor(
         action: action,
-        remindAfterDays: note.remindAfterDays,
-        repeats: note.remindRepeats,
-        anchorAt: note.reminderAnchorAt ?? note.createdAt,
+        reminder: ReminderChoice(
+          at: note.remindAt,
+          everyDays: note.remindEveryDays,
+        ),
         now: moment,
         firedAt: firedAt,
       );
       if (outcome == null) return null;
 
+      // Erteleme silinme sözünü de ileri taşır. Taşımasaydı "yarın" diyen
+      // kullanıcının notu, ertelenen bildirim hiç gelmeden, eski saatin bir
+      // saat sonrasında silinirdi. "Tamam" ve "kapat" ise sözü olduğu gibi
+      // bırakır: kullanıcı hatırlatmayı gördü, kare bir saat sonra gidecek.
+      final movesReminderExpiry =
+          outcome.at != null &&
+          isReminderExpiry(remindAt: note.remindAt, expiresAt: note.expiresAt);
+
       await (_db.update(_db.notes)..where((t) => t.id.equals(noteId))).write(
         NotesCompanion(
-          remindAfterDays: Value(outcome.remindAfterDays),
-          reminderAnchorAt: Value(outcome.anchorAt),
-          remindRepeats: Value(outcome.repeats),
+          remindAt: Value(outcome.at),
+          remindEveryDays: Value(outcome.everyDays),
+          expiresAt: movesReminderExpiry
+              ? Value(reminderExpiryFor(outcome.at!))
+              : const Value.absent(),
+          customMinutes: movesReminderExpiry
+              ? Value(
+                  math.max(
+                    1,
+                    reminderExpiryFor(
+                      outcome.at!,
+                    ).difference(note.createdAt).inMinutes,
+                  ),
+                )
+              : const Value.absent(),
         ),
       );
 
@@ -586,8 +680,8 @@ class NotesRepository {
 
   /// Nota bakıldığını işaretler.
   ///
-  /// Hatırlatma sayacı bundan bağımsız [Note.reminderAnchorAt] alanında
-  /// tutulur; nota bakmak kullanıcının seçtiği aralığı değiştirmez.
+  /// Hatırlatma bundan bağımsız [Note.remindAt] alanında tutulur; nota bakmak
+  /// kullanıcının seçtiği günü değiştirmez.
   Future<void> markSeen(int id) {
     final query = _db.update(_db.notes)..where((t) => t.id.equals(id));
     return query.write(NotesCompanion(lastSeenAt: Value(DateTime.now())));

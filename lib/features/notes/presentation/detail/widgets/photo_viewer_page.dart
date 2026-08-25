@@ -574,10 +574,18 @@ class _StampSheet extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                cell(l10n.stamp(createdAt), valueStyle, Alignment.centerLeft),
+                cell(
+                  l10n.stamp(createdAt, use24Hour: context.use24Hour),
+                  valueStyle,
+                  Alignment.centerLeft,
+                ),
                 if (edited != null) ...[
                   const SizedBox(height: 7),
-                  cell(l10n.stamp(edited), valueStyle, Alignment.centerLeft),
+                  cell(
+                    l10n.stamp(edited, use24Hour: context.use24Hour),
+                    valueStyle,
+                    Alignment.centerLeft,
+                  ),
                 ],
               ],
             ),

@@ -495,11 +495,9 @@ class ReminderService {
     AppSettings settings, {
     required DateTime now,
   }) {
-    final anchor = note.reminderAnchorAt ?? note.createdAt;
     return pendingReminderAt(
-      anchorAt: anchor,
-      remindAfterDays: note.remindAfterDays,
-      repeats: note.remindRepeats,
+      remindAt: note.remindAt,
+      everyDays: note.remindEveryDays,
       expiresAt: note.expiresAt,
       now: now,
     );
@@ -520,7 +518,7 @@ class ReminderService {
         !debugProEnabled ||
         !_supported ||
         note.id <= 0 ||
-        note.remindAfterDays <= 0) {
+        note.remindAt == null) {
       return false;
     }
 
@@ -613,21 +611,21 @@ class ReminderService {
       final byId = {for (final note in notes) note.id: note};
       final requests = [
         for (final note in notes)
-          ReminderRequest(
-            noteId: note.id,
-            anchorAt: note.reminderAnchorAt ?? note.createdAt,
-            remindAfterDays: note.remindAfterDays,
-            repeats: note.remindRepeats,
-            expiresAt: note.expiresAt,
-            // Android ilk kesin anı `calledAt` ile taşıyabiliyor. iOS'ta
-            // günlük/haftalık calendar trigger fazı korur, diğer aralıklar
-            // aşağıdaki küçük kayan tek-atış penceresine açılır.
-            allowNativeRepeat:
-                _isAndroid ||
-                (!_isIos) ||
-                note.remindAfterDays == 1 ||
-                note.remindAfterDays == 7,
-          ),
+          if (note.remindAt case final remindAt?)
+            ReminderRequest(
+              noteId: note.id,
+              remindAt: remindAt,
+              everyDays: note.remindEveryDays,
+              expiresAt: note.expiresAt,
+              // Android ilk kesin anı `calledAt` ile taşıyabiliyor. iOS'ta
+              // günlük/haftalık calendar trigger fazı korur, diğer aralıklar
+              // aşağıdaki küçük kayan tek-atış penceresine açılır.
+              allowNativeRepeat:
+                  _isAndroid ||
+                  (!_isIos) ||
+                  note.remindEveryDays == 1 ||
+                  note.remindEveryDays == 7,
+            ),
       ];
       final schedule = reminderSchedule(
         requests: requests,
@@ -958,7 +956,7 @@ class ReminderService {
         sound: _iosSoundFile,
         // Düğmeleri bildirime bağlayan tek bağ. Android'e karşılığı
         // verilmiyor: oradaki davranış olduğu gibi korunuyor.
-        categoryIdentifier: note.remindRepeats
+        categoryIdentifier: note.remindEveryDays > 0
             ? _repeatCategoryId
             : _onceCategoryId,
         attachments: art == null ? null : [DarwinNotificationAttachment(art)],
@@ -1068,7 +1066,7 @@ class ReminderService {
   Future<void> _removeObsoleteDeliveredNotifications(List<Note> notes) async {
     final noteIds = {
       for (final note in notes)
-        if (note.remindAfterDays > 0) note.id,
+        if (note.remindAt != null) note.id,
     };
     final active = await _plugin.getActiveNotifications();
 
@@ -1157,8 +1155,11 @@ class ReminderService {
 /// —dolayısıyla hangi sesle— kurulduğunu sonradan sorgulamanın yolu yok:
 /// `pendingNotificationRequests()` yalnızca kimlik, başlık, gövde ve payload
 /// veriyor. Sürümü payload'a yazmak, eski kurulumları tanınır kılıyor.
-const _payloadVersion = 'v5';
-const _legacyPayloadVersions = {'v2', 'v3', 'v4'};
+const _payloadVersion = 'v6';
+const _legacyPayloadVersions = {'v2', 'v3', 'v4', 'v5'};
+
+/// Ek parmak izi taşıyan payload sürümleri. v2/v3'te bu bölüm yoktu.
+const _attachmentAwarePayloadVersions = {'v4', 'v5'};
 
 /// Attachment fingerprint şemasının payload etiketi.
 ///
@@ -1174,11 +1175,10 @@ String _payload(
 }) {
   final String core;
   if (reminder.repeatsIndefinitely) {
-    final anchor = note.reminderAnchorAt ?? note.createdAt;
     core =
         'note/${note.id}/$_payloadVersion/every/'
-        '${note.remindAfterDays}/'
-        '${anchor.toUtc().millisecondsSinceEpoch}';
+        '${note.remindEveryDays}/'
+        '${reminder.at.toUtc().millisecondsSinceEpoch}';
   } else {
     core =
         'note/${note.id}/$_payloadVersion/at/'
@@ -1244,9 +1244,9 @@ int? noteIdFromReminderPayload(String? payload) {
 
   if (!current) {
     // v2/v3 ek parmak izi taşımıyordu; v4 `art1` şemasını ilk kullanan
-    // sürümdü. Kategori kimlikleri için v5'e geçerken tepsideki v4
-    // bildirimlerinin dokunma/eylem payload'ları okunmaya devam eder.
-    if (version != 'v4') {
+    // sürümdü. Sürüm yükseldiğinde tepside duran eski bildirimlerin
+    // dokunma/eylem payload'ları okunmaya devam eder.
+    if (!_attachmentAwarePayloadVersions.contains(version)) {
       return segments.length == coreLength ? noteId : null;
     }
   }
@@ -1272,10 +1272,10 @@ bool _validAttachmentFingerprint(String fingerprint) {
 /// saatler sonra cevap verebilir ve o durumda referans, dokunma anı değil
 /// bildirimin çaldığı andır.
 ///
-/// Tek atışta payload zaten anı taşıyor. Süresiz tekrarda anı yok, aralık ve
-/// çıpa var; oradan **geçmişteki son oluşum** hesaplanıyor. Okunamayan ya da
-/// sürümsüz eski payload'lar için `null` döner ve arayan tarafta [now]'a
-/// düşülür.
+/// Tek atışta payload zaten anı taşıyor. Süresiz tekrarda tek bir an yok;
+/// aralık ile dizinin başlangıcı var ve oradan **geçmişteki son oluşum**
+/// hesaplanıyor. Okunamayan ya da sürümsüz eski payload'lar için `null` döner
+/// ve arayan tarafta [now]'a düşülür.
 DateTime? reminderFiredAt(String? payload, {required DateTime now}) {
   if (payload == null || noteIdFromReminderPayload(payload) == null) {
     return null;
@@ -1314,33 +1314,29 @@ DateTime? reminderFiredAt(String? payload, {required DateTime now}) {
 
   if (segments.length >= 6 && segments[3] == 'every') {
     final days = int.tryParse(segments[4]);
-    final anchorMilliseconds = int.tryParse(segments[5]);
-    if (days == null || days <= 0 || anchorMilliseconds == null) return null;
+    final baseMilliseconds = int.tryParse(segments[5]);
+    if (days == null || days <= 0 || baseMilliseconds == null) return null;
 
-    final anchor = DateTime.fromMillisecondsSinceEpoch(
-      anchorMilliseconds,
+    final base = DateTime.fromMillisecondsSinceEpoch(
+      baseMilliseconds,
       isUtc: true,
     ).toLocal();
-    final elapsed = now.difference(anchor);
-    if (elapsed.isNegative) return null;
+    if (now.isBefore(base)) return null;
+
+    // v6'dan itibaren damga dizinin **ilk halkası**: kendisi de bir oluşum,
+    // yani sıfırıncı adım geçerli. Daha eski payload'larda damga çıpaydı ve
+    // çıpanın kendisi hiç çalmazdı; ilk oluşum bir aralık sonrasındaydı.
+    final firstStep = segments[2] == _payloadVersion ? 0 : 1;
 
     // Döngüyle değil aritmetikle: bir yıl önce başlamış günlük bir tekrarda
     // yüzlerce adım atmanın anlamı yok.
-    final anchorLocal = anchor.toLocal();
-    final nowLocal = now.toLocal();
-    final anchorDay = DateTime.utc(
-      anchorLocal.year,
-      anchorLocal.month,
-      anchorLocal.day,
-    );
-    final nowDay = DateTime.utc(nowLocal.year, nowLocal.month, nowLocal.day);
-    var step = nowDay.difference(anchorDay).inDays ~/ days;
-    if (step < 1) return null;
-    var occurrence = shiftLocalCalendarDays(anchor, days * step);
+    var step = (localDayNumber(now) - localDayNumber(base)) ~/ days;
+    if (step < firstStep) return null;
+    var occurrence = shiftLocalCalendarDays(base, days * step);
     if (occurrence.isAfter(now)) {
       step--;
-      if (step < 1) return null;
-      occurrence = shiftLocalCalendarDays(anchor, days * step);
+      if (step < firstStep) return null;
+      occurrence = shiftLocalCalendarDays(base, days * step);
     }
     return occurrence;
   }

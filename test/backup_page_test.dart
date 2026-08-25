@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/core/theme/app_theme.dart';
@@ -49,7 +51,14 @@ void main() {
           builder: (context) => Scaffold(
             body: TextButton(
               onPressed: () async {
-                selected = await showBackupActionsSheet(context, hasData: true);
+                selected = await showBackupActionsSheet(
+                  context,
+                  noteCount: 14,
+                  // Diskte olmayan yollar: şeridin çizildiğini görmek için
+                  // gerçek kare gerekmiyor, NotePhoto eksik dosyayı sessiz
+                  // yer tutucuyla karşılıyor.
+                  previews: [File('a.jpg'), File('b.jpg'), File('c.jpg')],
+                );
               },
               child: const Text('aç'),
             ),
@@ -61,17 +70,30 @@ void main() {
     await tester.tap(find.text('aç'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Yedekleme'), findsOneWidget);
+    // Yüzeyin ilk söylediği şey başlık değil, sayı: korumaya alınacak kare
+    // adedi. Bölüm adı onun üstünde küçük kapitellerde duruyor.
+    expect(find.text('YEDEKLEME'), findsOneWidget);
+    expect(find.byKey(const Key('backup-actions-count')), findsOneWidget);
+    expect(find.text('14 not'), findsOneWidget);
+
+    // Panel bir ayar listesi değil, arşivin yüzü: üstte kullanıcının kendi
+    // kareleri duruyor.
+    expect(find.byKey(const Key('backup-actions-strip')), findsOneWidget);
     expect(find.byKey(const Key('backup-action-create')), findsOneWidget);
     expect(find.byKey(const Key('backup-action-restore')), findsOneWidget);
-    expect(find.text('01'), findsOneWidget);
-    expect(find.text('02'), findsOneWidget);
+
+    // Sıralı olmayan iki alternatifi numaralamak tören katmaktan başka bir
+    // şey yapmıyordu.
+    expect(find.text('01'), findsNothing);
+    expect(find.text('02'), findsNothing);
+
+    // Yedeğin ne olduğu başlıkta, geri yüklemenin sonucu ise satırında.
     expect(
-      find.text('Bu cihazdaki her şey, tek bir şifreli dosyada.'),
-      findsNothing,
+      find.text('Latermark\'ındaki her şey tek ve şifreli dosyada.'),
+      findsOneWidget,
     );
     expect(
-      find.text('Şifreli bir kopya oluştur veya mevcut bir yedeği geri getir.'),
+      find.text('Yedeğini geri yükleyerek tüm notlarını al.'),
       findsOneWidget,
     );
     expect(find.byType(Card), findsNothing);
@@ -106,7 +128,8 @@ void main() {
                 opened++;
                 selected = await showBackupActionsSheet(
                   context,
-                  hasData: false,
+                  noteCount: 0,
+                  previews: const [],
                 );
               },
               child: const Text('aç'),
@@ -120,6 +143,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Henüz yedeklenecek bir şey yok.'), findsOneWidget);
+    // Arşiv boşken gösterilecek kare de yok.
+    expect(find.byKey(const Key('backup-actions-strip')), findsNothing);
 
     // Dokunmak paneli kapatmamalı; seçenek gerçekten atıl.
     await tester.tap(find.byKey(const Key('backup-action-create')));

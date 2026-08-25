@@ -394,8 +394,10 @@ abstract final class BackupArchive {
         if (!_isSafeFileName(note.imageName) ||
             !imageNames.add(note.imageName) ||
             note.customMinutes < 0 ||
-            note.remindAfterDays < 0 ||
-            note.remindAfterDays > 36500 ||
+            note.remindEveryDays < 0 ||
+            note.remindEveryDays > 36500 ||
+            note.legacyRemindAfterDays < 0 ||
+            note.legacyRemindAfterDays > 36500 ||
             (note.latitude != null &&
                 (note.latitude! < -90 || note.latitude! > 90)) ||
             (note.longitude != null &&

@@ -16,6 +16,7 @@ import 'package:latermark/features/notes/presentation/home/widgets/note_card.dar
 import 'package:latermark/features/notes/presentation/widgets/reminder_control.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
+import 'package:latermark/shared/widgets/ember_switch.dart';
 
 final _pixel = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC'
@@ -111,27 +112,74 @@ void main() {
     ).position;
     expect(position.maxScrollExtent, greaterThan(0));
 
-    // Hatırlatma satırı erişilebilir; düzenleme ise not klavyesiyle yarışmayan
-    // geçici panelde yapılır. Panel sahte klavye inset'inin de üstünde kalır.
+    // Hatırlatma satırı erişilebilir ve tek karar: anahtar. Gün, saat ve
+    // tekrar kaydettikten sonra açılan planlama ekranının işi.
     final reminderContext = tester.element(find.byType(ReminderControl));
     final reminderPosition = Scrollable.of(reminderContext).position;
     reminderPosition.jumpTo(reminderPosition.maxScrollExtent);
     await tester.pump();
-    await tester.tap(find.byKey(const Key('reminder-field-control')));
+    await tester.tap(find.byKey(const Key('reminder-switch-row')));
     await _settle(tester);
 
-    final reminderSheet = tester.getRect(
-      find.byKey(const Key('reminder-sheet')),
+    expect(
+      tester
+          .widget<EmberSwitch>(find.byKey(const Key('reminder-switch')))
+          .value,
+      isTrue,
     );
-    expect(reminderSheet.bottom, lessThanOrEqualTo(height - keyboard));
 
-    await tester.tap(find.byKey(const Key('reminder-preset-7')));
-    await tester.tap(find.byKey(const Key('reminder-mode-repeat')));
-    await tester.ensureVisible(find.byKey(const Key('reminder-sheet-save')));
-    await tester.tap(find.byKey(const Key('reminder-sheet-save')));
+    // Şeridin kaydet kelimesi de kararı yansıtır.
+    expect(find.text('KAYDET VE HATIRLAT'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('uzun metin künyeyi ve hatırlatmayı aşağı itmez', (tester) async {
+    // Panel metinle birlikte uzasaydı hatırlatma satırı ekrandan çıkardı;
+    // kullanıcı yazdıkça seçeneklerini kaybederdi.
+    const height = 852.0;
+    const keyboard = 336.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, height);
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await _settle(tester);
+    await tester.tap(find.byType(NoteCard));
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey('detail-note-copy')));
+    await _settle(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: keyboard);
+    tester.view.padding = const FakeViewPadding(top: 47);
     await _settle(tester);
 
-    expect(find.text('7 gün'), findsOneWidget);
+    final sheetBefore = tester.getSize(
+      find.byKey(const ValueKey('edit-note-sheet-surface')),
+    );
+    final fieldBefore = tester.getSize(
+      find.byKey(const ValueKey('edit-note-body-field')),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-note-body-field')),
+      List.filled(120, 'Bu not kasten çok uzun tutuldu.').join(' '),
+    );
+    await _settle(tester);
+
+    // Panel de yazı alanı da aynı boyda: uzayan tek şey metnin kendisi ve o da
+    // alanın içinde kayıyor.
+    expect(
+      tester.getSize(find.byKey(const ValueKey('edit-note-sheet-surface'))),
+      sheetBefore,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('edit-note-body-field'))),
+      fieldBefore,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

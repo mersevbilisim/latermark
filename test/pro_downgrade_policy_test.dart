@@ -74,7 +74,7 @@ void main() {
               retention: const Value(Retention.custom),
               customMinutes: Value(customMinutes),
               expiresAt: Value(expiresAt),
-              remindAfterDays: const Value(2),
+              remindAt: Value(createdAt.add(const Duration(days: 2))),
             ),
           );
       final longCustomMinutes = const Duration(days: 8).inMinutes;
@@ -89,7 +89,7 @@ void main() {
               expiresAt: Value(
                 createdAt.add(Duration(minutes: longCustomMinutes)),
               ),
-              remindAfterDays: const Value(5),
+              remindAt: Value(createdAt.add(const Duration(days: 5))),
             ),
           );
 
@@ -108,7 +108,7 @@ void main() {
       expect(note.customMinutes, 0);
       expect(note.expiresAt, createdAt.add(const Duration(days: 7)));
       expect(note.expiresAt!.isBefore(expiresAt), isFalse);
-      expect(note.remindAfterDays, 0);
+      expect(note.remindAt, isNull);
 
       final longNote = await (database.select(
         database.notes,
@@ -116,7 +116,7 @@ void main() {
       expect(longNote.retention, Retention.off);
       expect(longNote.customMinutes, 0);
       expect(longNote.expiresAt, isNull);
-      expect(longNote.remindAfterDays, 0);
+      expect(longNote.remindAt, isNull);
 
       // Downgrade'dan önce açılmış bir custom seçim geç sonuçlansa bile yeniden
       // Pro varsayılanı yazamaz.

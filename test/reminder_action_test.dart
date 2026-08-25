@@ -10,13 +10,12 @@ void main() {
   final now = DateTime(2026, 8, 8, 9, 1);
 
   /// Ertelemenin gerçekten hangi ana denk geldiğini, kaydın kendisine değil
-  /// programı kuran hesaba sorarak doğrular. Asıl önemli olan bu: çıpa bir
-  /// ara değer, kullanıcının gördüğü şey sıradaki oluşum.
-  DateTime? nextOccurrence(ReminderOutcome outcome, {DateTime? at}) =>
+  /// programı kuran hesaba sorarak doğrular: kullanıcının gördüğü şey
+  /// sıradaki oluşum.
+  DateTime? nextOccurrence(ReminderChoice outcome, {DateTime? at}) =>
       pendingReminderAt(
-        anchorAt: outcome.anchorAt!,
-        remindAfterDays: outcome.remindAfterDays,
-        repeats: outcome.repeats,
+        remindAt: outcome.at,
+        everyDays: outcome.everyDays,
         now: at ?? now,
       );
 
@@ -24,22 +23,19 @@ void main() {
     test('yarın, bildirimin çaldığı saate kurulur', () {
       final outcome = reminderOutcomeFor(
         action: ReminderAction.tomorrow,
-        remindAfterDays: 30,
-        repeats: false,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt),
         now: now,
         firedAt: firedAt,
       )!;
 
+      expect(outcome.at, DateTime(2026, 8, 9, 9));
       expect(nextOccurrence(outcome), DateTime(2026, 8, 9, 9));
     });
 
     test('haftaya, yedi gün sonrasına aynı saate kurulur', () {
       final outcome = reminderOutcomeFor(
         action: ReminderAction.nextWeek,
-        remindAfterDays: 30,
-        repeats: false,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt),
         now: now,
         firedAt: firedAt,
       )!;
@@ -53,14 +49,12 @@ void main() {
       // bir alarma dönüşürdü.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.tomorrow,
-        remindAfterDays: 30,
-        repeats: true,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt, everyDays: 30),
         now: now,
         firedAt: firedAt,
       )!;
 
-      expect(outcome.remindAfterDays, 30);
+      expect(outcome.everyDays, 30);
       expect(outcome.repeats, isTrue);
       // Ertelenen oluşumdan sonrası yine 30 günlük aralıkla sürer.
       expect(nextOccurrence(outcome), DateTime(2026, 8, 9, 9));
@@ -75,9 +69,7 @@ void main() {
       // bir an olurdu; gün ileri sarılır ama saat aynı kalır.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.tomorrow,
-        remindAfterDays: 30,
-        repeats: false,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt),
         now: DateTime(2026, 8, 11, 14, 30),
         firedAt: firedAt,
       )!;
@@ -93,9 +85,7 @@ void main() {
       // anlamı kalmıyor; ileri sarmak yerine şimdiden sayılır.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.nextWeek,
-        remindAfterDays: 30,
-        repeats: false,
-        anchorAt: DateTime(2026, 5, 1, 9),
+        reminder: ReminderChoice(at: DateTime(2026, 6, 1, 9)),
         now: DateTime(2026, 8, 8, 16, 20),
         firedAt: DateTime(2026, 6, 1, 9),
       )!;
@@ -109,9 +99,7 @@ void main() {
     test('bildirimin anı bilinmiyorsa şimdiden sayılır', () {
       final outcome = reminderOutcomeFor(
         action: ReminderAction.tomorrow,
-        remindAfterDays: 3,
-        repeats: false,
-        anchorAt: DateTime(2026, 8, 5, 9),
+        reminder: ReminderChoice(at: DateTime(2026, 8, 8, 9)),
         now: now,
       )!;
 
@@ -123,17 +111,14 @@ void main() {
     test('tek atışlık hatırlatmayı kapatır, notu bırakır', () {
       final outcome = reminderOutcomeFor(
         action: ReminderAction.done,
-        remindAfterDays: 30,
-        repeats: false,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt),
         now: now,
         firedAt: firedAt,
       )!;
 
-      expect(outcome.cleared, isTrue);
-      expect(outcome.remindAfterDays, 0);
-      expect(outcome.anchorAt, isNull);
-      expect(outcome.repeats, isFalse);
+      expect(outcome.isOn, isFalse);
+      expect(outcome.at, isNull);
+      expect(outcome.everyDays, 0);
     });
 
     test('tekrarlayan hatırlatmada yalnızca bu oluşumu kapatır', () {
@@ -142,38 +127,32 @@ void main() {
       // hatırlatılmazdı ve bunu ancak aylar sonra fark ederdi.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.done,
-        remindAfterDays: 30,
-        repeats: true,
-        anchorAt: DateTime(2026, 7, 9, 9),
+        reminder: ReminderChoice(at: firedAt, everyDays: 30),
         now: now,
         firedAt: firedAt,
       )!;
 
-      expect(outcome.cleared, isFalse);
-      expect(outcome.remindAfterDays, 30);
-      expect(outcome.repeats, isTrue);
+      expect(outcome.isOn, isTrue);
+      expect(outcome.everyDays, 30);
       expect(nextOccurrence(outcome), DateTime(2026, 9, 7, 9, 1));
     });
   });
 
   group('bildirimleri kapat', () {
-    for (final repeats in [false, true]) {
+    for (final everyDays in [0, 30]) {
       test(
-        '${repeats ? 'tekrarlı' : 'tek atışlı'} hatırlatmanın bütün alanlarını temizler',
+        '${everyDays > 0 ? 'tekrarlı' : 'tek atışlı'} hatırlatmanın bütün alanlarını temizler',
         () {
           final outcome = reminderOutcomeFor(
             action: ReminderAction.turnOff,
-            remindAfterDays: 30,
-            repeats: repeats,
-            anchorAt: DateTime(2026, 7, 9, 9),
+            reminder: ReminderChoice(at: firedAt, everyDays: everyDays),
             now: now,
             firedAt: firedAt,
           )!;
 
-          expect(outcome.cleared, isTrue);
-          expect(outcome.remindAfterDays, 0);
-          expect(outcome.anchorAt, isNull);
-          expect(outcome.repeats, isFalse);
+          expect(outcome.isOn, isFalse);
+          expect(outcome.at, isNull);
+          expect(outcome.everyDays, 0);
         },
       );
     }
@@ -184,9 +163,7 @@ void main() {
       expect(
         reminderOutcomeFor(
           action: action,
-          remindAfterDays: 0,
-          repeats: false,
-          anchorAt: DateTime(2026, 7, 9, 9),
+          reminder: const ReminderChoice.off(),
           now: now,
         ),
         isNull,
@@ -223,14 +200,35 @@ void main() {
     });
 
     test('süresiz tekrarda geçmişteki son oluşum hesaplanır', () {
-      final anchor = DateTime(2026, 5, 10, 9);
+      final first = DateTime(2026, 5, 10, 9);
       final payload =
-          'note/7/v3/every/30/${anchor.toUtc().millisecondsSinceEpoch}';
+          'note/7/v6/every/30/${first.toUtc().millisecondsSinceEpoch}'
+          '/art1/none';
       // 10 Mayıs + 90 gün = 8 Ağustos; sıradaki oluşum henüz gelmedi.
       expect(
         reminderFiredAt(payload, now: DateTime(2026, 8, 8, 9, 1)),
         DateTime(2026, 8, 8, 9),
       );
+    });
+
+    test('güncel payloadta dizinin ilk halkası da bir oluşumdur', () {
+      // Damga artık çıpa değil, ilk hatırlatmanın kendisi: o an çaldıysa
+      // "Yarın" düğmesi bir aralık öncesinden değil, o andan saymalı.
+      final first = DateTime(2026, 8, 8, 9);
+      final payload =
+          'note/7/v6/every/30/${first.toUtc().millisecondsSinceEpoch}'
+          '/art1/none';
+      expect(reminderFiredAt(payload, now: now), first);
+    });
+
+    test('eski payloadta damga çıpaydı ve kendisi çalmazdı', () {
+      // v5 ve öncesi "çıpa + aralık" taşıyordu; çıpanın kendisi hiç bildirim
+      // değildi. Tepside duran o kayıtlar yeni hesaba göre okunmamalı.
+      final anchor = DateTime(2026, 8, 8, 9);
+      final payload =
+          'note/7/v5/every/30/${anchor.toUtc().millisecondsSinceEpoch}'
+          '/art1/none';
+      expect(reminderFiredAt(payload, now: now), isNull);
     });
 
     test('debug dakika tekrarında geçmişteki son oluşum hesaplanır', () {

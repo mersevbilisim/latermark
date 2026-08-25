@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../app/app_routes.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_palette.dart';
@@ -17,6 +18,8 @@ import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
 import '../../data/photo_aspect.dart';
 import '../../data/photo_tone.dart';
+import '../../domain/note_reminder.dart';
+import '../../domain/share_message.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
 import '../../../../shared/widgets/icon_orb.dart';
 import '../home/widgets/note_photo.dart';
@@ -24,6 +27,7 @@ import 'widgets/detail_sheet.dart';
 import 'widgets/edit_note_sheet.dart';
 import 'widgets/photo_dismiss_surface.dart';
 import 'widgets/photo_viewer_page.dart';
+import '../reminder/reminder_schedule_page.dart';
 
 class NoteDetailPage extends StatefulWidget {
   const NoteDetailPage({super.key, required this.noteId});
@@ -173,6 +177,28 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     });
   }
 
+  /// Anahtar açık kaydedildi: kararın ikinci yarısı kendi sayfasında.
+  ///
+  /// Panel kapandıktan sonra açılıyor, çünkü sayfa geri döndüğünde detayın
+  /// okuma hâlinde beklemesi gerekiyor — düzenleme kipine geri düşmek,
+  /// kaydedilmiş bir notu yeniden "yarım" göstermek olurdu.
+  void _openReminderSchedule(Note note, ReminderChoice initial) {
+    Navigator.of(context).push(
+      AppRoutes.lift(
+        ReminderSchedulePage(
+          noteId: note.id,
+          initial: initial,
+          // Kayıtlı silinme anı hatırlatmadan türemişse söz zaten verilmiş;
+          // ekran o anahtarı açık açsın.
+          initialDeleteAfter: isReminderExpiry(
+            remindAt: note.remindAt,
+            expiresAt: note.expiresAt,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _delete(Note note) async {
     final confirmed = await showShutterConfirm(
       context,
@@ -194,18 +220,29 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     navigator.pop();
   }
 
+  /// İmzada görünen platform adı. Uygulama yalnız bu iki mağazada var.
+  String get _sharePlatform =>
+      defaultTargetPlatform == TargetPlatform.android ? 'Android' : 'iOS';
+
   Future<void> _shareNote(Note note) async {
     // Sistem paylaşım sayfası anında gelmiyor: fotoğraf dosyası hazırlanırken
     // ekranda hiçbir şey olmuyordu ve dokunuş yutulmuş gibi duruyordu.
     // `share()` sayfa *kapanınca* tamamlandığı için bekleme, tam olarak
     // sayfanın açılmasını beklediğimiz süre boyunca görünür kalıyor.
     if (_sharing) return;
+    // İmza kararı **ilk await'ten önce** okunuyor: paylaşım sayfası açıkken
+    // ayar değişse bile gönderilen metin, kullanıcının dokunduğu andaki
+    // tercihi taşır.
+    final settings = AppScope.preferences(context);
+    final signature = settings.shareSignature
+        ? context.l10n.shareSignature(_sharePlatform)
+        : null;
     setState(() => _sharing = true);
     try {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(_repository!.imageOf(note).path)],
-          text: note.body.isNotEmpty ? note.body : null,
+          text: shareMessage(body: note.body, signature: signature),
         ),
       );
     } finally {
@@ -494,6 +531,8 @@ class _NoteDetailPageState extends State<NoteDetailPage>
                                 repository: _repository!,
                                 controller: _editController,
                                 onSaved: _finishEditing,
+                                onScheduleReminder: (initial) =>
+                                    _openReminderSchedule(note, initial),
                               ),
                             ),
                           ),
@@ -857,7 +896,7 @@ class _FrameStamp extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          l10n.time(createdAt),
+          l10n.time(createdAt, use24Hour: context.use24Hour),
           maxLines: 1,
           style: palette.label.copyWith(
             color: palette.ink,

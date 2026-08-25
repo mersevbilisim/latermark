@@ -44,6 +44,7 @@ class AppSettings {
     this.defaultRetention = Retention.off,
     this.defaultCustomMinutes = 0,
     this.locale = AppLocale.system,
+    this.shareSignature = true,
     this.proUnlocked = false,
   });
 
@@ -76,6 +77,9 @@ class AppSettings {
   /// Arayüz dili. [AppLocale.system] ise telefonun dili izlenir.
   final AppLocale locale;
 
+  /// Paylaşılan notun sonuna Latermark satırı eklensin mi. Varsayılan açık.
+  final bool shareSignature;
+
   /// Pro hakkının son bilinen durumu (önbellek; kaynağı mağaza).
   final bool proUnlocked;
 
@@ -87,6 +91,7 @@ class AppSettings {
     Retention? defaultRetention,
     int? defaultCustomMinutes,
     AppLocale? locale,
+    bool? shareSignature,
     bool? proUnlocked,
     bool? locationEnabled,
   }) => AppSettings(
@@ -98,6 +103,7 @@ class AppSettings {
     defaultRetention: defaultRetention ?? this.defaultRetention,
     defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
     locale: locale ?? this.locale,
+    shareSignature: shareSignature ?? this.shareSignature,
     proUnlocked: proUnlocked ?? this.proUnlocked,
   );
 
@@ -111,6 +117,7 @@ class AppSettings {
       other.defaultRetention == defaultRetention &&
       other.defaultCustomMinutes == defaultCustomMinutes &&
       other.locale == locale &&
+      other.shareSignature == shareSignature &&
       other.proUnlocked == proUnlocked;
 
   @override
@@ -122,6 +129,7 @@ class AppSettings {
     defaultRetention,
     defaultCustomMinutes,
     locale,
+    shareSignature,
     proUnlocked,
   );
 }

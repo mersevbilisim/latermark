@@ -94,6 +94,7 @@ class ColophonAction {
     required this.semanticLabel,
     required this.onPressed,
     this.pressColor,
+    this.accent = false,
     this.busy = false,
     this.busyLabel,
   });
@@ -103,6 +104,13 @@ class ColophonAction {
   final String semanticLabel;
   final VoidCallback? onPressed;
   final Color? pressColor;
+
+  /// Şeridin baskın eylemi kor renginde yazılır.
+  ///
+  /// Kutu yok, ikon yok: bir kelimenin "asıl olan" olduğunu söylemenin kalan
+  /// tek yolu renk. Mürekkep tonundaki "KAYDET", yanındaki "VAZGEÇ" ile aynı
+  /// ağırlıkta okunuyor ve gözden kaçıyordu.
+  final bool accent;
 
   /// İş sürerken kelime nefes alır. Spinner yok: şeritte tek bir dönen çark
   /// hem Material'dan ödünç alınmış olur hem de tipografik satırın ritmini
@@ -182,7 +190,9 @@ class _ColophonWordState extends State<_ColophonWord>
     final palette = context.palette;
     final action = widget.action;
     final enabled = action.onPressed != null && !action.busy;
-    final label = action.busy ? (action.busyLabel ?? action.label) : action.label;
+    final label = action.busy
+        ? (action.busyLabel ?? action.label)
+        : action.label;
 
     return Semantics(
       button: true,
@@ -222,6 +232,8 @@ class _ColophonWordState extends State<_ColophonWord>
                   style: palette.overline.copyWith(
                     color: _down
                         ? (action.pressColor ?? palette.ember)
+                        : action.accent
+                        ? palette.ember
                         : palette.ink,
                     fontSize: 11,
                     height: 1,

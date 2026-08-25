@@ -114,9 +114,9 @@
   "backupManageDescription": "암호화된 사본을 만들거나 기존 백업을 복원합니다.",
   "backupCreateTitle": "백업 만들기",
   "backupNothingToSave": "아직 백업할 것이 없습니다.",
-  "backupCreateDescription": "이 기기의 모든 것을 암호화된 파일 하나에 담습니다.",
+  "backupCreateDescription": "Latermark에 담긴 모든 것을 암호화된 파일 하나에.",
   "backupRestoreTitle": "백업 복원",
-  "backupRestoreDescription": "여기 있는 모든 것을 백업 파일로 바꿉니다.",
+  "backupRestoreDescription": "백업을 복원해 모든 메모를 되찾으세요.",
   "backupPasswordTitle": "비밀번호 설정",
   "backupPasswordSubtitle": "이 비밀번호가 백업을 여는 유일한 열쇠입니다.",
   "backupPasswordLabel": "비밀번호",
@@ -154,7 +154,7 @@
   "backupErrorCorrupt": "이 파일은 손상되었거나 불완전합니다.",
   "backupErrorUnsupported": "이 백업은 더 새로운 버전의 Latermark로 만들어졌습니다.",
   "backupErrorGeneric": "문제가 발생했습니다. 다시 시도하세요.",
-  "paywallFeatureBackup": "암호화 백업",
+  "paywallFeatureBackup": "안전한 백업",
   "paywallFeatureBackupDetail": "메모와 사진을 새 휴대폰으로 옮기세요.",
   "reminderSuffixRepeating": "일마다",
   "reminderRepeatToggle": "알림 반복",
@@ -221,6 +221,10 @@
   "settingsTitle": "설정",
   "sectionAppearance": "화면",
   "sectionReminder": "리마인더",
+  "sectionSharing": "공유",
+  "shareSignatureTitle": "공유 서명",
+  "shareSignatureDescription": "공유하는 메모 끝에 Latermark 한 줄이 붙습니다. 끄면 작성한 문장만 그대로 전송됩니다.",
+  "shareSignature": "Latermark for {platform}에서 보냄",
   "themeTitle": "테마",
   "themeDescription": "시스템 설정을 따르거나 원하는 화면으로 고정하세요.",
   "themeSystem": "시스템",
@@ -382,8 +386,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "남겨야 할 장면도 있으니까.",
-  "paywallSubtitle": "Latermark는 잊기 위해 만들었습니다. Pro는 잊고 싶지 않은 장면을 위해.",
+  "paywallHeadline": "소중한 건 그냥 흘려보내지 마세요.",
+  "paywallSubtitle": "Latermark Pro는 다시 보고 싶은 모든 것을 꼭 맞는 순간에 다시 눈앞에 가져다줍니다.",
   "paywallOwnedCount": "현재 기록이 {count}개 있습니다.",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -392,8 +396,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "기록 무제한",
-  "paywallFeatureUnlimitedDetail": "무료 버전은 {limit}개까지 보관합니다.",
+  "paywallFeatureUnlimited": "무제한 메모",
+  "paywallFeatureUnlimitedDetail": "{limit}개가 아니라 완전히 무제한.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -404,7 +408,7 @@
   "paywallFeatureCustomRetention": "보관 기간 자유 설정",
   "paywallFeatureCustomRetentionDetail": "3일과 1주 외에도 원하는 기간으로.",
   "paywallFeatureReminders": "리마인더",
-  "paywallFeatureRemindersDetail": "중요한 순간을 조용히 알려드려요.",
+  "paywallFeatureRemindersDetail": "필요한 바로 그때 알려줍니다.",
   "paywallFeatureWidget": "홈 및 잠금 화면 위젯",
   "paywallFeatureWidgetDetail": "최근 기록을 언제든 한눈에.",
   "@paywallPerMonth": {
@@ -433,7 +437,7 @@
   "paywallNoSubscription": "구독 없이 한 번 구매로 계속 Pro.",
   "paywallOwned": "Latermark Pro를 사용할 수 있습니다.",
   "paywallFeatureNoSubscription": "구독 없음",
-  "paywallFeatureNoSubscriptionDetail": "매달 결제할 필요 없이 한 번이면 됩니다.",
+  "paywallFeatureNoSubscriptionDetail": "Latermark은 구독이 필요 없습니다. 한 번 사면 평생 그대로입니다.",
   "paywallCta": "Pro 잠금 해제",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "노트에 넣을 사진을 촬영하기 위해 카메라를 사용합니다.",
   "photoLibraryUsageDescription": "사진 보관함의 이미지를 노트에 추가하기 위해 사용합니다.",
   "actionShare": "공유",
-  "shareNoteSemantic": "사진과 메모 공유"
+  "shareNoteSemantic": "사진과 메모 공유",
+  "reminderSwitchLabel": "이 사진 알려주기",
+  "actionSaveAndRemind": "저장하고 알림 설정",
+  "reminderScheduleSaved": "저장됨",
+  "reminderScheduleQuestion": "이 사진을 언제 다시 볼까요?",
+  "reminderTimeLabel": "시각",
+  "reminderOnceTitle": "한 번만 알림",
+  "reminderRepeatTitle": "계속 알림",
+  "reminderSkip": "나중에",
+  "reminderDeleteAfterLabel": "알림 1시간 뒤에 삭제"
 }

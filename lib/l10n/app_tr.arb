@@ -115,9 +115,9 @@
   "backupManageDescription": "Şifreli bir kopya oluştur veya mevcut bir yedeği geri getir.",
   "backupCreateTitle": "Yedek al",
   "backupNothingToSave": "Henüz yedeklenecek bir şey yok.",
-  "backupCreateDescription": "Bu cihazdaki her şey, tek bir şifreli dosyada.",
+  "backupCreateDescription": "Latermark'ındaki her şey tek ve şifreli dosyada.",
   "backupRestoreTitle": "Yedeği geri yükle",
-  "backupRestoreDescription": "Buradaki her şeyi bir yedek dosyasıyla değiştir.",
+  "backupRestoreDescription": "Yedeğini geri yükleyerek tüm notlarını al.",
   "backupPasswordTitle": "Bir parola seç",
   "backupPasswordSubtitle": "Bu parola yedeğinin tek anahtarı.",
   "backupPasswordLabel": "Parola",
@@ -155,7 +155,7 @@
   "backupErrorCorrupt": "Bu dosya bozuk ya da eksik.",
   "backupErrorUnsupported": "Bu yedek Latermark’ın daha yeni bir sürümüyle alınmış.",
   "backupErrorGeneric": "Bir şeyler ters gitti. Tekrar dene.",
-  "paywallFeatureBackup": "Şifreli yedek",
+  "paywallFeatureBackup": "Güvenli yedekleme",
   "paywallFeatureBackupDetail": "Notlarını ve karelerini yeni telefona taşı.",
   "reminderSuffixRepeating": "günde bir",
   "reminderRepeatToggle": "Hatırlatmayı tekrarla",
@@ -222,6 +222,10 @@
   "settingsTitle": "Ayarlar",
   "sectionAppearance": "Görünüm",
   "sectionReminder": "Hatırlatma",
+  "sectionSharing": "Paylaşım",
+  "shareSignatureTitle": "Paylaşım imzası",
+  "shareSignatureDescription": "Paylaştığın notun sonuna Latermark satırı eklenir. Kapatırsan yazdığın metin olduğu gibi gider.",
+  "shareSignature": "Latermark {platform} ile gönderildi",
   "themeTitle": "Tema",
   "themeDescription": "Sistem görünümünü izle veya tercihini sabitle.",
   "themeSystem": "Sistem",
@@ -383,8 +387,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "Bazı kareler kalmalı.",
-  "paywallSubtitle": "Latermark unutmak için tasarlandı. Pro, unutulmasını istemediklerin için.",
+  "paywallHeadline": "Önemli olanı geride bırakma.",
+  "paywallSubtitle": "Latermark Pro, geri dönmek istediğin her şeyi doğru zamanda yeniden önüne getirir.",
   "paywallOwnedCount": "{count, plural, other{Şu an {count} karen var.}}",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -393,8 +397,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "Sınırsız kayıt",
-  "paywallFeatureUnlimitedDetail": "Ücretsizde {limit} kare tutulur.",
+  "paywallFeatureUnlimited": "Sınırsız not",
+  "paywallFeatureUnlimitedDetail": "{limit} adet değil, tümüyle sınırsız.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -405,7 +409,7 @@
   "paywallFeatureCustomRetention": "Süreyi kendin belirle",
   "paywallFeatureCustomRetentionDetail": "3 gün ve 1 hafta dışında istediğin süre.",
   "paywallFeatureReminders": "Hatırlatmalar",
-  "paywallFeatureRemindersDetail": "Unutmak istemediklerin için bildirim.",
+  "paywallFeatureRemindersDetail": "Ne zaman gerekiyorsa o zaman hatırlatır.",
   "paywallFeatureWidget": "Ana ekran widget'ı",
   "paywallFeatureWidgetDetail": "Son karen kilit ekranında bir bakışta.",
   "@paywallPerMonth": {
@@ -434,7 +438,7 @@
   "paywallNoSubscription": "Abonelik yok. Bir kez öde, hep senin.",
   "paywallOwned": "Latermark Pro senin.",
   "paywallFeatureNoSubscription": "Aboneliğe gerek yok",
-  "paywallFeatureNoSubscriptionDetail": "Çoğu uygulama bunu her ay satar. Bu bir kez.",
+  "paywallFeatureNoSubscriptionDetail": "Latermark'ta aboneliğe gerek yok. Ömür boyu senin.",
   "paywallCta": "Pro'ya geç",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "Fotoğraf çekip notlarına ekleyebilmek için kamera erişimi gerekir.",
   "photoLibraryUsageDescription": "Galerinden seçtiğin fotoğrafları notlarına ekleyebilmek için fotoğraf erişimi gerekir.",
   "actionShare": "Paylaş",
-  "shareNoteSemantic": "Fotoğrafı ve notu paylaş"
+  "shareNoteSemantic": "Fotoğrafı ve notu paylaş",
+  "reminderSwitchLabel": "Bunu bana hatırlat",
+  "actionSaveAndRemind": "Kaydet ve hatırlat",
+  "reminderScheduleSaved": "Kaydedildi",
+  "reminderScheduleQuestion": "Bu kare ne zaman dönsün?",
+  "reminderTimeLabel": "Saat",
+  "reminderOnceTitle": "Bir kere hatırlat",
+  "reminderRepeatTitle": "Sürekli hatırlat",
+  "reminderSkip": "Şimdi değil",
+  "reminderDeleteAfterLabel": "Hatırlattıktan 1 saat sonra sil"
 }

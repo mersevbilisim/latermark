@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_toast.dart';
 import '../capture/capture_page.dart';
 import '../import/gallery_import.dart';
 import '../import/shared_import.dart';
+import '../reminder/reminder_schedule_page.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
@@ -19,6 +20,7 @@ import '../widgets/reminder_control.dart';
 import '../../data/location_service.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../../../core/utils/app_format.dart';
+import '../../domain/note_reminder.dart';
 import '../../domain/retention.dart';
 
 /// Çekilen kareye not düşme ekranı.
@@ -67,9 +69,9 @@ class _ComposePageState extends State<ComposePage> {
   /// Kaydın zamanı, çekimin yapıldığı andır — kaydete basıldığı an değil.
   late final DateTime _capturedAt;
 
-  /// Hatırlatma gün sayısı. Sıfır = kapalı, ve varsayılan bu.
-  int _remindAfterDays = 0;
-  bool _remindRepeats = false;
+  /// Hatırlatma isteniyor mu. Gün ve saat burada sorulmuyor: kaydetmenin
+  /// ardından açılan planlama ekranının işi.
+  bool _remindMe = false;
 
   /// Konum anahtarı. Varsayılanı ayarlardaki son tercih besler; yalnızca
   /// kamerayla çekilen karede anlamlı.
@@ -161,14 +163,14 @@ class _ComposePageState extends State<ComposePage> {
     // ya da başka bir kontrol sonradan sonuçlansa bile yarı eski/yarı yeni bir
     // not yazılmaz.
     final body = _text.text;
-    final remindAfterDays = _remindAfterDays;
-    final remindRepeats = _remindRepeats;
+    final remindMe = _remindMe;
     final wantsLocation = _wantsLocation && _locationEnabled;
     setState(() => _savePhase = ComposeSavePhase.saving);
 
     final repository = AppScope.of(context);
     final reviewPrompts = context.reviewPrompts;
     final navigator = Navigator.of(context);
+    final int noteId;
 
     try {
       // Saklama süresi artık her çekimde sorulmuyor; Ayarlar'daki varsayılanla
@@ -183,15 +185,16 @@ class _ComposePageState extends State<ComposePage> {
           : null;
       if (!mounted) return;
 
-      await repository.create(
+      noteId = await repository.create(
         capture: widget.capture,
         body: body,
         retention: RetentionChoice(
           settings.defaultRetention,
           customMinutes: settings.defaultCustomMinutes,
         ),
-        remindAfterDays: remindAfterDays,
-        remindRepeats: remindRepeats,
+        // Hatırlatma anı bu ekranda hiç sorulmadı; kayıt önce yazılıyor,
+        // planlama ekranı onu bir sonraki karede kendisi yazıyor.
+        reminder: const ReminderChoice.off(),
         createdAt: _capturedAt,
         location: location,
         importId: widget.sharedImportId,
@@ -214,7 +217,21 @@ class _ComposePageState extends State<ComposePage> {
     setState(() => _savePhase = ComposeSavePhase.sealed);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
-    navigator.pop();
+
+    if (!remindMe) {
+      navigator.pop();
+      return;
+    }
+
+    // Kare diskte; sıra "ne zaman dönsün" sorusunda. Yazma ekranı yığında
+    // kalmıyor: geri hareketi kullanıcıyı kaydettiği forma değil, akışa geri
+    // götürmeli. Zinciri kapatma görevi de yeni sayfaya devrediliyor.
+    _flowHandedOff = true;
+    navigator.pushReplacement(
+      AppRoutes.lift(
+        ReminderSchedulePage(noteId: noteId, onFlowClosed: widget.onFlowClosed),
+      ),
+    );
   }
 
   Future<void> _discard() async {
@@ -315,13 +332,9 @@ class _ComposePageState extends State<ComposePage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         ReminderControl(
-                          days: _remindAfterDays,
-                          repeats: _remindRepeats,
-                          prominent: true,
+                          value: _remindMe,
                           onChanged: (value) =>
-                              setState(() => _remindAfterDays = value),
-                          onRepeatsChanged: (value) =>
-                              setState(() => _remindRepeats = value),
+                              setState(() => _remindMe = value),
                         ),
                         if (_wantsLocation) ...[
                           Padding(
@@ -355,7 +368,10 @@ class _ComposePageState extends State<ComposePage> {
                       ],
                     ),
                     header: ComposerStamp(
-                      at: context.l10n.stamp(_capturedAt),
+                      at: context.l10n.stamp(
+                        _capturedAt,
+                        use24Hour: context.use24Hour,
+                      ),
                       trailing: switch (widget.source) {
                         ComposeSource.gallery => _SourceMark(
                           icon: Icons.photo_library_outlined,
@@ -377,8 +393,15 @@ class _ComposePageState extends State<ComposePage> {
                       actions: [
                         ColophonAction(
                           key: const ValueKey('compose-action-save'),
-                          label: context.l10n.actionSave,
-                          semanticLabel: context.l10n.actionSave,
+                          // Düğme ne yapacağını söylüyor: anahtar açıksa
+                          // kaydetmek tek başına bitmiyor, bir ekran daha var.
+                          label: _remindMe
+                              ? context.l10n.actionSaveAndRemind
+                              : context.l10n.actionSave,
+                          semanticLabel: _remindMe
+                              ? context.l10n.actionSaveAndRemind
+                              : context.l10n.actionSave,
+                          accent: true,
                           busy: _savePhase != ComposeSavePhase.idle,
                           onPressed: _save,
                         ),

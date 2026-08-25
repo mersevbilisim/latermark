@@ -88,7 +88,7 @@ class NoteCard extends StatelessWidget {
       hasBody ? note.body : l10n.noteWithoutBody,
       if (reminderAt != null)
         '${l10n.reminderLabel}: '
-            '${l10n.reminderValue(at: reminderAt!, repeats: note.remindRepeats, everyDays: note.remindAfterDays)}',
+            '${l10n.reminderValue(at: reminderAt!, everyDays: note.remindEveryDays, use24Hour: context.use24Hour)}',
     ].join('. ');
 
     return Pressable(
@@ -194,7 +194,10 @@ class _Meta extends StatelessWidget {
 
     final Widget primary;
     if (expiresAt == null) {
-      primary = Text(context.l10n.time(note.createdAt), style: style);
+      primary = Text(
+        context.l10n.time(note.createdAt, use24Hour: context.use24Hour),
+        style: style,
+      );
     } else {
       final left = lifeFraction(note.createdAt, expiresAt, reference);
       // Son beşte birinde kalan süre öne çıkar; öncesinde zamanla eşit sessizlikte.
@@ -203,7 +206,12 @@ class _Meta extends StatelessWidget {
       final stamp = Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: context.l10n.time(note.createdAt)),
+            TextSpan(
+              text: context.l10n.time(
+                note.createdAt,
+                use24Hour: context.use24Hour,
+              ),
+            ),
             const TextSpan(text: '   ·   '),
             TextSpan(
               text: context.l10n.remainingShort(expiresAt, now: reference),
@@ -251,7 +259,7 @@ class _Meta extends StatelessWidget {
         _ReminderNotch(
           key: ValueKey('reminder-notch-${note.id}'),
           at: at,
-          repeats: note.remindRepeats,
+          repeats: note.remindEveryDays > 0,
           reference: reference,
           compact: scale.isCompact,
         ),

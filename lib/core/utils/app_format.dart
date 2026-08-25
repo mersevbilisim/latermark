@@ -14,13 +14,26 @@ import '../../l10n/app_localizations.dart';
 /// taşınmıyor — zaten [L10n]'in içinde.
 extension AppFormat on L10n {
   /// Yerele göre saat: `14:32` ya da `2:32 PM`.
-  String time(DateTime at) => DateFormat.jm(localeName).format(at);
+  ///
+  /// [use24Hour] cihazın kendi tercihidir ve yerelin varsayılanını ezer.
+  /// Kalıp yine yerelden geliyor: biçimi elle sabitlemek dilin kendi
+  /// ayracını da (bazı dillerde `14.32`) sabitlerdi.
+  String time(DateTime at, {bool use24Hour = false}) =>
+      (use24Hour ? DateFormat.Hm(localeName) : DateFormat.jm(localeName))
+          .format(at);
 
   /// Yerele göre takvim tarihi: `8 Ağustos 2026` ya da `August 8, 2026`.
   String calendarDate(DateTime at) => DateFormat.yMMMMd(localeName).format(at);
 
+  /// Yılsız kısa tarih: `6 Eyl` ya da `Sep 6`.
+  ///
+  /// Formun tek satırlık hatırlatma özeti için. Orada yıl gürültü: seçim
+  /// zaten en fazla bir yıl ileriye kurulabiliyor.
+  String shortDate(DateTime at) => DateFormat.MMMd(localeName).format(at);
+
   /// `6 Ağustos 2026 · 14:32`
-  String stamp(DateTime at) => '${calendarDate(at)} · ${time(at)}';
+  String stamp(DateTime at, {bool use24Hour = false}) =>
+      '${calendarDate(at)} · ${time(at, use24Hour: use24Hour)}';
 
   /// Bir hatırlatmanın künyede görünen değeri.
   ///
@@ -32,11 +45,12 @@ extension AppFormat on L10n {
   /// biçimlendirmek, birini değiştirip diğerini unutmanın kısa yolu.
   String reminderValue({
     required DateTime at,
-    required bool repeats,
     required int everyDays,
-  }) => repeats && everyDays > 0
-      ? reminderRepeatingValue(everyDays, stamp(at))
-      : stamp(at);
+    bool use24Hour = false,
+  }) {
+    final moment = stamp(at, use24Hour: use24Hour);
+    return everyDays > 0 ? reminderRepeatingValue(everyDays, moment) : moment;
+  }
 
   /// Akıştaki gün ayıracı: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
   String dayHeader(DateTime at, {DateTime? now}) {

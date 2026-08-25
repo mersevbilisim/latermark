@@ -281,9 +281,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 3,
-        reminderAnchorAt: anchor,
-        remindRepeats: false,
+        remindAt: shiftLocalCalendarDays(anchor, 3),
+        remindEveryDays: 0,
       );
 
       calls.clear();
@@ -421,8 +420,11 @@ void main() {
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 1,
-        remindRepeats: false,
+        remindAt: shiftLocalCalendarDays(
+          DateTime.now().subtract(const Duration(days: 2)),
+          1,
+        ),
+        remindEveryDays: 0,
       );
 
       calls.clear();
@@ -447,8 +449,8 @@ void main() {
         createdAt: DateTime.now(),
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 1,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(DateTime.now(), 1),
+        remindEveryDays: 1,
       );
 
       calls.clear();
@@ -489,9 +491,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 3,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 3),
+        remindEveryDays: 3,
       );
 
       requestedPermission = true;
@@ -543,9 +544,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 3,
-          reminderAnchorAt: anchor,
-          remindRepeats: true,
+          remindAt: shiftLocalCalendarDays(anchor, 3),
+          remindEveryDays: 3,
         );
         pendingNotifications = [
           for (
@@ -599,9 +599,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 3,
-        reminderAnchorAt: anchor,
-        remindRepeats: false,
+        remindAt: shiftLocalCalendarDays(anchor, 3),
+        remindEveryDays: 0,
         updatedAt: anchor,
       );
 
@@ -644,9 +643,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 3,
-        reminderAnchorAt: anchor,
-        remindRepeats: false,
+        remindAt: shiftLocalCalendarDays(anchor, 3),
+        remindEveryDays: 0,
         updatedAt: anchor,
       );
 
@@ -700,9 +698,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 3,
-          reminderAnchorAt: anchor,
-          remindRepeats: false,
+          remindAt: shiftLocalCalendarDays(anchor, 3),
+          remindEveryDays: 0,
           updatedAt: anchor,
         );
 
@@ -750,9 +747,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 3,
-          reminderAnchorAt: anchor,
-          remindRepeats: false,
+          remindAt: shiftLocalCalendarDays(anchor, 3),
+          remindEveryDays: 0,
           updatedAt: anchor,
         );
         const settings = AppSettings(reminderEnabled: true, proUnlocked: true);
@@ -764,7 +760,7 @@ void main() {
         );
         final firstArguments = (first.arguments as Map).cast<String, Object?>();
         final firstPayload = firstArguments['payload']! as String;
-        expect(firstPayload, contains('/v5/'));
+        expect(firstPayload, contains('/v6/'));
         expect(firstPayload, endsWith('/art1/none'));
         final firstSpecifics = (firstArguments['platformSpecifics']! as Map)
             .cast<String, Object?>();
@@ -831,9 +827,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 3,
-          reminderAnchorAt: anchor,
-          remindRepeats: false,
+          remindAt: shiftLocalCalendarDays(anchor, 3),
+          remindEveryDays: 0,
           updatedAt: anchor,
         );
 
@@ -890,28 +885,31 @@ void main() {
         service.photoOf = (_) => photo;
         final l10n = await L10n.delegate.load(const Locale('en'));
         final anchor = DateTime.now().subtract(const Duration(days: 1));
-        Note noteWith({required int remindAfterDays}) => Note(
+        Note noteWith({DateTime? remindAt}) => Note(
           id: 600,
           imageName: '600.png',
           body: 'Kare',
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: remindAfterDays,
-          reminderAnchorAt: anchor,
-          remindRepeats: false,
+          remindAt: remindAt,
+          remindEveryDays: 0,
           updatedAt: anchor,
         );
         const on = AppSettings(reminderEnabled: true, proUnlocked: true);
 
-        await service.sync([noteWith(remindAfterDays: 3)], on, l10n);
+        await service.sync(
+          [noteWith(remindAt: shiftLocalCalendarDays(anchor, 3))],
+          on,
+          l10n,
+        );
         final art = Directory('${support.path}/reminder_art');
         expect(art.existsSync(), isTrue);
         expect(art.listSync().whereType<File>(), hasLength(1));
 
         // Kopyanın ölçütü zaman değil, hâlâ planda olup olmadığı. Hatırlatma
         // kapatılınca dosyanın da gitmesi gerekir.
-        await service.sync([noteWith(remindAfterDays: 0)], on, l10n);
+        await service.sync([noteWith()], on, l10n);
         expect(art.listSync().whereType<File>(), isEmpty);
         await service.dispose();
       },
@@ -934,9 +932,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 3,
-          reminderAnchorAt: anchor,
-          remindRepeats: false,
+          remindAt: shiftLocalCalendarDays(anchor, 3),
+          remindEveryDays: 0,
           updatedAt: anchor,
         );
 
@@ -969,7 +966,7 @@ void main() {
         expect(scheduled, hasLength(1));
         expect(
           (scheduled.single.arguments as Map)['payload'],
-          contains('/v5/'),
+          contains('/v6/'),
         );
         await service.dispose();
       },
@@ -987,9 +984,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 30,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 30),
+        remindEveryDays: 30,
       );
 
       calls.clear();
@@ -1029,9 +1025,8 @@ void main() {
           createdAt: anchor,
           retention: Retention.off,
           customMinutes: 0,
-          remindAfterDays: 365,
-          reminderAnchorAt: anchor,
-          remindRepeats: true,
+          remindAt: shiftLocalCalendarDays(anchor, 365),
+          remindEveryDays: 365,
         );
 
         calls.clear();
@@ -1071,9 +1066,8 @@ void main() {
         retention: Retention.custom,
         customMinutes: 4 * 24 * 60,
         expiresAt: anchor.add(const Duration(days: 4)),
-        remindAfterDays: 1,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 1),
+        remindEveryDays: 1,
       );
 
       calls.clear();
@@ -1111,8 +1105,8 @@ void main() {
         retention: Retention.threeDays,
         customMinutes: 0,
         expiresAt: created.add(const Duration(days: 3)),
-        remindAfterDays: 30,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(created, 30),
+        remindEveryDays: 30,
       );
 
       calls.clear();
@@ -1137,8 +1131,8 @@ void main() {
         createdAt: DateTime.now(),
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 1,
-        remindRepeats: false,
+        remindAt: shiftLocalCalendarDays(DateTime.now(), 1),
+        remindEveryDays: 0,
       );
 
       calls.clear();
@@ -1204,8 +1198,8 @@ void main() {
           // Teslim edilmiş tek atış hâlâ kullanıcı açana kadar geçerli.
           // `0` olsaydı kullanıcı hatırlatmayı kapatmış demekti ve tepsiden
           // de kaldırılması gerekirdi.
-          remindAfterDays: 1,
-          remindRepeats: false,
+          remindAt: shiftLocalCalendarDays(DateTime(2026), 1),
+          remindEveryDays: 0,
         );
 
         calls.clear();
@@ -1279,8 +1273,7 @@ void main() {
         createdAt: DateTime.now(),
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 0,
-        remindRepeats: false,
+        remindEveryDays: 0,
       );
 
       calls.clear();
@@ -1313,9 +1306,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 30,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 30),
+        remindEveryDays: 30,
       );
 
       calls.clear();
@@ -1459,9 +1451,8 @@ void main() {
       final l10n = await L10n.delegate.load(const Locale('en'));
       final anchor = DateTime.now().subtract(const Duration(days: 22));
       final expected = pendingReminderAt(
-        anchorAt: anchor,
-        remindAfterDays: 30,
-        repeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 30),
+        everyDays: 30,
         now: DateTime.now(),
       );
       final note = Note(
@@ -1471,9 +1462,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAfterDays: 30,
-        reminderAnchorAt: anchor,
-        remindRepeats: true,
+        remindAt: shiftLocalCalendarDays(anchor, 30),
+        remindEveryDays: 30,
       );
 
       androidCalls.clear();
@@ -1530,9 +1520,8 @@ void main() {
       createdAt: anchor,
       retention: Retention.off,
       customMinutes: 0,
-      remindAfterDays: 3,
-      reminderAnchorAt: anchor,
-      remindRepeats: true,
+      remindAt: shiftLocalCalendarDays(anchor, 3),
+      remindEveryDays: 3,
     );
     const settings = AppSettings(reminderEnabled: true, proUnlocked: true);
 

@@ -260,11 +260,12 @@ class _Colophon extends StatelessWidget {
 
   /// Hatırlatma satırının metni. Sesli okuma etiketi ile görünen satır aynı
   /// cümleyi kurmalı; ikisi de buradan geçiyor.
-  String _reminderValue(L10n l10n) => l10n.reminderValue(
-    at: reminderAt!,
-    repeats: note.remindRepeats,
-    everyDays: note.remindAfterDays,
-  );
+  String _reminderValue(L10n l10n, {required bool use24Hour}) =>
+      l10n.reminderValue(
+        at: reminderAt!,
+        everyDays: note.remindEveryDays,
+        use24Hour: use24Hour,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -295,10 +296,12 @@ class _Colophon extends StatelessWidget {
           '${l10n.locationLabel}: '
               '${MapLink.format(latitude, longitude, north: l10n.compassNorth, south: l10n.compassSouth, east: l10n.compassEast, west: l10n.compassWest)}',
         if (updatedAt != null)
-          '${l10n.lastUpdatedLabel}: ${l10n.stamp(updatedAt)}',
+          '${l10n.lastUpdatedLabel}: '
+              '${l10n.stamp(updatedAt, use24Hour: context.use24Hour)}',
         if (expiresAt != null) l10n.remainingLong(expiresAt, now: reference),
         if (reminderAt != null)
-          '${l10n.reminderLabel}: ${_reminderValue(l10n)}',
+          '${l10n.reminderLabel}: '
+              '${_reminderValue(l10n, use24Hour: context.use24Hour)}',
       ].join('. '),
       child: ExcludeSemantics(
         // Künye notun hizasından bağımsız: her zaman ortalı. Kaydın imza
@@ -353,7 +356,7 @@ class _Colophon extends StatelessWidget {
         _MetaLine(
           key: const ValueKey('detail-edited-line'),
           label: l10n.lastUpdatedLabel,
-          value: l10n.stamp(updatedAt),
+          value: l10n.stamp(updatedAt, use24Hour: context.use24Hour),
           accent: false,
         ),
 
@@ -361,7 +364,7 @@ class _Colophon extends StatelessWidget {
         _MetaLine(
           key: const ValueKey('detail-reminder-line'),
           label: l10n.reminderLabel,
-          value: _reminderValue(l10n),
+          value: _reminderValue(l10n, use24Hour: context.use24Hour),
           accent: true,
         ),
 

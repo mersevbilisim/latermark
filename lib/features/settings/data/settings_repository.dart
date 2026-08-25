@@ -31,6 +31,10 @@ class SettingsRepository {
   Future<void> setDensity(FeedDensity value) =>
       _write(SettingsTableCompanion(density: Value(value)));
 
+  /// Paylaşım imzası. Pro'ya bağlı değil; herkesin kapatabildiği bir tercih.
+  Future<void> setShareSignature(bool value) =>
+      _write(SettingsTableCompanion(shareSignature: Value(value)));
+
   /// Konum tercihi. Hatırlatmanın aksine Pro'ya bağlı değil: konum bir
   /// ücretli özellik değil, kaydın bir alanı.
   Future<void> setLocationEnabled(bool value) =>
@@ -112,9 +116,8 @@ class SettingsRepository {
           .update(_db.notes)
           .write(
             const NotesCompanion(
-              remindAfterDays: Value(0),
-              reminderAnchorAt: Value(null),
-              remindRepeats: Value(false),
+              remindAt: Value(null),
+              remindEveryDays: Value(0),
             ),
           );
 
@@ -162,6 +165,7 @@ class SettingsRepository {
       defaultRetention: effectiveRetention.retention,
       defaultCustomMinutes: effectiveRetention.customMinutes,
       locale: row.locale,
+      shareSignature: row.shareSignature,
       proUnlocked: row.proUnlocked,
     );
   }

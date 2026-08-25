@@ -46,16 +46,16 @@ void main() {
     return XFile(file.path);
   }
 
-  Future<Note> noteWithReminder({
-    int remindAfterDays = 30,
-    bool repeats = false,
-  }) async {
+  /// Hatırlatması olan bir kayıt. [everyDays] sıfırsa tek atışlık.
+  Future<Note> noteWithReminder({DateTime? remindAt, int everyDays = 0}) async {
     final id = await repository.create(
       capture: await fakeCapture(),
       body: 'Kombi bakımı',
       retention: const RetentionChoice.off(),
-      remindAfterDays: remindAfterDays,
-      remindRepeats: repeats,
+      reminder: ReminderChoice(
+        at: remindAt ?? DateTime(2026, 8, 8, 9),
+        everyDays: everyDays,
+      ),
     );
     return (await repository.noteById(id))!;
   }
@@ -75,8 +75,8 @@ void main() {
     expect(updated, isNotNull);
     expect(
       pendingReminderAt(
-        anchorAt: updated!.reminderAnchorAt!,
-        remindAfterDays: updated.remindAfterDays,
+        remindAt: updated!.remindAt,
+        everyDays: updated.remindEveryDays,
         now: now,
       ),
       DateTime(2026, 8, 9, 9),
@@ -109,14 +109,14 @@ void main() {
       ReminderAction.done,
     );
 
-    expect(updated!.remindAfterDays, 0);
-    expect(updated.reminderAnchorAt, isNull);
+    expect(updated!.remindAt, isNull);
+    expect(updated.remindEveryDays, 0);
     expect(await repository.noteById(note.id), isNotNull);
     expect(await repository.watchNotes().first, hasLength(1));
   });
 
   test('tamam tekrarlayan hatırlatmayı sürdürür', () async {
-    final note = await noteWithReminder(remindAfterDays: 30, repeats: true);
+    final note = await noteWithReminder(everyDays: 30);
     final now = DateTime(2026, 8, 8, 9);
 
     final updated = await repository.applyReminderAction(
@@ -125,25 +125,16 @@ void main() {
       now: now,
     );
 
-    expect(updated!.remindAfterDays, 30);
-    expect(updated.remindRepeats, isTrue);
+    expect(updated!.remindEveryDays, 30);
     expect(
-      pendingReminderAt(
-        anchorAt: updated.reminderAnchorAt!,
-        remindAfterDays: 30,
-        repeats: true,
-        now: now,
-      ),
+      pendingReminderAt(remindAt: updated.remindAt, everyDays: 30, now: now),
       DateTime(2026, 9, 7, 9),
     );
   });
 
   test('bildirimleri kapat tek atış ve tekrar alanlarını temizler', () async {
-    for (final repeats in [false, true]) {
-      final note = await noteWithReminder(
-        remindAfterDays: 30,
-        repeats: repeats,
-      );
+    for (final everyDays in [0, 30]) {
+      final note = await noteWithReminder(everyDays: everyDays);
 
       final updated = await repository.applyReminderAction(
         note.id,
@@ -151,9 +142,8 @@ void main() {
       );
 
       expect(updated, isNotNull);
-      expect(updated!.remindAfterDays, 0);
-      expect(updated.reminderAnchorAt, isNull);
-      expect(updated.remindRepeats, isFalse);
+      expect(updated!.remindAt, isNull);
+      expect(updated.remindEveryDays, 0);
       expect(updated.body, note.body);
       expect(updated.updatedAt, note.updatedAt);
       expect(await repository.noteById(note.id), isNotNull);
@@ -165,7 +155,7 @@ void main() {
   test(
     'aynı notification action yeniden teslim edilirse ikinci kez yazmaz',
     () async {
-      final note = await noteWithReminder(remindAfterDays: 7, repeats: true);
+      final note = await noteWithReminder(everyDays: 7);
       final firedAt = DateTime(2026, 8, 8, 9);
       final now = DateTime(2026, 8, 8, 9, 1);
       const eventId = '2560:latermark.reminder.tomorrow:payload-v3';
@@ -177,7 +167,7 @@ void main() {
         now: now,
         eventId: eventId,
       );
-      final anchorAfterFirst = first!.reminderAnchorAt;
+      final momentAfterFirst = first!.remindAt;
       final replay = await repository.applyReminderAction(
         note.id,
         ReminderAction.tomorrow,
@@ -187,10 +177,7 @@ void main() {
       );
 
       expect(replay, isNull);
-      expect(
-        (await repository.noteById(note.id))!.reminderAnchorAt,
-        anchorAfterFirst,
-      );
+      expect((await repository.noteById(note.id))!.remindAt, momentAfterFirst);
     },
   );
 
@@ -202,7 +189,7 @@ void main() {
     await settings.setProUnlocked(false);
 
     final downgraded = await repository.noteById(note.id);
-    expect(downgraded!.remindAfterDays, 0);
+    expect(downgraded!.remindAt, isNull);
 
     final updated = await repository.applyReminderAction(
       note.id,
@@ -211,8 +198,8 @@ void main() {
 
     expect(updated, isNull);
     final unchanged = await repository.noteById(note.id);
-    expect(unchanged!.remindAfterDays, 0);
-    expect(unchanged.reminderAnchorAt, isNull);
+    expect(unchanged!.remindAt, isNull);
+    expect(unchanged.remindEveryDays, 0);
   });
 
   test('hatırlatması olmayan ve silinmiş notlar sessizce geçilir', () async {

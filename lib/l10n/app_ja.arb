@@ -114,9 +114,9 @@
   "backupManageDescription": "暗号化したコピーの作成や、既存のバックアップの復元ができます。",
   "backupCreateTitle": "バックアップを作成",
   "backupNothingToSave": "まだバックアップするものがありません。",
-  "backupCreateDescription": "この端末のすべてを、暗号化された1つのファイルに。",
+  "backupCreateDescription": "Latermarkの中のすべてを、暗号化されたひとつのファイルに。",
   "backupRestoreTitle": "バックアップから復元",
-  "backupRestoreDescription": "ここにあるすべてをバックアップファイルで置き換えます。",
+  "backupRestoreDescription": "バックアップから、すべてのメモを取り戻します。",
   "backupPasswordTitle": "パスワードを設定",
   "backupPasswordSubtitle": "このパスワードがバックアップを開く唯一の鍵です。",
   "backupPasswordLabel": "パスワード",
@@ -154,7 +154,7 @@
   "backupErrorCorrupt": "このファイルは破損しているか不完全です。",
   "backupErrorUnsupported": "このバックアップは、より新しいバージョンのLatermarkで作成されました。",
   "backupErrorGeneric": "問題が発生しました。もう一度お試しください。",
-  "paywallFeatureBackup": "暗号化バックアップ",
+  "paywallFeatureBackup": "安全なバックアップ",
   "paywallFeatureBackupDetail": "メモと写真を新しい端末へ。",
   "reminderSuffixRepeating": "日ごと",
   "reminderRepeatToggle": "リマインダーを繰り返す",
@@ -221,6 +221,10 @@
   "settingsTitle": "設定",
   "sectionAppearance": "表示",
   "sectionReminder": "リマインダー",
+  "sectionSharing": "共有",
+  "shareSignatureTitle": "共有時の署名",
+  "shareSignatureDescription": "共有するノートの末尾に Latermark の一行が付きます。オフにすると、書いたままの文章だけが送られます。",
+  "shareSignature": "Latermark for {platform} から送信",
   "themeTitle": "テーマ",
   "themeDescription": "システムに合わせるか、表示を固定できます。",
   "themeSystem": "システム",
@@ -382,8 +386,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "残しておきたい一枚もある。",
-  "paywallSubtitle": "Latermarkは、忘れるためのアプリ。Proは、忘れたくない一枚のために。",
+  "paywallHeadline": "大切なものを、置き去りにしない。",
+  "paywallSubtitle": "Latermark Proは、もう一度見返したいすべてを、ちょうどいいタイミングで目の前に戻します。",
   "paywallOwnedCount": "現在 {count}枚あります。",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -392,8 +396,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "保存枚数が無制限",
-  "paywallFeatureUnlimitedDetail": "無料版は{limit}枚まで。",
+  "paywallFeatureUnlimited": "メモは無制限",
+  "paywallFeatureUnlimitedDetail": "{limit}件までではなく、完全に無制限。",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -404,7 +408,7 @@
   "paywallFeatureCustomRetention": "期間を自由に設定",
   "paywallFeatureCustomRetentionDetail": "3日や1週間以外も選べます。",
   "paywallFeatureReminders": "リマインダー",
-  "paywallFeatureRemindersDetail": "大切な一枚を、そっとお知らせ。",
+  "paywallFeatureRemindersDetail": "必要になったそのときに知らせます。",
   "paywallFeatureWidget": "ホーム・ロック画面ウィジェット",
   "paywallFeatureWidgetDetail": "最新の一枚を、いつでもひと目で。",
   "@paywallPerMonth": {
@@ -433,7 +437,7 @@
   "paywallNoSubscription": "サブスクリプションなし。一度の購入でずっとPro。",
   "paywallOwned": "Latermark Pro をご利用いただけます。",
   "paywallFeatureNoSubscription": "サブスクリプションなし",
-  "paywallFeatureNoSubscriptionDetail": "毎月の支払いはありません。購入は一度だけ。",
+  "paywallFeatureNoSubscriptionDetail": "Latermarkにサブスクリプションは不要。ずっとあなたのものです。",
   "paywallCta": "Proを購入",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "ノート用の写真を撮るためにカメラを使用します。",
   "photoLibraryUsageDescription": "写真ライブラリの画像をノートに追加するために使用します。",
   "actionShare": "共有",
-  "shareNoteSemantic": "写真とメモを共有"
+  "shareNoteSemantic": "写真とメモを共有",
+  "reminderSwitchLabel": "これをあとで知らせる",
+  "actionSaveAndRemind": "保存して知らせる",
+  "reminderScheduleSaved": "保存しました",
+  "reminderScheduleQuestion": "この一枚をいつ戻しますか？",
+  "reminderTimeLabel": "時刻",
+  "reminderOnceTitle": "1回だけ知らせる",
+  "reminderRepeatTitle": "くり返し知らせる",
+  "reminderSkip": "今はしない",
+  "reminderDeleteAfterLabel": "通知の1時間後に削除"
 }

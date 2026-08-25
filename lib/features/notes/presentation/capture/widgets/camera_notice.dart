@@ -44,7 +44,11 @@ class CameraNotice extends StatelessWidget {
             const SizedBox(height: 26),
             Text(title, style: OnPhotoText.title, textAlign: TextAlign.center),
             const SizedBox(height: 10),
-            Text(message, style: OnPhotoText.label, textAlign: TextAlign.center),
+            Text(
+              message,
+              style: OnPhotoText.label,
+              textAlign: TextAlign.center,
+            ),
             if (actionLabel != null) ...[
               const SizedBox(height: 30),
               SizedBox(

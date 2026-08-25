@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import '../../../core/theme/app_accent.dart';
 import '../../settings/domain/app_locale.dart';
 import '../../settings/domain/app_settings.dart';
+import '../domain/note_reminder.dart';
 import '../domain/retention.dart';
 import 'search_text.dart';
 
@@ -61,35 +62,34 @@ class Notes extends Table {
   RealColumn get latitude => real().nullable()();
   RealColumn get longitude => real().nullable()();
 
-  /// "Beni bu kadar gün sonra hatırlat." `0` ise hatırlatma yok.
+  /// Hatırlatmanın geleceği an; hatırlatma yoksa `null`.
+  ///
+  /// Kayıt "kaç gün sonra" değil **hangi an** tutuyor. Gün sayısı saklamak,
+  /// kullanıcının gördüğü tarihi ikinci bir hesaba bağımlı kılıyordu: çıpa +
+  /// gün. O hesap yedekten dönüşte, yaz saati geçişinde ve ertelemede yeniden
+  /// kuruluyor, dolayısıyla kayabiliyordu. Takvimden gün seçilebildiği anda
+  /// artık savunulamaz da: kullanıcı "6 Eylül" diyorsa kayıtta 6 Eylül
+  /// yazmalı. Bildirim de zaten mutlak bir an istiyor.
   ///
   /// Hatırlatma isteğe bağlıdır ve **not başına** verilir. Eskiden her kayda
   /// otomatik kurulurdu; yüzlerce notu olan biri bakmadığı her kare için
   /// bildirim alıyordu. Üstelik iOS aynı anda yalnızca 64 bekleyen bildirim
   /// tutar — otomatik kurulum o sınırı sessizce aşıyordu.
-  IntColumn get remindAfterDays => integer().withDefault(const Constant(0))();
+  ///
+  /// Geçmişte kalmış bir an "bu not hatırlatıldı" demektir. Kayıt kullanıcı
+  /// kapatana ya da yeni bir gün seçene kadar durur.
+  DateTimeColumn get remindAt => dateTime().nullable()();
 
-  /// Hatırlatma sayacının başladığı an.
+  /// Tekrar aralığı (gün). `0` ise hatırlatma tek atışlıktır.
   ///
-  /// Karenin [createdAt] damgasından ayrıdır: galeriden eski bir fotoğraf
-  /// alınabilir veya yıllar önceki bir nota bugün hatırlatma eklenebilir.
-  /// Kullanıcının yazdığı "30 gün", ayarlandığı andan itibaren sayar.
-  /// Aralık ya da tekrar kipi değiştirilmedikçe bu damga korunur; uygulamayı
-  /// açmak geri sayımı başa sarmaz.
-  DateTimeColumn get reminderAnchorAt => dateTime().nullable()();
-
-  /// Hatırlatma [remindAfterDays] günde bir tekrarlansın mı.
+  /// Tekrar için ayrı bir bayrak yok, olması da gerekmiyor: aralık hem "tekrar
+  /// var mı" sorusunun hem de "ne kadarda bir" sorusunun cevabı. İki ayrı alan,
+  /// birbirinden kayabildikleri (tekrar açık ama aralık sıfır) bir durum
+  /// yaratırdı.
   ///
-  /// `false` iken kayıt tek bir kez, [reminderAnchorAt] +
-  /// [remindAfterDays] anında hatırlatılır. `true` iken aynı aralık,
-  /// kullanıcı kapatana ya da not silinene kadar sistem tarafında tekrar
-  /// eder.
-  ///
-  /// Ayrı bir "tekrar aralığı" sütunu yok, olması da gerekmiyor: kullanıcı tek
-  /// bir sayı veriyor ve o sayı iki modda da aynı şeyi söylüyor. İkinci bir
-  /// sütun, ikisinin birbirinden kayabildiği bir durum yaratırdı.
-  BoolColumn get remindRepeats =>
-      boolean().withDefault(const Constant(false))();
+  /// Tekrar açıkken kayıt [remindAt] + k·aralık dizisini üretir; işletim
+  /// sistemi tarafında da kullanıcı kapatana ya da not silinene kadar sürer.
+  IntColumn get remindEveryDays => integer().withDefault(const Constant(0))();
 }
 
 /// Aramanın beslendiği yan tablo. **Arayüz bu tabloyu hiç okumaz.**
@@ -196,6 +196,14 @@ class SettingsTable extends Table {
   IntColumn get defaultCustomMinutes =>
       integer().withDefault(const Constant(0))();
 
+  /// Paylaşılan notun sonuna Latermark satırı eklensin mi.
+  ///
+  /// Varsayılan **açık**: imza uygulamanın kendini tanıtma yolu. Kullanıcının
+  /// yazdığı metne dokunulduğu için de kapatılabilir olması şart — kapalıyken
+  /// mesaj tam olarak notun kendisidir.
+  BoolColumn get shareSignature =>
+      boolean().withDefault(const Constant(true))();
+
   /// Pro hakkının son bilinen durumu.
   ///
   /// Doğruluk kaynağı **mağaza**; bu yalnızca önbellek. Soğuk açılışta mağaza
@@ -214,7 +222,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -266,16 +274,33 @@ class NotesDatabase extends _$NotesDatabase {
         await m.addColumn(notes, notes.longitude);
         await m.addColumn(settingsTable, settingsTable.locationEnabled);
       }
-      // Varsayılan `false`: mevcut hatırlatmaların hepsi tek atışlıktı ve öyle
-      // kalır. Tekrar, kullanıcının açıkça isteyeceği yeni bir şey.
-      if (from < 5) await m.addColumn(notes, notes.remindRepeats);
+      // v5 ve v6'nın eklediği iki sütun v8'de yeniden kaldırılıyor; buradaki
+      // adımlar yine de duruyor ve ham SQL'e çevrildi. Drift'in tablo tanımı
+      // yalnızca **bugünkü** sütunları biliyor, oysa göç zinciri geçmişte
+      // gerçekten olanı anlatmak zorunda: v8'in dönüşümü bu iki sütunu okuyor.
+      //
+      // Varsayılan `false`: o sürümdeki hatırlatmaların hepsi tek atışlıktı ve
+      // öyle kalır. Tekrar, kullanıcının açıkça isteyeceği yeni bir şeydi.
+      if (from < 5) {
+        await customStatement(
+          'ALTER TABLE notes ADD COLUMN remind_repeats '
+          'INTEGER NOT NULL DEFAULT 0',
+        );
+      }
       if (from < 6) {
-        await m.addColumn(notes, notes.reminderAnchorAt);
+        await customStatement(
+          'ALTER TABLE notes ADD COLUMN reminder_anchor_at INTEGER NULL',
+        );
         // v5'in dörtlü pencere programı native, kalıcı tekrara dönüşüyor.
         // O programın kesin başlangıç damgası yoktu; mevcut tekrarlı
         // hatırlatmalar için dönüşüm anı yeni, dürüst başlangıçtır.
-        await (update(notes)..where((note) => note.remindRepeats.equals(true)))
-            .write(NotesCompanion(reminderAnchorAt: Value(DateTime.now())));
+        await customUpdate(
+          'UPDATE notes SET reminder_anchor_at = ? WHERE remind_repeats = 1',
+          variables: [
+            Variable<int>(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+          ],
+          updates: {notes},
+        );
       }
       if (from < 7) {
         await m.addColumn(noteSearch, noteSearch.photoFingerprint);
@@ -301,6 +326,55 @@ class NotesDatabase extends _$NotesDatabase {
           }
           if (rows.length < page) break;
         }
+      }
+      if (from < 8) {
+        // Hatırlatma "çıpa + gün sayısı" olmaktan çıkıp mutlak ana dönüyor.
+        // Gün sütunu kaybolmuyor, anlamı daralıyor: artık yalnızca tekrar
+        // aralığı.
+        await m.addColumn(notes, notes.remindAt);
+        await m.renameColumn(notes, 'remind_after_days', notes.remindEveryDays);
+
+        // Dönüşüm SQL'de değil Dart'ta yapılıyor: `+ gün·86400` yaz saati
+        // geçişini aşan kayıtlarda duvar saatini bir saat kaydırırdı ve
+        // kullanıcı kurduğu hatırlatmanın saatini bir daha göremezdi.
+        // Sütunlar unix **saniye** tutuyor.
+        final pending = await customSelect(
+          'SELECT id, created_at, reminder_anchor_at, remind_every_days, '
+          'remind_repeats FROM notes WHERE remind_every_days > 0',
+        ).get();
+        for (final row in pending) {
+          final everyDays = row.read<int>('remind_every_days');
+          final anchorSeconds =
+              row.readNullable<int>('reminder_anchor_at') ??
+              row.read<int>('created_at');
+          final at = shiftLocalCalendarDays(
+            DateTime.fromMillisecondsSinceEpoch(anchorSeconds * 1000),
+            everyDays,
+          );
+          await customUpdate(
+            'UPDATE notes SET remind_at = ?, remind_every_days = ? '
+            'WHERE id = ?',
+            variables: [
+              Variable<int>(at.millisecondsSinceEpoch ~/ 1000),
+              // Tek atışlık kayıtlarda aralığın işi kalmadı: o sayı zaten
+              // yalnızca ilk anı bulmak içindi ve o an artık sütunda duruyor.
+              Variable<int>(
+                row.read<int>('remind_repeats') != 0 ? everyDays : 0,
+              ),
+              Variable<int>(row.read<int>('id')),
+            ],
+            updates: {notes},
+          );
+        }
+
+        await m.dropColumn(notes, 'reminder_anchor_at');
+        await m.dropColumn(notes, 'remind_repeats');
+      }
+      if (from < 9) {
+        // Sütunun varsayılanı açık; mevcut satırlar da öyle doluyor. İmza yeni
+        // bir davranış ama kullanıcının metnine ekleniyor, o yüzden anahtar
+        // Ayarlar'da görünür yerde duruyor.
+        await m.addColumn(settingsTable, settingsTable.shareSignature);
       }
     },
     beforeOpen: (details) async {

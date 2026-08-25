@@ -324,8 +324,7 @@ void main() {
       createdAt: DateTime(2026, 8, 8, 14, 30),
       retention: Retention.off,
       customMinutes: 0,
-      remindRepeats: false,
-      remindAfterDays: 0,
+      remindEveryDays: 0,
     );
 
     await tester.pumpWidget(

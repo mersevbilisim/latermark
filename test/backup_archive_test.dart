@@ -151,7 +151,7 @@ void main() {
         createdAt: DateTime(2026, 8, 1, 9),
         retention: 0,
         customMinutes: 0,
-        remindAfterDays: 7,
+        remindAt: DateTime(2026, 8, 8, 9),
       ),
       BackupNote(
         imageName: 'repeat.jpg',
@@ -164,8 +164,8 @@ void main() {
         updatedAt: DateTime(2026, 8, 11),
         latitude: 41.2607,
         longitude: 29.0421,
-        remindAfterDays: 7,
-        remindRepeats: true,
+        remindAt: DateTime(2026, 8, 9, 10),
+        remindEveryDays: 7,
         photoText: 'fatura 4521',
       ),
       BackupNote(
@@ -181,14 +181,14 @@ void main() {
     final restored = await readArchive(file);
 
     final once = restored.notes[0];
-    expect(once.remindAfterDays, 7);
-    expect(once.remindRepeats, isFalse);
+    expect(once.remindAt, DateTime(2026, 8, 8, 9));
+    expect(once.remindEveryDays, 0);
 
     final repeating = restored.notes[1];
-    expect(repeating.remindAfterDays, 7);
-    expect(repeating.remindRepeats, isTrue);
-    // Tekrarın anlamlı olması için oluşum anını belirleyen alanların da
-    // gelmesi gerekiyor: süre createdAt'ten sayılıyor, bitiş expiresAt'te.
+    expect(repeating.remindAt, DateTime(2026, 8, 9, 10));
+    expect(repeating.remindEveryDays, 7);
+    // Tekrarın anlamlı olması için diziyi sınırlayan alanların da gelmesi
+    // gerekiyor: ilk halka remindAt'te, bitiş expiresAt'te.
     expect(repeating.createdAt, DateTime(2026, 8, 2, 10));
     expect(repeating.expiresAt, DateTime(2026, 9, 1));
     expect(repeating.retention, 3);
@@ -200,8 +200,8 @@ void main() {
     expect(repeating.photoText, 'fatura 4521');
 
     final silent = restored.notes[2];
-    expect(silent.remindAfterDays, 0);
-    expect(silent.remindRepeats, isFalse);
+    expect(silent.remindAt, isNull);
+    expect(silent.remindEveryDays, 0);
 
     // Ana şalter tercihlerden geliyor; kapalıysa hiçbir not bildirim göndermez.
     expect(restored.manifest.settings.reminderEnabled, isTrue);

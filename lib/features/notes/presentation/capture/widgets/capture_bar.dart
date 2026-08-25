@@ -93,10 +93,7 @@ class ShutterFlash extends StatelessWidget {
         opacity: Tween<double>(begin: 0.92, end: 0.0).animate(
           CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
         ),
-        child: const ColoredBox(
-          color: OnPhoto.flash,
-          child: SizedBox.expand(),
-        ),
+        child: const ColoredBox(color: OnPhoto.flash, child: SizedBox.expand()),
       ),
     );
   }

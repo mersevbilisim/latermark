@@ -12,10 +12,12 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_palette.dart';
+import '../../../core/theme/app_shape.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_format.dart';
 import '../../../l10n/l10n_context.dart';
 import '../../../shared/widgets/pressable.dart';
+import '../../notes/presentation/home/widgets/note_photo.dart';
 import '../data/backup_service.dart';
 import '../domain/backup_status.dart';
 
@@ -57,30 +59,54 @@ Future<File?> pickLatermarkBackup() async {
 /// bir dosyayla kalır. Sebebi seçim anında söylemek, sonra hata vermekten iyi.
 Future<BackupMode?> showBackupActionsSheet(
   BuildContext context, {
-  required bool hasData,
+  required int noteCount,
+  required List<File> previews,
 }) {
   return showModalBottomSheet<BackupMode>(
     context: context,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.68),
     isScrollControlled: true,
-    builder: (context) => _BackupActionsSheet(hasData: hasData),
+    builder: (context) =>
+        _BackupActionsSheet(noteCount: noteCount, previews: previews),
   );
 }
 
+/// Yedek akışının kapısı.
+///
+/// Yüzey bir ayar listesi değil, **arşivin kendisi**: üstte kullanıcının son
+/// kareleri baskı köşeleriyle yan yana duruyor, altında kaç tane oldukları ve
+/// hepsinin tek bir şifreli dosyaya gireceği yazıyor. Yedek soyut bir tercih
+/// değil; bu kareler.
+///
+/// İki eylem yön: biri arşivi dışarı çıkarır, diğeri dışarıdan gelenin yerine
+/// koyar. O yüzden satırların başında yön oku var ve sonlarında liste kalıbının
+/// tipik ">" işareti yok — buradan iki farklı yere gidiliyor, bir listede
+/// ilerlenmiyor. Numaralar da kalktı: sıralı olmayan iki alternatifi "01/02"
+/// diye numaralamak, akıştaki gerçek adım göstergesinin anlamını da
+/// zayıflatıyordu.
+///
+/// Sonuçlarını yalnızca geri yükleme taşıyor: geri alınamayan tek eylem o.
 class _BackupActionsSheet extends StatelessWidget {
-  const _BackupActionsSheet({required this.hasData});
+  const _BackupActionsSheet({required this.noteCount, required this.previews});
 
-  final bool hasData;
+  final int noteCount;
+
+  /// Şeritte gösterilecek son kareler. Boşsa şerit hiç çizilmez — arşiv boşken
+  /// gösterilecek bir şey de yok.
+  final List<File> previews;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final l10n = context.l10n;
     final media = MediaQuery.of(context);
-    final maxHeight = media.size.height - media.padding.top - 12;
+    final hasData = noteCount > 0;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
+      constraints: BoxConstraints(
+        maxHeight: media.size.height - media.padding.top - 12,
+      ),
       child: DecoratedBox(
         key: const Key('backup-actions-surface'),
         decoration: BoxDecoration(
@@ -107,79 +133,96 @@ class _BackupActionsSheet extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 18, 14, 18),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Flexible(
+              child: ListView(
+                key: const Key('backup-actions-list'),
+                shrinkWrap: true,
+                padding: EdgeInsets.only(bottom: media.padding.bottom + 6),
                 children: [
-                  Expanded(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 16, 14, 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          context.l10n.backupSectionTitle,
-                          style: palette.title.copyWith(fontSize: 27),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  l10n.upper(l10n.backupSectionTitle),
+                                  style: palette.overline,
+                                ),
+                              ),
+                            ),
+                            Pressable(
+                              onPressed: () => Navigator.of(context).pop(),
+                              scale: 0.88,
+                              semanticLabel: l10n.actionClose,
+                              child: ExcludeSemantics(
+                                child: SizedBox.square(
+                                  dimension: 40,
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 20,
+                                    color: palette.inkSoft,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 6),
+                        if (previews.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _ArchiveStrip(previews: previews),
+                        ],
+                        const SizedBox(height: 16),
                         Text(
-                          context.l10n.backupManageDescription,
-                          style: palette.caption.copyWith(
-                            color: palette.inkSoft,
-                            fontSize: 13,
-                            height: 1.35,
+                          l10n.noteCount(noteCount),
+                          key: const Key('backup-actions-count'),
+                          maxLines: 2,
+                          style: palette.title.copyWith(
+                            fontSize: 26,
+                            color: hasData ? palette.ink : palette.inkSoft,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 8),
+                          child: Text(
+                            l10n.backupCreateDescription,
+                            style: palette.caption.copyWith(
+                              color: palette.inkFaint,
+                              fontSize: 13,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Pressable(
-                    onPressed: () => Navigator.of(context).pop(),
-                    scale: 0.88,
-                    semanticLabel: context.l10n.actionClose,
-                    child: ExcludeSemantics(
-                      child: SizedBox.square(
-                        dimension: 44,
-                        child: Align(
-                          alignment: Alignment.topRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.close_rounded,
-                              size: 20,
-                              color: palette.inkSoft,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  ColoredBox(
+                    color: palette.hairlineBright,
+                    child: const SizedBox(height: 0.5),
                   ),
-                ],
-              ),
-            ),
-            ColoredBox(
-              color: palette.hairlineBright,
-              child: const SizedBox(height: 0.5),
-            ),
-            Flexible(
-              child: ListView(
-                key: const Key('backup-actions-list'),
-                shrinkWrap: true,
-                padding: EdgeInsets.only(bottom: media.padding.bottom + 8),
-                children: [
                   _BackupActionOption(
                     key: const Key('backup-action-create'),
-                    index: '01',
-                    title: context.l10n.backupCreateTitle,
-                    note: hasData ? null : context.l10n.backupNothingToSave,
+                    icon: Icons.arrow_upward_rounded,
+                    title: l10n.backupCreateTitle,
+                    detail: hasData ? null : l10n.backupNothingToSave,
                     onPressed: hasData
                         ? () => Navigator.of(context).pop(BackupMode.create)
                         : null,
                   ),
                   _BackupActionOption(
                     key: const Key('backup-action-restore'),
-                    index: '02',
-                    title: context.l10n.backupRestoreTitle,
+                    icon: Icons.arrow_downward_rounded,
+                    title: l10n.backupRestoreTitle,
+                    // Geri alınamayan tek eylem: sonucunu dokunmadan önce
+                    // söylemek, sonra bir onay diyaloğuyla durdurmaktan iyi.
+                    detail: l10n.backupRestoreDescription,
                     onPressed: () =>
                         Navigator.of(context).pop(BackupMode.restore),
                     isLast: true,
@@ -194,24 +237,71 @@ class _BackupActionsSheet extends StatelessWidget {
   }
 }
 
+/// Arşivin yüzü: son kareler, baskı köşeleriyle yan yana.
+///
+/// Genel bir "yedek" ikonu ya da çizimi yerine kullanıcının kendi kareleri.
+/// Aynı şerit başka bir uygulamaya taşınamaz — çünkü orada bu kareler yok.
+class _ArchiveStrip extends StatelessWidget {
+  const _ArchiveStrip({required this.previews});
+
+  final List<File> previews;
+
+  static const _size = 58.0;
+  static const _gap = 7.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final frames = previews.take(3).toList();
+
+    return ExcludeSemantics(
+      child: SizedBox(
+        key: const Key('backup-actions-strip'),
+        height: _size,
+        child: Row(
+          children: [
+            for (var index = 0; index < frames.length; index++) ...[
+              if (index > 0) const SizedBox(width: _gap),
+              ClipRSuperellipse(
+                borderRadius: AppShape.all(AppShape.print),
+                child: SizedBox.square(
+                  dimension: _size,
+                  child: ColoredBox(
+                    color: palette.canvasSunk,
+                    child: NotePhoto(file: frames[index], decodeWidth: _size),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Yön, ad ve —gerekiyorsa— sonuç.
+///
+/// Sonda ">" yok: bu satırlar bir listede ilerletmiyor, iki ayrı yere
+/// gönderiyor. Yönü baştaki ok söylüyor.
 class _BackupActionOption extends StatelessWidget {
   const _BackupActionOption({
     super.key,
-    required this.index,
+    required this.icon,
     required this.title,
     required this.onPressed,
-    this.note,
+    this.detail,
     this.isLast = false,
   });
 
-  final String index;
+  final IconData icon;
   final String title;
 
   /// `null` ise seçenek kapalı: dokunulamaz ve soluk görünür.
   final VoidCallback? onPressed;
 
-  /// Kapalıyken başlığın altında beliren gerekçe.
-  final String? note;
+  /// Adın altındaki tek satır: kapalıyken gerekçe, açıkken sonuç.
+  final String? detail;
 
   final bool isLast;
 
@@ -224,85 +314,82 @@ class _BackupActionOption extends StatelessWidget {
     // yedekleyemiyorum" sorusunu doğurur, soluk bir satır cevabını yanında
     // taşır.
     final tint = enabled ? palette.ink : palette.inkGhost;
+    final detail = this.detail;
 
     return Pressable(
       onPressed: onPressed,
       scale: 0.995,
-      semanticLabel: note == null ? title : '$title, $note',
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(22, 15, 22, 15),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                ExcludeSemantics(
-                  child: SizedBox(
-                    width: 44,
-                    child: Text(
-                      index,
-                      style: palette.overline.copyWith(
-                        color: enabled ? palette.inkFaint : palette.inkGhost,
-                        letterSpacing: 1.2,
+      semanticLabel: detail == null ? title : '$title. $detail',
+      child: ExcludeSemantics(
+        child: Stack(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 68),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(22, 17, 22, 17),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          icon,
+                          size: 19,
+                          color: enabled ? palette.ember : palette.inkGhost,
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: palette.body.copyWith(color: tint, fontSize: 17),
-                      ),
-                      if (note != null) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          note!,
-                          style: palette.caption.copyWith(
-                            color: palette.inkFaint,
-                            fontSize: 12.5,
-                            height: 1.3,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: palette.body.copyWith(
+                              color: tint,
+                              fontSize: 17,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
+                          if (detail != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              detail,
+                              style: palette.caption.copyWith(
+                                color: enabled
+                                    ? palette.inkFaint
+                                    : palette.inkGhost,
+                                fontSize: 12.5,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                ExcludeSemantics(
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                    color: enabled ? palette.inkSoft : palette.inkGhost,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isLast)
-            PositionedDirectional(
-              start: 22,
-              end: 0,
-              bottom: 0,
-              child: ColoredBox(
-                color: palette.hairline,
-                child: const SizedBox(height: 0.5),
               ),
             ),
-        ],
+            if (!isLast)
+              PositionedDirectional(
+                start: 22,
+                end: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  color: palette.hairline,
+                  child: const SizedBox(height: 0.5),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Şifreli yedek oluşturma ve geri yükleme akışı.
-///
-/// Kart yığını ya da standart Material sihirbazı değil: her aşama tek bir
-/// editoryal yüzey üzerinde, ince kurallar ve açık birincil eylemle ilerler.
-/// Blur, glass ve yüksek yarıçaplı yüzey kullanılmaz.
 class BackupPage extends StatefulWidget {
   const BackupPage.create({super.key}) : mode = BackupMode.create, file = null;
 
@@ -932,7 +1019,12 @@ class _RestorePreviewStage extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         Text(
-          context.l10n.backupFoundDate(context.l10n.stamp(manifest.createdAt)),
+          context.l10n.backupFoundDate(
+            context.l10n.stamp(
+              manifest.createdAt,
+              use24Hour: context.use24Hour,
+            ),
+          ),
           style: palette.label.copyWith(color: palette.inkSoft),
         ),
         const SizedBox(height: 34),

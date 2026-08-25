@@ -56,8 +56,9 @@ final class BackupNote {
     this.updatedAt,
     this.latitude,
     this.longitude,
-    this.remindAfterDays = 0,
-    this.remindRepeats = false,
+    this.remindAt,
+    this.remindEveryDays = 0,
+    this.legacyRemindAfterDays = 0,
     this.photoText,
   });
 
@@ -72,8 +73,11 @@ final class BackupNote {
     updatedAt: _time(json['updated']),
     latitude: (json['lat'] as num?)?.toDouble(),
     longitude: (json['lon'] as num?)?.toDouble(),
-    remindAfterDays: (json['remindDays'] as num?)?.toInt() ?? 0,
-    remindRepeats: (json['remindRepeats'] as bool?) ?? false,
+    remindAt: _time(json['remindAt']),
+    remindEveryDays: _remindEveryDaysOf(json),
+    legacyRemindAfterDays: json['remindAt'] == null
+        ? (json['remindDays'] as num?)?.toInt() ?? 0
+        : 0,
     photoText: json['photoText'] as String?,
   );
 
@@ -87,8 +91,20 @@ final class BackupNote {
   final DateTime? updatedAt;
   final double? latitude;
   final double? longitude;
-  final int remindAfterDays;
-  final bool remindRepeats;
+
+  /// Hatırlatmanın mutlak anı. Eski arşivlerde yok: o sürümler yalnızca "kaç
+  /// gün sonra" saklıyordu ve o soru cihazdan bağımsız bir an vermiyor.
+  final DateTime? remindAt;
+
+  /// Tekrar aralığı (gün); `0` ise tek atış.
+  final int remindEveryDays;
+
+  /// Yalnızca [remindAt] taşımayan eski arşivlerden gelir.
+  ///
+  /// Geri yükleme onu **geri yükleme anından** sayar: yedek dosyası ne zaman
+  /// alındığını bilse de o cihazdaki geri sayımın nerede olduğunu bilmiyor,
+  /// dolayısıyla dürüst tek başlangıç bu. Yeni arşivler bu alanı hiç yazmaz.
+  final int legacyRemindAfterDays;
 
   /// Karedeki yazının **katlanmış** hâli — arama indeksinin asıl değeri.
   ///
@@ -117,10 +133,20 @@ final class BackupNote {
     if (updatedAt != null) 'updated': updatedAt!.toUtc().millisecondsSinceEpoch,
     if (latitude != null) 'lat': latitude,
     if (longitude != null) 'lon': longitude,
-    if (remindAfterDays != 0) 'remindDays': remindAfterDays,
-    if (remindRepeats) 'remindRepeats': true,
+    if (remindAt != null) 'remindAt': remindAt!.toUtc().millisecondsSinceEpoch,
+    if (remindEveryDays != 0) 'remindEvery': remindEveryDays,
     if (photoText != null) 'photoText': photoText,
   };
+
+  /// Yeni arşivlerde aralık `remindEvery`'de. Eskilerde tek bir gün sayısı ve
+  /// bir tekrar bayrağı vardı: tekrar kapalıysa o sayı aralık değil, yalnızca
+  /// ilk anı bulmak içindi.
+  static int _remindEveryDaysOf(Map<String, Object?> json) {
+    final current = (json['remindEvery'] as num?)?.toInt();
+    if (current != null) return current;
+    if ((json['remindRepeats'] as bool?) != true) return 0;
+    return (json['remindDays'] as num?)?.toInt() ?? 0;
+  }
 
   static DateTime? _time(Object? value) => value == null
       ? null

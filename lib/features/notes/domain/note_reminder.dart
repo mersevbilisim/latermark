@@ -1,3 +1,75 @@
+/// Kullanıcının verdiği hatırlatma kararı.
+///
+/// Karar **bir andır**, bir gün sayısı değil. Eskiden "kaç gün sonra"
+/// saklanıyor, gerçek an her okumada bir çıpaya gün eklenerek yeniden
+/// hesaplanıyordu. Takvimden bir gün seçilebildiği anda o hesap yalan
+/// söylemeye başlar: kullanıcı "6 Eylül" der, kayıt "32 gün sonra" tutar ve
+/// ikisi yedekten dönüşte, yaz saati geçişinde ya da ertelemede birbirinden
+/// kayar. Artık kaydın tuttuğu şey doğrudan anın kendisi.
+///
+/// Tekrar da ayrı bir bayrak değil: [everyDays] sıfırsa hatırlatma tek
+/// atışlıktır. Böylece "tekrar açık ama aralık yok" gibi anlamsız bir durum
+/// yapısal olarak kurulamıyor.
+final class ReminderChoice {
+  const ReminderChoice({this.at, this.everyDays = 0});
+
+  const ReminderChoice.off() : this();
+
+  /// Hatırlatmanın (tekrarlıda ilk) geleceği mutlak an. `null` ise hatırlatma
+  /// yok.
+  final DateTime? at;
+
+  /// Tekrar aralığı (gün). `0` ise tek atış.
+  final int everyDays;
+
+  bool get isOn => at != null;
+
+  bool get repeats => at != null && everyDays > 0;
+
+  /// Takvimde seçilebilecek en uzak gün. Bundan uzağı için hatırlatma değil,
+  /// takvim uygulaması doğru araçtır.
+  static const maxDays = 365;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReminderChoice && other.at == at && other.everyDays == everyDays;
+
+  @override
+  int get hashCode => Object.hash(at, everyDays);
+
+  @override
+  String toString() => at == null
+      ? 'ReminderChoice(kapalı)'
+      : 'ReminderChoice($at, her $everyDays günde bir)';
+}
+
+/// Hatırlatma çaldıktan sonra nota tanınan pay.
+///
+/// "Hatırlat, sonra sil" tek bir sözdür; süreyi ayarlanabilir yapmak
+/// kullanıcıya ikinci bir karar daha yükler ve planlama ekranını bir forma
+/// çevirirdi. Bir saat, bildirimi görüp kareye dönmeye yeter — ama notu
+/// süresiz bekletmez.
+const kReminderExpiryGrace = Duration(hours: 1);
+
+/// Hatırlatmadan türetilen silinme anı.
+DateTime reminderExpiryFor(DateTime remindAt) =>
+    remindAt.add(kReminderExpiryGrace);
+
+/// Notun silinme anı hatırlatmasından mı türetilmiş?
+///
+/// Ayrı bir sütun tutulmuyor: silinme anı zaten kayıtta ve hatırlatmanın tam
+/// [kReminderExpiryGrace] sonrasına düşmesi bu kararın kendi imzası. Böylece
+/// hatırlatma kaldırıldığında ona bağlı silinme sözünün de kalkması gerektiği
+/// anlaşılıyor — kullanıcı hiç çalmayacak bir bildirimin ardından notunu
+/// kaybetmiyor.
+bool isReminderExpiry({
+  required DateTime? remindAt,
+  required DateTime? expiresAt,
+}) =>
+    remindAt != null &&
+    expiresAt != null &&
+    expiresAt == reminderExpiryFor(remindAt);
+
 /// Bir notun hatırlatma isteği; bildirim programının tek girdisi.
 ///
 /// Drift'in `Note` sınıfı yerine bu küçük tip kullanılıyor: buradaki hesabın
@@ -6,28 +78,24 @@
 final class ReminderRequest {
   const ReminderRequest({
     required this.noteId,
-    required this.anchorAt,
-    required this.remindAfterDays,
-    required this.repeats,
+    required this.remindAt,
+    this.everyDays = 0,
     this.expiresAt,
     this.allowNativeRepeat = true,
   });
 
   final int noteId;
 
-  /// Kullanıcının bu hatırlatma ayarını başlattığı an.
+  /// Hatırlatmanın kesin anı; tekrarlıda dizinin ilk halkası.
   ///
-  /// Fotoğrafın çekildiği andan özellikle ayrıdır. Galeriden yıllar önceki bir
-  /// kare seçilse bile "30 gün" bugünden sayılmalıdır.
-  final DateTime anchorAt;
+  /// Fotoğrafın çekildiği andan bağımsızdır: galeriden yıllar önceki bir kare
+  /// seçilse bile kullanıcının seçtiği gün neyse o yazılır.
+  final DateTime remindAt;
 
-  /// Hatırlatma aralığı (gün). `0` ise hatırlatma yok.
-  ///
-  /// Tekrar kapalıyken "kaç gün sonra", açıkken "kaç günde bir" demek. Tek
-  /// sayı, iki mod.
-  final int remindAfterDays;
+  /// Tekrar aralığı (gün). `0` ise tek atış.
+  final int everyDays;
 
-  final bool repeats;
+  bool get repeats => everyDays > 0;
 
   /// Notun otomatik silinme anı; süresizse `null`. Silinmiş bir notu
   /// hatırlatmanın anlamı yok.
@@ -122,29 +190,32 @@ int noteIdFromNotificationId(int notificationId) =>
 
 /// Bir notun bekleyen hatırlatma anları, en yakından uzağa.
 ///
-/// Tekrar kapalıyken en fazla bir an döner. Açıkken `anchorAt + k·gün`
-/// dizisinin gelecekte kalan ilk [limit] tanesi döner.
+/// Tek atışta en fazla bir an döner ve o an geçmişse hiçbir şey dönmez. Tekrar
+/// açıkken `remindAt + k·aralık` dizisinin gelecekte kalan ilk [limit] tanesi
+/// döner.
 ///
 /// Geçmiş oluşumlar döngüyle değil **aritmetikle** atlanıyor: bir yıl önce
 /// başlayan günlük tekrar için yüzlerce kez dönmek gerekmesin.
 List<DateTime> reminderOccurrences({
-  required DateTime anchorAt,
-  required int remindAfterDays,
+  required DateTime remindAt,
   required DateTime now,
-  bool repeats = false,
+  int everyDays = 0,
   DateTime? expiresAt,
   int limit = 1,
 }) {
-  if (remindAfterDays <= 0 || limit <= 0) return const [];
+  if (limit <= 0) return const [];
+  final repeats = everyDays > 0;
 
+  // Sıfırıncı adım anın kendisidir: kayıt artık "çıpa + aralık" değil, doğrudan
+  // hatırlatmanın anı.
   var step = repeats
-      ? (_localDayNumber(now) - _localDayNumber(anchorAt)) ~/ remindAfterDays
-      : 1;
-  if (step < 1) step = 1;
+      ? (localDayNumber(now) - localDayNumber(remindAt)) ~/ everyDays
+      : 0;
+  if (step < 0) step = 0;
 
   final occurrences = <DateTime>[];
   while (occurrences.length < limit) {
-    final at = shiftLocalCalendarDays(anchorAt, remindAfterDays * step);
+    final at = shiftLocalCalendarDays(remindAt, everyDays * step);
 
     // Silinme anındaki veya ondan sonraki bir bildirim hayalet bildirimdir.
     if (expiresAt != null && !expiresAt.isAfter(at)) break;
@@ -165,17 +236,16 @@ List<DateTime> reminderOccurrences({
 
 /// Bir not için gerçekten bekleyen ilk hatırlatma anı.
 DateTime? pendingReminderAt({
-  required DateTime anchorAt,
-  required int remindAfterDays,
+  required DateTime? remindAt,
   required DateTime now,
-  bool repeats = false,
+  int everyDays = 0,
   DateTime? expiresAt,
 }) {
+  if (remindAt == null) return null;
   final occurrences = reminderOccurrences(
-    anchorAt: anchorAt,
-    remindAfterDays: remindAfterDays,
+    remindAt: remindAt,
+    everyDays: everyDays,
     now: now,
-    repeats: repeats,
     expiresAt: expiresAt,
   );
   return occurrences.isEmpty ? null : occurrences.first;
@@ -207,10 +277,9 @@ List<ScheduledReminder> reminderSchedule({
         request.expiresAt == null &&
         request.allowNativeRepeat;
     final occurrences = reminderOccurrences(
-      anchorAt: request.anchorAt,
-      remindAfterDays: request.remindAfterDays,
+      remindAt: request.remindAt,
+      everyDays: request.everyDays,
       now: now,
-      repeats: request.repeats,
       expiresAt: request.expiresAt,
       limit: nativeRepeat ? 1 : maxPerNote,
     );
@@ -219,7 +288,7 @@ List<ScheduledReminder> reminderSchedule({
     pending[request.noteId] = occurrences;
     byId[request.noteId] = request;
     if (nativeRepeat) {
-      nativeIntervals[request.noteId] = Duration(days: request.remindAfterDays);
+      nativeIntervals[request.noteId] = Duration(days: request.everyDays);
     }
   }
 
@@ -238,12 +307,11 @@ List<ScheduledReminder> reminderSchedule({
       final request = byId[noteId]!;
       final repeatsNatively = nativeIntervals.containsKey(noteId);
       final occurrence = request.repeats && !repeatsNatively
-          ? (_stepOf(
-                      at: occurrences[round],
-                      anchorAt: request.anchorAt,
-                      interval: Duration(days: request.remindAfterDays),
-                    ) -
-                    1) %
+          ? _stepOf(
+                  at: occurrences[round],
+                  remindAt: request.remindAt,
+                  everyDays: request.everyDays,
+                ) %
                 kOccurrenceSpan
           : round;
       schedule.add(
@@ -264,9 +332,9 @@ List<ScheduledReminder> reminderSchedule({
 
 int _stepOf({
   required DateTime at,
-  required DateTime anchorAt,
-  required Duration interval,
-}) => (_localDayNumber(at) - _localDayNumber(anchorAt)) ~/ interval.inDays;
+  required DateTime remindAt,
+  required int everyDays,
+}) => (localDayNumber(at) - localDayNumber(remindAt)) ~/ everyDays;
 
 /// Yerel takvimde gün ekler; `Duration(days: 1)` gibi 24 saat eklemez.
 /// Böylece yaz/kış saati geçişinde kullanıcının seçtiği duvar saati korunur.
@@ -284,7 +352,15 @@ DateTime shiftLocalCalendarDays(DateTime at, int days) {
   );
 }
 
-int _localDayNumber(DateTime value) {
+/// İki anın kaç **takvim günü** ayrı olduğu; saatler yok sayılır.
+///
+/// Aralık hesabı buradan geçiyor: bu akşam 23:00'te seçilen "yarın" bir gündür,
+/// 25 saat sonrası olması onu iki gün yapmaz.
+int localCalendarDaysBetween(DateTime from, DateTime to) =>
+    localDayNumber(to) - localDayNumber(from);
+
+/// Yerel takvimde günün sıra numarası. Aynı güne düşen iki an için eşittir.
+int localDayNumber(DateTime value) {
   final local = value.toLocal();
   return DateTime.utc(
         local.year,

@@ -11,13 +11,18 @@ class NoteOptionLabel extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.detail,
     required this.active,
+    this.detail,
   });
 
   final IconData icon;
   final String title;
-  final String detail;
+
+  /// Altındaki açıklama satırı. Boş bırakılabilir: bir anahtarın ne yaptığı
+  /// adından anlaşılıyorsa, altına bir cümle daha koymak satırı iki kata
+  /// çıkarıp hiçbir şey söylemiyor.
+  final String? detail;
+
   final bool active;
 
   @override
@@ -25,25 +30,21 @@ class NoteOptionLabel extends StatelessWidget {
     final palette = context.palette;
     final color = active ? palette.ember : palette.inkFaint;
 
+    final detail = this.detail;
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: detail == null
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
+        // Yalnız ikon. Altındaki kısa dikey çizgi bir "kayıt işareti" olsun
+        // diye vardı; satırın kendisi zaten kayıt dilinde konuşuyor ve çizgi
+        // hizasız bir çentik gibi duruyordu.
         ExcludeSemantics(
           child: SizedBox(
             width: 21,
-            height: 39,
-            child: Column(
-              children: [
-                Icon(icon, size: 18, color: color),
-                const Spacer(),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: 2,
-                  height: 8,
-                  color: active ? palette.ember : palette.hairlineBright,
-                ),
-              ],
-            ),
+            height: 21,
+            child: Icon(icon, size: 18, color: color),
           ),
         ),
         const SizedBox(width: 11),
@@ -59,19 +60,21 @@ class NoteOptionLabel extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 3),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: Text(
-                  detail,
-                  key: ValueKey(detail),
-                  style: palette.caption.copyWith(
-                    color: palette.inkFaint,
-                    fontSize: 12.5,
-                    height: 1.32,
+              if (detail != null) ...[
+                const SizedBox(height: 3),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    detail,
+                    key: ValueKey(detail),
+                    style: palette.caption.copyWith(
+                      color: palette.inkFaint,
+                      fontSize: 12.5,
+                      height: 1.32,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

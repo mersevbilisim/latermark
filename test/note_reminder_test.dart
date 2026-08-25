@@ -2,33 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/features/notes/domain/note_reminder.dart';
 
 void main() {
-  final anchorAt = DateTime(2026, 8, 1, 12);
+  final base = DateTime(2026, 8, 1, 12);
   final now = DateTime(2026, 8, 2, 12);
+
+  /// Kaydın tuttuğu an: temel günden [days] gün sonrası, aynı saatte.
+  DateTime day(int days) => shiftLocalCalendarDays(base, days);
 
   group('tek atışlık hatırlatma', () {
     test('gelecekteki hatırlatma anını üretir', () {
-      expect(
-        pendingReminderAt(anchorAt: anchorAt, remindAfterDays: 3, now: now),
-        DateTime(2026, 8, 4, 12),
-      );
+      expect(pendingReminderAt(remindAt: day(3), now: now), day(3));
     });
 
     test('geçmiş veya kapalı hatırlatmayı etkin saymaz', () {
-      expect(
-        pendingReminderAt(anchorAt: anchorAt, remindAfterDays: 0, now: now),
-        isNull,
-      );
-      expect(
-        pendingReminderAt(anchorAt: anchorAt, remindAfterDays: 1, now: now),
-        isNull,
-      );
+      expect(pendingReminderAt(remindAt: null, now: now), isNull);
+      expect(pendingReminderAt(remindAt: day(1), now: now), isNull);
+    });
+
+    test('tam oluşum anı geçmiş sayılır', () {
+      expect(pendingReminderAt(remindAt: now, now: now), isNull);
     });
 
     test('not daha önce silinecekse hatırlatmayı etkin saymaz', () {
       expect(
         pendingReminderAt(
-          anchorAt: anchorAt,
-          remindAfterDays: 3,
+          remindAt: day(3),
           expiresAt: DateTime(2026, 8, 3, 12),
           now: now,
         ),
@@ -40,13 +37,7 @@ void main() {
   group('tekrarlayan hatırlatma', () {
     test('aralık boyunca ardışık anlar üretir', () {
       expect(
-        reminderOccurrences(
-          anchorAt: anchorAt,
-          remindAfterDays: 3,
-          repeats: true,
-          now: now,
-          limit: 3,
-        ),
+        reminderOccurrences(remindAt: day(3), everyDays: 3, now: now, limit: 3),
         [
           DateTime(2026, 8, 4, 12),
           DateTime(2026, 8, 7, 12),
@@ -58,9 +49,8 @@ void main() {
     test('geçmişte kalan oluşumları aritmetikle atlar', () {
       expect(
         reminderOccurrences(
-          anchorAt: anchorAt,
-          remindAfterDays: 1,
-          repeats: true,
+          remindAt: day(1),
+          everyDays: 1,
           now: DateTime(2026, 8, 10, 15),
           limit: 2,
         ),
@@ -68,12 +58,23 @@ void main() {
       );
     });
 
+    test('saklanan ilk halka gelecekteyse dizinin başı odur', () {
+      expect(
+        reminderOccurrences(
+          remindAt: day(5),
+          everyDays: 30,
+          now: now,
+          limit: 2,
+        ),
+        [DateTime(2026, 8, 6, 12), DateTime(2026, 9, 5, 12)],
+      );
+    });
+
     test('tam oluşum anını geçmiş sayar', () {
       expect(
         reminderOccurrences(
-          anchorAt: anchorAt,
-          remindAfterDays: 2,
-          repeats: true,
+          remindAt: day(2),
+          everyDays: 2,
           now: DateTime(2026, 8, 5, 12),
         ),
         [DateTime(2026, 8, 7, 12)],
@@ -83,9 +84,8 @@ void main() {
     test('silinme anından sonrasını planlamaz', () {
       expect(
         reminderOccurrences(
-          anchorAt: anchorAt,
-          remindAfterDays: 2,
-          repeats: true,
+          remindAt: day(2),
+          everyDays: 2,
           expiresAt: DateTime(2026, 8, 8),
           now: now,
           limit: 60,
@@ -101,12 +101,30 @@ void main() {
     test('pendingReminderAt sıradaki oluşumu verir', () {
       expect(
         pendingReminderAt(
-          anchorAt: anchorAt,
-          remindAfterDays: 1,
-          repeats: true,
+          remindAt: day(1),
+          everyDays: 1,
           now: DateTime(2026, 8, 10, 15),
         ),
         DateTime(2026, 8, 11, 12),
+      );
+    });
+  });
+
+  group('takvim günü', () {
+    test('saat farkı gün sayısını değiştirmez', () {
+      expect(
+        localCalendarDaysBetween(
+          DateTime(2026, 8, 2, 23, 50),
+          DateTime(2026, 8, 3, 0, 10),
+        ),
+        1,
+      );
+      expect(
+        localCalendarDaysBetween(
+          DateTime(2026, 8, 2, 0, 10),
+          DateTime(2026, 8, 2, 23, 50),
+        ),
+        0,
       );
     });
   });
@@ -135,23 +153,24 @@ void main() {
   group('program', () {
     ReminderRequest request(
       int id, {
-      required int days,
-      bool repeats = false,
-      DateTime? anchor,
+      required DateTime at,
+      int everyDays = 0,
       DateTime? expiresAt,
       bool allowNativeRepeat = true,
     }) => ReminderRequest(
       noteId: id,
-      anchorAt: anchor ?? anchorAt,
-      remindAfterDays: days,
-      repeats: repeats,
+      remindAt: at,
+      everyDays: everyDays,
       expiresAt: expiresAt,
       allowNativeRepeat: allowNativeRepeat,
     );
 
-    test('hatırlatması olmayan not programa girmez', () {
+    test('geçmişte kalmış tek atış programa girmez', () {
       final schedule = reminderSchedule(
-        requests: [request(1, days: 0), request(2, days: 3)],
+        requests: [
+          request(1, at: day(-2)),
+          request(2, at: day(3)),
+        ],
         now: now,
       );
       expect(schedule.map((item) => item.noteId), [2]);
@@ -159,7 +178,7 @@ void main() {
 
     test('süresiz tekrar işletim sisteminde tek kayıt kullanır', () {
       final schedule = reminderSchedule(
-        requests: [request(1, days: 30, repeats: true)],
+        requests: [request(1, at: day(30), everyDays: 30)],
         now: now,
       );
 
@@ -170,7 +189,7 @@ void main() {
 
     test('365 gün gerçekten 365 günlük native aralıktır', () {
       final schedule = reminderSchedule(
-        requests: [request(1, days: 365, repeats: true)],
+        requests: [request(1, at: day(365), everyDays: 365)],
         now: now,
       );
       expect(schedule.single.repeatInterval, const Duration(days: 365));
@@ -179,7 +198,7 @@ void main() {
     test('native fazı kuramayan platform kesin tek-atış dizisi üretir', () {
       final schedule = reminderSchedule(
         requests: [
-          request(9, days: 3, repeats: true, allowNativeRepeat: false),
+          request(9, at: day(3), everyDays: 3, allowNativeRepeat: false),
         ],
         now: now,
         budget: 4,
@@ -198,8 +217,8 @@ void main() {
     test('exact tekrar penceresi ilerlerken oluşum kimliği sabit kalır', () {
       final requestValue = request(
         9,
-        days: 3,
-        repeats: true,
+        at: day(3),
+        everyDays: 3,
         allowNativeRepeat: false,
       );
       final first = reminderSchedule(
@@ -227,7 +246,12 @@ void main() {
       () {
         final schedule = reminderSchedule(
           requests: [
-            request(3, days: 2, repeats: true, expiresAt: DateTime(2026, 8, 8)),
+            request(
+              3,
+              at: day(2),
+              everyDays: 2,
+              expiresAt: DateTime(2026, 8, 8),
+            ),
           ],
           now: now,
         );
@@ -245,8 +269,8 @@ void main() {
     test('sonlu oluşum kimliği uygulama yeniden açılınca değişmez', () {
       final requestValue = request(
         3,
-        days: 1,
-        repeats: true,
+        at: day(1),
+        everyDays: 1,
         expiresAt: DateTime(2026, 10),
       );
       final first = reminderSchedule(
@@ -270,8 +294,8 @@ void main() {
     test('her not ikinci oluşumundan önce birincisini alır', () {
       final schedule = reminderSchedule(
         requests: [
-          request(1, days: 1, repeats: true, expiresAt: DateTime(2026, 9)),
-          request(2, days: 1, repeats: true, expiresAt: DateTime(2026, 9)),
+          request(1, at: day(1), everyDays: 1, expiresAt: DateTime(2026, 9)),
+          request(2, at: day(1), everyDays: 1, expiresAt: DateTime(2026, 9)),
         ],
         now: now,
         budget: 3,
@@ -282,9 +306,9 @@ void main() {
     test('bütçe ilk turda dolarsa en yakın hatırlatmalar kazanır', () {
       final schedule = reminderSchedule(
         requests: [
-          request(1, days: 30),
-          request(2, days: 3),
-          request(3, days: 10),
+          request(1, at: day(30)),
+          request(2, at: day(3)),
+          request(3, at: day(10)),
         ],
         now: now,
         budget: 2,
@@ -294,7 +318,7 @@ void main() {
 
     test('varsayılan bütçe iOS sınırının altında kalır', () {
       final schedule = reminderSchedule(
-        requests: [for (var id = 1; id <= 70; id++) request(id, days: id)],
+        requests: [for (var id = 1; id <= 70; id++) request(id, at: day(id))],
         now: now,
       );
       expect(schedule, hasLength(kPendingReminderBudget));
@@ -304,7 +328,7 @@ void main() {
     test('tek notun faz koruyan kayan penceresi küçük tutulur', () {
       final schedule = reminderSchedule(
         requests: [
-          request(9, days: 3, repeats: true, allowNativeRepeat: false),
+          request(9, at: day(3), everyDays: 3, allowNativeRepeat: false),
         ],
         now: now,
         maxPerNote: kRollingReminderWindowPerNote,

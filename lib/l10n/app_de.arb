@@ -114,9 +114,9 @@
   "backupManageDescription": "Erstelle eine verschlüsselte Kopie oder stelle ein vorhandenes Backup wieder her.",
   "backupCreateTitle": "Backup erstellen",
   "backupNothingToSave": "Es gibt noch nichts zu sichern.",
-  "backupCreateDescription": "Alles auf diesem Gerät, versiegelt in einer verschlüsselten Datei.",
+  "backupCreateDescription": "Alles in deinem Latermark, in einer einzigen verschlüsselten Datei.",
   "backupRestoreTitle": "Backup wiederherstellen",
-  "backupRestoreDescription": "Alles hier durch eine Backup-Datei ersetzen.",
+  "backupRestoreDescription": "Stell dein Backup wieder her und hol dir alle Notizen zurück.",
   "backupPasswordTitle": "Passwort wählen",
   "backupPasswordSubtitle": "Dieses Passwort ist der einzige Schlüssel zu deinem Backup.",
   "backupPasswordLabel": "Passwort",
@@ -154,7 +154,7 @@
   "backupErrorCorrupt": "Diese Datei ist beschädigt oder unvollständig.",
   "backupErrorUnsupported": "Dieses Backup stammt aus einer neueren Version von Latermark.",
   "backupErrorGeneric": "Etwas ist schiefgelaufen. Versuch es erneut.",
-  "paywallFeatureBackup": "Verschlüsseltes Backup",
+  "paywallFeatureBackup": "Sicheres Backup",
   "paywallFeatureBackupDetail": "Nimm Notizen und Aufnahmen mit aufs neue Handy.",
   "reminderSuffixRepeating": "Tage · wiederholt",
   "reminderRepeatToggle": "Erinnerung wiederholen",
@@ -221,6 +221,10 @@
   "settingsTitle": "Einstellungen",
   "sectionAppearance": "Darstellung",
   "sectionReminder": "Erinnerungen",
+  "sectionSharing": "Teilen",
+  "shareSignatureTitle": "Signatur beim Teilen",
+  "shareSignatureDescription": "Geteilte Notizen enden mit einer Zeile, die Latermark nennt. Aus geht dein Text genau so, wie du ihn geschrieben hast.",
+  "shareSignature": "Gesendet mit Latermark für {platform}",
   "themeTitle": "Erscheinungsbild",
   "themeDescription": "Systemdarstellung übernehmen oder eine feste Darstellung wählen.",
   "themeSystem": "System",
@@ -382,8 +386,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "Manche Aufnahmen sollten bleiben.",
-  "paywallSubtitle": "Latermark ist zum Loslassen gemacht. Pro ist für das, was bleiben soll.",
+  "paywallHeadline": "Lass das Wichtige nicht zurück.",
+  "paywallSubtitle": "Latermark Pro holt alles zurück, worauf du zurückkommen willst – genau im richtigen Moment.",
   "paywallOwnedCount": "{count, plural, one{Du hast derzeit 1 Aufnahme.} other{Du hast derzeit {count} Aufnahmen.}}",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -392,8 +396,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "Unbegrenzte Aufnahmen",
-  "paywallFeatureUnlimitedDetail": "Kostenlos bleiben bis zu {limit} Aufnahmen.",
+  "paywallFeatureUnlimited": "Unbegrenzte Notizen",
+  "paywallFeatureUnlimitedDetail": "Nicht {limit}, sondern völlig unbegrenzt.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -404,7 +408,7 @@
   "paywallFeatureCustomRetention": "Dauer frei wählen",
   "paywallFeatureCustomRetentionDetail": "Mehr als 3 Tage oder 1 Woche.",
   "paywallFeatureReminders": "Erinnerungen",
-  "paywallFeatureRemindersDetail": "Ein leiser Hinweis für das, was zählt.",
+  "paywallFeatureRemindersDetail": "Erinnert dich genau dann, wenn es nötig ist.",
   "paywallFeatureWidget": "Widgets für Home- & Sperrbildschirm",
   "paywallFeatureWidgetDetail": "Die neueste Aufnahme immer im Blick.",
   "@paywallPerMonth": {
@@ -433,7 +437,7 @@
   "paywallNoSubscription": "Kein Abo. Einmal zahlen, Pro behalten.",
   "paywallOwned": "Latermark Pro gehört dir.",
   "paywallFeatureNoSubscription": "Kein Abonnement",
-  "paywallFeatureNoSubscriptionDetail": "Andere Apps verlangen monatlich Geld. Latermark nicht.",
+  "paywallFeatureNoSubscriptionDetail": "Latermark braucht kein Abo. Es gehört dir für immer.",
   "paywallCta": "Pro freischalten",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "Mit Kamerazugriff kannst du Fotos für deine Notizen aufnehmen.",
   "photoLibraryUsageDescription": "Mit Fotozugriff kannst du Bilder aus deiner Mediathek zu Notizen hinzufügen.",
   "actionShare": "Teilen",
-  "shareNoteSemantic": "Foto und Notiz teilen"
+  "shareNoteSemantic": "Foto und Notiz teilen",
+  "reminderSwitchLabel": "Erinnere mich daran",
+  "actionSaveAndRemind": "Speichern und erinnern",
+  "reminderScheduleSaved": "Gespeichert",
+  "reminderScheduleQuestion": "Wann soll dieses Bild zurückkommen?",
+  "reminderTimeLabel": "Uhrzeit",
+  "reminderOnceTitle": "Einmal erinnern",
+  "reminderRepeatTitle": "Immer wieder erinnern",
+  "reminderSkip": "Jetzt nicht",
+  "reminderDeleteAfterLabel": "1 Stunde nach der Erinnerung löschen"
 }

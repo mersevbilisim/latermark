@@ -300,13 +300,13 @@ class L10nKo extends L10n {
   String get backupNothingToSave => '아직 백업할 것이 없습니다.';
 
   @override
-  String get backupCreateDescription => '이 기기의 모든 것을 암호화된 파일 하나에 담습니다.';
+  String get backupCreateDescription => 'Latermark에 담긴 모든 것을 암호화된 파일 하나에.';
 
   @override
   String get backupRestoreTitle => '백업 복원';
 
   @override
-  String get backupRestoreDescription => '여기 있는 모든 것을 백업 파일로 바꿉니다.';
+  String get backupRestoreDescription => '백업을 복원해 모든 메모를 되찾으세요.';
 
   @override
   String get backupPasswordTitle => '비밀번호 설정';
@@ -430,7 +430,7 @@ class L10nKo extends L10n {
   String get backupErrorGeneric => '문제가 발생했습니다. 다시 시도하세요.';
 
   @override
-  String get paywallFeatureBackup => '암호화 백업';
+  String get paywallFeatureBackup => '안전한 백업';
 
   @override
   String get paywallFeatureBackupDetail => '메모와 사진을 새 휴대폰으로 옮기세요.';
@@ -592,6 +592,21 @@ class L10nKo extends L10n {
 
   @override
   String get sectionReminder => '리마인더';
+
+  @override
+  String get sectionSharing => '공유';
+
+  @override
+  String get shareSignatureTitle => '공유 서명';
+
+  @override
+  String get shareSignatureDescription =>
+      '공유하는 메모 끝에 Latermark 한 줄이 붙습니다. 끄면 작성한 문장만 그대로 전송됩니다.';
+
+  @override
+  String shareSignature(String platform) {
+    return 'Latermark for $platform에서 보냄';
+  }
 
   @override
   String get themeTitle => '테마';
@@ -780,11 +795,11 @@ class L10nKo extends L10n {
   String get proBadge => 'PRO';
 
   @override
-  String get paywallHeadline => '남겨야 할 장면도 있으니까.';
+  String get paywallHeadline => '소중한 건 그냥 흘려보내지 마세요.';
 
   @override
   String get paywallSubtitle =>
-      'Latermark는 잊기 위해 만들었습니다. Pro는 잊고 싶지 않은 장면을 위해.';
+      'Latermark Pro는 다시 보고 싶은 모든 것을 꼭 맞는 순간에 다시 눈앞에 가져다줍니다.';
 
   @override
   String paywallOwnedCount(int count) {
@@ -792,11 +807,11 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get paywallFeatureUnlimited => '기록 무제한';
+  String get paywallFeatureUnlimited => '무제한 메모';
 
   @override
   String paywallFeatureUnlimitedDetail(int limit) {
-    return '무료 버전은 $limit개까지 보관합니다.';
+    return '$limit개가 아니라 완전히 무제한.';
   }
 
   @override
@@ -809,7 +824,7 @@ class L10nKo extends L10n {
   String get paywallFeatureReminders => '리마인더';
 
   @override
-  String get paywallFeatureRemindersDetail => '중요한 순간을 조용히 알려드려요.';
+  String get paywallFeatureRemindersDetail => '필요한 바로 그때 알려줍니다.';
 
   @override
   String get paywallFeatureWidget => '홈 및 잠금 화면 위젯';
@@ -835,7 +850,8 @@ class L10nKo extends L10n {
   String get paywallFeatureNoSubscription => '구독 없음';
 
   @override
-  String get paywallFeatureNoSubscriptionDetail => '매달 결제할 필요 없이 한 번이면 됩니다.';
+  String get paywallFeatureNoSubscriptionDetail =>
+      'Latermark은 구독이 필요 없습니다. 한 번 사면 평생 그대로입니다.';
 
   @override
   String get paywallCta => 'Pro 잠금 해제';
@@ -938,4 +954,31 @@ class L10nKo extends L10n {
 
   @override
   String get shareNoteSemantic => '사진과 메모 공유';
+
+  @override
+  String get reminderSwitchLabel => '이 사진 알려주기';
+
+  @override
+  String get actionSaveAndRemind => '저장하고 알림 설정';
+
+  @override
+  String get reminderScheduleSaved => '저장됨';
+
+  @override
+  String get reminderScheduleQuestion => '이 사진을 언제 다시 볼까요?';
+
+  @override
+  String get reminderTimeLabel => '시각';
+
+  @override
+  String get reminderOnceTitle => '한 번만 알림';
+
+  @override
+  String get reminderRepeatTitle => '계속 알림';
+
+  @override
+  String get reminderSkip => '나중에';
+
+  @override
+  String get reminderDeleteAfterLabel => '알림 1시간 뒤에 삭제';
 }

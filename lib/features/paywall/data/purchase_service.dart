@@ -8,6 +8,17 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'debug_entitlement.dart';
 
+/// Teşhis kaydı — yalnız geliştirme yapılarında.
+///
+/// `debugPrint` adının aksine release'de de yazar: mağaza akışının paket
+/// kimliği, sürümü ve hata metinleri üretimde cihaz loglarına düşüyordu.
+/// Kimse için sır değil ama ödeme akışının teşhisini bedavaya dağıtmanın da
+/// bir sebebi yok. [kDebugMode] release'de derleme zamanı sabiti `false`;
+/// çağrılar ikiliye hiç girmiyor.
+void _log(String message) {
+  if (kDebugMode) debugPrint(message);
+}
+
 /// Mağaza bağlantısı: fiyat, satın alma ve geri yükleme.
 ///
 /// Ürün **tek seferlik** (non-consumable). Bu, sunucusuz çalışmayı mümkün
@@ -87,7 +98,7 @@ class PurchaseService {
     // ya da askıda kalmış bir satın alma, bağlanır bağlanmaz buraya düşer.
     _subscription = _store.purchaseStream.listen(
       _onPurchases,
-      onError: (Object error) => debugPrint('Satın alma akışı hatası: $error'),
+      onError: (Object error) => _log('Satın alma akışı hatası: $error'),
     );
 
     // Fiyat kataloğu ve ödeme kullanılabilirliği, mevcut hakkı okumaktan ayrı
@@ -101,21 +112,21 @@ class PurchaseService {
         // Sessizce dönmek teşhisi imkânsız kılıyordu. Bu satırı görüyorsan
         // sorun bizde değil: simülatörde StoreKit kum havuzu yok, ya da
         // cihazda satın alma kısıtlanmış (Ekran Süresi → İçerik ve Gizlilik).
-        debugPrint('[IAP] Mağaza kullanılamıyor (isAvailable=false).');
+        _log('[IAP] Mağaza kullanılamıyor (isAvailable=false).');
         return;
       }
     } catch (error) {
-      debugPrint('[IAP] Mağazaya ulaşılamadı: $error');
+      _log('[IAP] Mağazaya ulaşılamadı: $error');
       return;
     }
     // Çalışan ikilinin gerçek paket kimliği. Proje dosyasında doğru görünüp
     // imzalamada başka bir kimlikle çıkan durumları eler; ürün bulunamadığında
     // ilk bakılacak yer burasıdır.
     final info = await PackageInfo.fromPlatform();
-    debugPrint(
+    _log(
       '[IAP] paket=${info.packageName} sürüm=${info.version}+${info.buildNumber}',
     );
-    debugPrint('[IAP] Mağaza hazır, ürün sorgulanıyor: $productId');
+    _log('[IAP] Mağaza hazır, ürün sorgulanıyor: $productId');
     await _loadProduct();
   }
 
@@ -160,7 +171,7 @@ class PurchaseService {
           //  2. Ürün henüz "Ready to Submit" durumuna gelmemiş ya da yeni
           //     oluşturulmuş (yayılması saatler alabiliyor).
           //  3. Ürün kimliği veya paket kimliği eşleşmiyor.
-          debugPrint(
+          _log(
             '[IAP] Ürün bulunamadı: $productId '
             '(hata=${response.error}, gelen=${response.productDetails.length})',
           );
@@ -178,22 +189,20 @@ class PurchaseService {
         if (match != null) {
           _product = match;
           price.value = match.price;
-          debugPrint('[IAP] Ürün geldi: ${match.id} — ${match.price}');
+          _log('[IAP] Ürün geldi: ${match.id} — ${match.price}');
           return;
         }
 
         final error = response.error;
         if (error != null) {
-          debugPrint(
+          _log(
             '[IAP] Ürün okunamadı (${attempt + 1}/$_productAttempts): $error',
           );
         } else {
-          debugPrint(
-            '[IAP] Sorgu boş döndü (${attempt + 1}/$_productAttempts).',
-          );
+          _log('[IAP] Sorgu boş döndü (${attempt + 1}/$_productAttempts).');
         }
       } catch (error) {
-        debugPrint(
+        _log(
           'Ürün sorgusu başarısız (${attempt + 1}/$_productAttempts): $error',
         );
       }
@@ -281,7 +290,7 @@ class PurchaseService {
     } catch (error) {
       // Kanal/StoreKit doğrulama hatası sahip değil demek değildir. Son kesin
       // değere ve Drift cache'ine dokunma; çevrimdışı ödeyen kullanıcı düşmez.
-      debugPrint('iOS Pro hakkı doğrulanamadı: $error');
+      _log('iOS Pro hakkı doğrulanamadı: $error');
       return null;
     }
   }
@@ -308,7 +317,7 @@ class PurchaseService {
     } catch (error) {
       // İptal, bağlantı ve doğrulama hataları "satın almamış" değildir. Son
       // kesin önbelleği koru ve arayüzün hata sonucunu göstermesine izin ver.
-      debugPrint('iOS Pro geri yükleme doğrulanamadı: $error');
+      _log('iOS Pro geri yükleme doğrulanamadı: $error');
       return null;
     }
   }
@@ -325,7 +334,7 @@ class PurchaseService {
       await _store.restorePurchases().timeout(_storeTimeout);
       return await result.future.timeout(_storeTimeout);
     } catch (error) {
-      debugPrint('Android Pro hakkı doğrulanamadı: $error');
+      _log('Android Pro hakkı doğrulanamadı: $error');
       return null;
     } finally {
       if (identical(_androidRestoreResult, result)) {
@@ -348,7 +357,7 @@ class PurchaseService {
         purchaseParam: PurchaseParam(productDetails: _product!),
       );
     } catch (error) {
-      debugPrint('Satın alma başlatılamadı: $error');
+      _log('Satın alma başlatılamadı: $error');
       busy.value = false;
     }
     // Başarı/iptal `purchaseStream` üzerinden gelir; `busy` orada kapanır.
@@ -382,7 +391,7 @@ class PurchaseService {
       }
       return await _refreshPlatformEntitlement();
     } catch (error) {
-      debugPrint('Geri yükleme başarısız: $error');
+      _log('Geri yükleme başarısız: $error');
       return null;
     } finally {
       busy.value = false;
@@ -405,7 +414,7 @@ class PurchaseService {
 
         case PurchaseStatus.error:
           hasError = true;
-          debugPrint('Satın alma hatası: ${purchase.error}');
+          _log('Satın alma hatası: ${purchase.error}');
 
         case PurchaseStatus.canceled:
           break;
@@ -420,7 +429,7 @@ class PurchaseService {
         } catch (error) {
           // Tamamlama/acknowledge hatası satın alımın sahte olduğunu göstermez;
           // sonraki açılışta tekrar teslim edilir. Hak sonucunu kaybetme.
-          debugPrint('Satın alma tamamlanamadı: $error');
+          _log('Satın alma tamamlanamadı: $error');
         }
       }
     }

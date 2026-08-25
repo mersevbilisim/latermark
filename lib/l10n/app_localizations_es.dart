@@ -321,14 +321,14 @@ class L10nEs extends L10n {
 
   @override
   String get backupCreateDescription =>
-      'Todo lo de este dispositivo, sellado en un archivo cifrado.';
+      'Todo lo que tienes en Latermark, en un único archivo cifrado.';
 
   @override
   String get backupRestoreTitle => 'Restaurar una copia';
 
   @override
   String get backupRestoreDescription =>
-      'Reemplaza todo lo de aquí con un archivo de copia.';
+      'Restaura tu copia y recupera todas tus notas.';
 
   @override
   String get backupPasswordTitle => 'Elige una contraseña';
@@ -458,7 +458,7 @@ class L10nEs extends L10n {
   String get backupErrorGeneric => 'Algo salió mal. Inténtalo de nuevo.';
 
   @override
-  String get paywallFeatureBackup => 'Copia cifrada';
+  String get paywallFeatureBackup => 'Copia de seguridad protegida';
 
   @override
   String get paywallFeatureBackupDetail =>
@@ -647,6 +647,21 @@ class L10nEs extends L10n {
 
   @override
   String get sectionReminder => 'Recordatorios';
+
+  @override
+  String get sectionSharing => 'Compartir';
+
+  @override
+  String get shareSignatureTitle => 'Firma al compartir';
+
+  @override
+  String get shareSignatureDescription =>
+      'Las notas que compartes terminan con una línea que menciona Latermark. Si lo desactivas, tu texto se envía tal cual.';
+
+  @override
+  String shareSignature(String platform) {
+    return 'Enviado con Latermark para $platform';
+  }
 
   @override
   String get themeTitle => 'Tema';
@@ -899,11 +914,11 @@ class L10nEs extends L10n {
   String get proBadge => 'PRO';
 
   @override
-  String get paywallHeadline => 'Hay capturas que merecen quedarse.';
+  String get paywallHeadline => 'No dejes atrás lo que importa.';
 
   @override
   String get paywallSubtitle =>
-      'Latermark está hecho para dejar ir. Pro, para aquello que quieres conservar.';
+      'Latermark Pro te devuelve todo aquello a lo que querrás volver, justo en el momento adecuado.';
 
   @override
   String paywallOwnedCount(int count) {
@@ -917,11 +932,11 @@ class L10nEs extends L10n {
   }
 
   @override
-  String get paywallFeatureUnlimited => 'Capturas ilimitadas';
+  String get paywallFeatureUnlimited => 'Notas ilimitadas';
 
   @override
   String paywallFeatureUnlimitedDetail(int limit) {
-    return 'La versión gratuita conserva hasta $limit.';
+    return 'No $limit: totalmente ilimitadas.';
   }
 
   @override
@@ -936,7 +951,7 @@ class L10nEs extends L10n {
 
   @override
   String get paywallFeatureRemindersDetail =>
-      'Un aviso discreto para lo importante.';
+      'Te lo recuerda justo cuando hace falta.';
 
   @override
   String get paywallFeatureWidget => 'Widgets de inicio y pantalla bloqueada';
@@ -965,7 +980,7 @@ class L10nEs extends L10n {
 
   @override
   String get paywallFeatureNoSubscriptionDetail =>
-      'La mayoría de apps cobran cada mes. Latermark no.';
+      'Latermark no necesita suscripción. Es tuyo de por vida.';
 
   @override
   String get paywallCta => 'Desbloquear Pro';
@@ -1076,4 +1091,31 @@ class L10nEs extends L10n {
 
   @override
   String get shareNoteSemantic => 'Compartir foto y nota';
+
+  @override
+  String get reminderSwitchLabel => 'Recuérdamelo';
+
+  @override
+  String get actionSaveAndRemind => 'Guardar y recordar';
+
+  @override
+  String get reminderScheduleSaved => 'Guardado';
+
+  @override
+  String get reminderScheduleQuestion => '¿Cuándo debe volver esta foto?';
+
+  @override
+  String get reminderTimeLabel => 'Hora';
+
+  @override
+  String get reminderOnceTitle => 'Recordar una vez';
+
+  @override
+  String get reminderRepeatTitle => 'Recordar siempre';
+
+  @override
+  String get reminderSkip => 'Ahora no';
+
+  @override
+  String get reminderDeleteAfterLabel => 'Eliminar 1 hora después de recordar';
 }

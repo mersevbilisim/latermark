@@ -114,9 +114,9 @@
   "backupManageDescription": "Crée une copie chiffrée ou restaure une sauvegarde existante.",
   "backupCreateTitle": "Créer une sauvegarde",
   "backupNothingToSave": "Il n’y a encore rien à sauvegarder.",
-  "backupCreateDescription": "Tout ce qui est sur cet appareil, scellé dans un fichier chiffré.",
+  "backupCreateDescription": "Tout ce que contient votre Latermark, dans un seul fichier chiffré.",
   "backupRestoreTitle": "Restaurer une sauvegarde",
-  "backupRestoreDescription": "Remplacer tout ici par un fichier de sauvegarde.",
+  "backupRestoreDescription": "Restaurez votre sauvegarde et récupérez toutes vos notes.",
   "backupPasswordTitle": "Choisis un mot de passe",
   "backupPasswordSubtitle": "Ce mot de passe est la seule clé de ta sauvegarde.",
   "backupPasswordLabel": "Mot de passe",
@@ -154,7 +154,7 @@
   "backupErrorCorrupt": "Ce fichier est endommagé ou incomplet.",
   "backupErrorUnsupported": "Cette sauvegarde vient d’une version plus récente de Latermark.",
   "backupErrorGeneric": "Une erreur est survenue. Réessaie.",
-  "paywallFeatureBackup": "Sauvegarde chiffrée",
+  "paywallFeatureBackup": "Sauvegarde sécurisée",
   "paywallFeatureBackupDetail": "Emporte tes notes et tes photos sur un nouveau téléphone.",
   "reminderSuffixRepeating": "jours · répété",
   "reminderRepeatToggle": "Répéter le rappel",
@@ -221,6 +221,10 @@
   "settingsTitle": "Réglages",
   "sectionAppearance": "Apparence",
   "sectionReminder": "Rappels",
+  "sectionSharing": "Partage",
+  "shareSignatureTitle": "Signature de partage",
+  "shareSignatureDescription": "Les notes partagées se terminent par une ligne mentionnant Latermark. Désactivée, votre texte part tel quel.",
+  "shareSignature": "Envoyé avec Latermark pour {platform}",
   "themeTitle": "Thème",
   "themeDescription": "Suivez l’apparence du système ou choisissez-en une.",
   "themeSystem": "Système",
@@ -382,8 +386,8 @@
     }
   },
   "proBadge": "PRO",
-  "paywallHeadline": "Certaines images méritent de rester.",
-  "paywallSubtitle": "Latermark est pensé pour laisser partir. Pro est là pour ce que vous souhaitez garder.",
+  "paywallHeadline": "Ne laissez pas l’essentiel derrière vous.",
+  "paywallSubtitle": "Latermark Pro fait revenir tout ce que vous voudrez retrouver, au bon moment.",
   "paywallOwnedCount": "{count, plural, one{Vous avez actuellement 1 capture.} other{Vous avez actuellement {count} captures.}}",
   "@paywallOwnedCount": {
     "placeholders": {
@@ -392,8 +396,8 @@
       }
     }
   },
-  "paywallFeatureUnlimited": "Captures illimitées",
-  "paywallFeatureUnlimitedDetail": "La version gratuite conserve jusqu’à {limit} captures.",
+  "paywallFeatureUnlimited": "Notes illimitées",
+  "paywallFeatureUnlimitedDetail": "Pas {limit} : totalement illimitées.",
   "@paywallFeatureUnlimitedDetail": {
     "placeholders": {
       "limit": {
@@ -404,7 +408,7 @@
   "paywallFeatureCustomRetention": "Choisissez la durée",
   "paywallFeatureCustomRetentionDetail": "Au-delà de 3 jours et 1 semaine.",
   "paywallFeatureReminders": "Rappels",
-  "paywallFeatureRemindersDetail": "Un rappel discret pour ce qui compte.",
+  "paywallFeatureRemindersDetail": "Vous le rappelle exactement quand il le faut.",
   "paywallFeatureWidget": "Widgets d’accueil et d’écran verrouillé",
   "paywallFeatureWidgetDetail": "Votre dernière capture, toujours à portée de regard.",
   "@paywallPerMonth": {
@@ -433,7 +437,7 @@
   "paywallNoSubscription": "Sans abonnement. Un seul paiement, Pro pour toujours.",
   "paywallOwned": "Latermark Pro est à vous.",
   "paywallFeatureNoSubscription": "Sans abonnement",
-  "paywallFeatureNoSubscriptionDetail": "La plupart des apps facturent chaque mois. Pas Latermark.",
+  "paywallFeatureNoSubscriptionDetail": "Latermark ne demande aucun abonnement. C’est à vous pour toujours.",
   "paywallCta": "Débloquer Pro",
   "@paywallCtaTrial": {
     "placeholders": {
@@ -474,5 +478,14 @@
   "cameraUsageDescription": "L’accès à la caméra permet de prendre des photos pour vos notes.",
   "photoLibraryUsageDescription": "L’accès aux photos permet d’ajouter des images de votre photothèque à vos notes.",
   "actionShare": "Partager",
-  "shareNoteSemantic": "Partager la photo et la note"
+  "shareNoteSemantic": "Partager la photo et la note",
+  "reminderSwitchLabel": "Rappelez-le-moi",
+  "actionSaveAndRemind": "Enregistrer et rappeler",
+  "reminderScheduleSaved": "Enregistré",
+  "reminderScheduleQuestion": "Quand cette image doit-elle revenir ?",
+  "reminderTimeLabel": "Heure",
+  "reminderOnceTitle": "Rappeler une fois",
+  "reminderRepeatTitle": "Rappeler en boucle",
+  "reminderSkip": "Pas maintenant",
+  "reminderDeleteAfterLabel": "Supprimer 1 heure après le rappel"
 }
