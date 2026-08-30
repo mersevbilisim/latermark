@@ -18,6 +18,9 @@ class L10nPt extends L10n {
   String get composeSaving => 'A guardar';
 
   @override
+  String get composeWaitingForLocation => 'À espera da localização';
+
+  @override
   String get actionCancel => 'Cancelar';
 
   @override
@@ -192,6 +195,45 @@ class L10nPt extends L10n {
 
   @override
   String get holdStageGone => 'Eliminada';
+
+  @override
+  String get selectionStart => 'Escolher fotogramas para eliminar';
+
+  @override
+  String get selectionExit => 'Sair da seleção';
+
+  @override
+  String get selectionTitle => 'Selecionar';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selecionados',
+      one: '1 selecionado',
+      zero: 'Nada selecionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Toque nos fotogramas que quer eliminar';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Eliminar $count fotogramas?',
+      one: 'Eliminar este fotograma?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'As fotos e as notas serão eliminadas em conjunto.';
 
   @override
   String get cameraNotFoundTitle => 'Câmara indisponível';
@@ -491,15 +533,39 @@ class L10nPt extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'A cada $days dias · próximo $when',
-      one: 'Todos os dias · próximo $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Todos os dias · próximo $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Todas as semanas · seguinte $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Todos os meses · seguinte $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Todos os anos · seguinte $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Uma vez';
+
+  @override
+  String get reminderCadenceDaily => 'Dia';
+
+  @override
+  String get reminderCadenceWeekly => 'Semana';
+
+  @override
+  String get reminderCadenceMonthly => 'Mês';
+
+  @override
+  String get reminderCadenceYearly => 'Ano';
 
   @override
   String get reminderBlocked =>
@@ -1111,16 +1177,14 @@ class L10nPt extends L10n {
   String get reminderTimeLabel => 'Hora';
 
   @override
-  String get reminderOnceTitle => 'Lembrar uma vez';
-
-  @override
-  String get reminderRepeatTitle => 'Lembrar sempre';
-
-  @override
   String get reminderSkip => 'Agora não';
 
   @override
   String get reminderDeleteAfterLabel => 'Apagar 1 hora depois de lembrar';
+
+  @override
+  String get reminderAfterExpiry =>
+      'O lembrete deve ser anterior à eliminação desta nota.';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -1135,6 +1199,9 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get composeSaving => 'Salvando';
+
+  @override
+  String get composeWaitingForLocation => 'Aguardando a localização';
 
   @override
   String get actionCancel => 'Cancelar';
@@ -1310,6 +1377,45 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get holdStageGone => 'Apagado';
+
+  @override
+  String get selectionStart => 'Escolher fotos para apagar';
+
+  @override
+  String get selectionExit => 'Sair da seleção';
+
+  @override
+  String get selectionTitle => 'Selecionar';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selecionadas',
+      one: '1 selecionada',
+      zero: 'Nada selecionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Toque nas fotos que quiser apagar';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apagar $count fotos?',
+      one: 'Apagar esta foto?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'A foto e a nota serão apagadas juntas.';
 
   @override
   String get cameraNotFoundTitle => 'Câmera indisponível';
@@ -1608,15 +1714,39 @@ class L10nPtBr extends L10nPt {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'A cada $days dias · próximo $when',
-      one: 'Todos os dias · próximo $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Todos os dias · próximo $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Toda semana · próximo $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Todo mês · próximo $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Todo ano · próximo $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Uma vez';
+
+  @override
+  String get reminderCadenceDaily => 'Dia';
+
+  @override
+  String get reminderCadenceWeekly => 'Semana';
+
+  @override
+  String get reminderCadenceMonthly => 'Mês';
+
+  @override
+  String get reminderCadenceYearly => 'Ano';
 
   @override
   String get reminderBlocked =>
@@ -2227,14 +2357,12 @@ class L10nPtBr extends L10nPt {
   String get reminderTimeLabel => 'Hora';
 
   @override
-  String get reminderOnceTitle => 'Lembrar uma vez';
-
-  @override
-  String get reminderRepeatTitle => 'Lembrar sempre';
-
-  @override
   String get reminderSkip => 'Agora não';
 
   @override
   String get reminderDeleteAfterLabel => 'Apagar 1 hora depois de lembrar';
+
+  @override
+  String get reminderAfterExpiry =>
+      'O lembrete deve ser anterior à exclusão desta nota.';
 }

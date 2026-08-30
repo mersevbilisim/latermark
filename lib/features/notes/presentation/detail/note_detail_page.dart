@@ -184,18 +184,7 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   /// kaydedilmiş bir notu yeniden "yarım" göstermek olurdu.
   void _openReminderSchedule(Note note, ReminderChoice initial) {
     Navigator.of(context).push(
-      AppRoutes.lift(
-        ReminderSchedulePage(
-          noteId: note.id,
-          initial: initial,
-          // Kayıtlı silinme anı hatırlatmadan türemişse söz zaten verilmiş;
-          // ekran o anahtarı açık açsın.
-          initialDeleteAfter: isReminderExpiry(
-            remindAt: note.remindAt,
-            expiresAt: note.expiresAt,
-          ),
-        ),
-      ),
+      AppRoutes.lift(ReminderSchedulePage(noteId: note.id, initial: initial)),
     );
   }
 

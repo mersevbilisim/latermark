@@ -130,6 +130,12 @@ abstract class L10n {
   /// **'Saving'**
   String get composeSaving;
 
+  /// No description provided for @composeWaitingForLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for location'**
+  String get composeWaitingForLocation;
+
   /// No description provided for @actionCancel.
   ///
   /// In en, this message translates to:
@@ -435,6 +441,48 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Gone'**
   String get holdStageGone;
+
+  /// No description provided for @selectionStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Select frames to delete'**
+  String get selectionStart;
+
+  /// No description provided for @selectionExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave selection'**
+  String get selectionExit;
+
+  /// No description provided for @selectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get selectionTitle;
+
+  /// No description provided for @selectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{None selected} one{1 selected} other{{count} selected}}'**
+  String selectionCount(int count);
+
+  /// No description provided for @selectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the frames you want to delete'**
+  String get selectionHint;
+
+  /// No description provided for @deleteManyConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Delete this frame?} other{Delete {count} frames?}}'**
+  String deleteManyConfirmTitle(int count);
+
+  /// No description provided for @deleteManyConfirmCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'The photos and notes will be deleted together.'**
+  String get deleteManyConfirmCaption;
 
   /// No description provided for @cameraNotFoundTitle.
   ///
@@ -952,11 +1000,59 @@ abstract class L10n {
   /// **'{days, plural, one{Reminds every day.} other{Reminds every {days} days.}}'**
   String reminderRepeatSummary(int days);
 
-  /// No description provided for @reminderRepeatingValue.
+  /// No description provided for @reminderDailyValue.
   ///
   /// In en, this message translates to:
-  /// **'{days, plural, one{Every day · next {when}} other{Every {days} days · next {when}}}'**
-  String reminderRepeatingValue(int days, String when);
+  /// **'Every day · next {when}'**
+  String reminderDailyValue(String when);
+
+  /// No description provided for @reminderWeeklyValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Every week · next {when}'**
+  String reminderWeeklyValue(String when);
+
+  /// No description provided for @reminderMonthlyValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Every month · next {when}'**
+  String reminderMonthlyValue(String when);
+
+  /// No description provided for @reminderYearlyValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Every year · next {when}'**
+  String reminderYearlyValue(String when);
+
+  /// No description provided for @reminderCadenceOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Once'**
+  String get reminderCadenceOnce;
+
+  /// No description provided for @reminderCadenceDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get reminderCadenceDaily;
+
+  /// No description provided for @reminderCadenceWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get reminderCadenceWeekly;
+
+  /// No description provided for @reminderCadenceMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get reminderCadenceMonthly;
+
+  /// No description provided for @reminderCadenceYearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get reminderCadenceYearly;
 
   /// No description provided for @reminderBlocked.
   ///
@@ -1852,18 +1948,6 @@ abstract class L10n {
   /// **'Time'**
   String get reminderTimeLabel;
 
-  /// Scheduling screen: fires once and stops.
-  ///
-  /// In en, this message translates to:
-  /// **'Remind once'**
-  String get reminderOnceTitle;
-
-  /// Scheduling screen: keeps coming back at the chosen interval.
-  ///
-  /// In en, this message translates to:
-  /// **'Remind repeatedly'**
-  String get reminderRepeatTitle;
-
   /// Scheduling screen: leave without setting a reminder; the note stays saved.
   ///
   /// In en, this message translates to:
@@ -1875,6 +1959,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Delete 1 hour after reminding'**
   String get reminderDeleteAfterLabel;
+
+  /// Shown when a reminder is set at or after the note's automatic deletion time.
+  ///
+  /// In en, this message translates to:
+  /// **'The reminder must be before this note is deleted.'**
+  String get reminderAfterExpiry;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

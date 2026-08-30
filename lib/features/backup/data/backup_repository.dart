@@ -127,7 +127,7 @@ class BackupRepository {
                               note.legacyRemindAfterDays,
                             )
                           : null),
-                  everyDays: note.remindEveryDays,
+                  cadence: ReminderCadence.fromCode(note.remindEveryDays),
                 );
 
           final id = await _db

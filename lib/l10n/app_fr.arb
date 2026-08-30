@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Enregistrer",
   "composeSaving": "Enregistrement",
+  "composeWaitingForLocation": "Localisation en cours",
   "actionCancel": "Annuler",
   "actionClose": "Fermer",
   "actionBack": "Retour",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "Presque",
   "holdStageRelease": "Maintenez encore…",
   "holdStageGone": "Supprimé",
+  "selectionStart": "Choisir des vues à supprimer",
+  "selectionExit": "Quitter la sélection",
+  "selectionTitle": "Sélection",
+  "selectionCount": "{count, plural, =0{Aucune sélection} one{1 sélectionnée} other{{count} sélectionnées}}",
+  "selectionHint": "Touchez les vues que vous voulez supprimer",
+  "deleteManyConfirmTitle": "{count, plural, one{Supprimer cette vue ?} other{Supprimer {count} vues ?}}",
+  "deleteManyConfirmCaption": "Les photos et les notes seront supprimées ensemble.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Caméra indisponible",
   "cameraNotFoundBody": "Aucune caméra n’est disponible sur cet appareil.",
   "cameraDeniedTitle": "Accès à la caméra désactivé",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "Rappelé une seule fois.",
   "reminderRepeatNeedsInterval": "Saisissez d’abord le nombre de jours.",
   "reminderRepeatSummary": "{days, plural, one{Rappelé chaque jour.} other{Rappelé tous les {days} jours.}}",
-  "reminderRepeatingValue": "{days, plural, one{Chaque jour · prochain {when}} other{Tous les {days} jours · prochain {when}}}",
+  "reminderDailyValue": "Chaque jour · prochain {when}",
+  "reminderWeeklyValue": "Chaque semaine · prochain {when}",
+  "reminderMonthlyValue": "Chaque mois · prochain {when}",
+  "reminderYearlyValue": "Chaque année · prochain {when}",
+  "reminderCadenceOnce": "Une fois",
+  "reminderCadenceDaily": "Jour",
+  "reminderCadenceWeekly": "Semaine",
+  "reminderCadenceMonthly": "Mois",
+  "reminderCadenceYearly": "An",
   "reminderBlocked": "Les notifications sont désactivées. La capture sera tout de même enregistrée ; le rappel fonctionnera dès que vous les autoriserez.",
   "editNoteSemantic": "Modifier la note",
   "editSheetHeader": "MODIFIER LA NOTE",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "Enregistré",
   "reminderScheduleQuestion": "Quand cette image doit-elle revenir ?",
   "reminderTimeLabel": "Heure",
-  "reminderOnceTitle": "Rappeler une fois",
-  "reminderRepeatTitle": "Rappeler en boucle",
   "reminderSkip": "Pas maintenant",
-  "reminderDeleteAfterLabel": "Supprimer 1 heure après le rappel"
+  "reminderDeleteAfterLabel": "Supprimer 1 heure après le rappel",
+  "reminderAfterExpiry": "Le rappel doit précéder la suppression de cette note."
 }

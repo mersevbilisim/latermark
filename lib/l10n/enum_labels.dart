@@ -1,7 +1,9 @@
 import '../core/theme/app_accent.dart';
+import '../features/notes/domain/note_reminder.dart';
 import '../features/notes/domain/retention.dart';
 import '../features/settings/domain/app_locale.dart';
 import '../features/settings/domain/app_settings.dart';
+import '../core/utils/app_format.dart';
 import 'app_localizations.dart';
 
 /// Alan enum'larının ekranda görünen adları.
@@ -71,4 +73,28 @@ extension LocaleLabels on AppLocale {
   /// Dil adları çevrilmez; yalnızca "Sistem" seçeneği yürürlükteki dile döner.
   String label(L10n l10n) =>
       this == AppLocale.system ? l10n.languageSystem : nativeName;
+}
+
+/// Hatırlatma ritminin adı ve okunur sonucu.
+extension ReminderCadenceLabels on ReminderCadence {
+  String label(L10n l10n) => switch (this) {
+    ReminderCadence.once => l10n.reminderCadenceOnce,
+    ReminderCadence.daily => l10n.reminderCadenceDaily,
+    ReminderCadence.weekly => l10n.reminderCadenceWeekly,
+    ReminderCadence.monthly => l10n.reminderCadenceMonthly,
+    ReminderCadence.yearly => l10n.reminderCadenceYearly,
+  };
+
+  /// Kaydet'in üstünde duran cümle: tek atışta anın kendisi, ritimde ritmin
+  /// adı ve bir sonraki oluşum.
+  String sentence(L10n l10n, {required DateTime at, bool use24Hour = false}) {
+    final moment = l10n.stamp(at, use24Hour: use24Hour);
+    return switch (this) {
+      ReminderCadence.once => moment,
+      ReminderCadence.daily => l10n.reminderDailyValue(moment),
+      ReminderCadence.weekly => l10n.reminderWeeklyValue(moment),
+      ReminderCadence.monthly => l10n.reminderMonthlyValue(moment),
+      ReminderCadence.yearly => l10n.reminderYearlyValue(moment),
+    };
+  }
 }

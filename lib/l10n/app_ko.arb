@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "저장",
   "composeSaving": "저장 중",
+  "composeWaitingForLocation": "위치를 기다리는 중",
   "actionCancel": "취소",
   "actionClose": "닫기",
   "actionBack": "뒤로",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "거의 다 됐어요",
   "holdStageRelease": "조금만 더…",
   "holdStageGone": "삭제됨",
+  "selectionStart": "삭제할 기록 선택",
+  "selectionExit": "선택 종료",
+  "selectionTitle": "선택",
+  "selectionCount": "{count, plural, =0{선택 없음} other{{count}개 선택됨}}",
+  "selectionHint": "삭제할 기록을 탭하세요",
+  "deleteManyConfirmTitle": "{count, plural, other{{count}개를 삭제할까요?}}",
+  "deleteManyConfirmCaption": "사진과 노트가 함께 삭제됩니다.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "카메라를 사용할 수 없음",
   "cameraNotFoundBody": "이 기기에서 사용할 수 있는 카메라가 없습니다.",
   "cameraDeniedTitle": "카메라 접근이 꺼져 있음",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "한 번만 알려줘요.",
   "reminderRepeatNeedsInterval": "먼저 일수를 입력하세요.",
   "reminderRepeatSummary": "{days, plural, other{{days}일마다 알려줘요.}}",
-  "reminderRepeatingValue": "{days, plural, other{{days}일마다 · 다음 {when}}}",
+  "reminderDailyValue": "매일 · 다음 {when}",
+  "reminderWeeklyValue": "매주 · 다음 {when}",
+  "reminderMonthlyValue": "매월 · 다음 {when}",
+  "reminderYearlyValue": "매년 · 다음 {when}",
+  "reminderCadenceOnce": "한 번",
+  "reminderCadenceDaily": "일",
+  "reminderCadenceWeekly": "주",
+  "reminderCadenceMonthly": "월",
+  "reminderCadenceYearly": "년",
   "reminderBlocked": "알림이 꺼져 있습니다. 기록은 그대로 저장되며, 알림을 허용하면 리마인더가 작동합니다.",
   "editNoteSemantic": "노트 편집",
   "editSheetHeader": "노트 편집",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "저장됨",
   "reminderScheduleQuestion": "이 사진을 언제 다시 볼까요?",
   "reminderTimeLabel": "시각",
-  "reminderOnceTitle": "한 번만 알림",
-  "reminderRepeatTitle": "계속 알림",
   "reminderSkip": "나중에",
-  "reminderDeleteAfterLabel": "알림 1시간 뒤에 삭제"
+  "reminderDeleteAfterLabel": "알림 1시간 뒤에 삭제",
+  "reminderAfterExpiry": "미리 알림은 이 노트가 삭제되기 전이어야 합니다."
 }

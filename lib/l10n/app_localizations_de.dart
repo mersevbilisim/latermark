@@ -18,6 +18,9 @@ class L10nDe extends L10n {
   String get composeSaving => 'Wird gesichert';
 
   @override
+  String get composeWaitingForLocation => 'Warte auf Standort';
+
+  @override
   String get actionCancel => 'Abbrechen';
 
   @override
@@ -193,6 +196,45 @@ class L10nDe extends L10n {
 
   @override
   String get holdStageGone => 'Gelöscht';
+
+  @override
+  String get selectionStart => 'Aufnahmen zum Löschen auswählen';
+
+  @override
+  String get selectionExit => 'Auswahl beenden';
+
+  @override
+  String get selectionTitle => 'Auswählen';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ausgewählt',
+      one: '1 ausgewählt',
+      zero: 'Nichts ausgewählt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Tippe die Aufnahmen an, die du löschen willst';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Aufnahmen löschen?',
+      one: 'Diese Aufnahme löschen?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'Fotos und Notizen werden gemeinsam gelöscht.';
 
   @override
   String get cameraNotFoundTitle => 'Kamera nicht verfügbar';
@@ -492,15 +534,39 @@ class L10nDe extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'Alle $days Tage · nächste $when',
-      one: 'Täglich · nächste $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Täglich · nächste $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Wöchentlich · nächste $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Monatlich · nächste $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Jährlich · nächste $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Einmal';
+
+  @override
+  String get reminderCadenceDaily => 'Tag';
+
+  @override
+  String get reminderCadenceWeekly => 'Woche';
+
+  @override
+  String get reminderCadenceMonthly => 'Monat';
+
+  @override
+  String get reminderCadenceYearly => 'Jahr';
 
   @override
   String get reminderBlocked =>
@@ -1109,14 +1175,12 @@ class L10nDe extends L10n {
   String get reminderTimeLabel => 'Uhrzeit';
 
   @override
-  String get reminderOnceTitle => 'Einmal erinnern';
-
-  @override
-  String get reminderRepeatTitle => 'Immer wieder erinnern';
-
-  @override
   String get reminderSkip => 'Jetzt nicht';
 
   @override
   String get reminderDeleteAfterLabel => '1 Stunde nach der Erinnerung löschen';
+
+  @override
+  String get reminderAfterExpiry =>
+      'Die Erinnerung muss vor dem Löschen dieser Notiz liegen.';
 }

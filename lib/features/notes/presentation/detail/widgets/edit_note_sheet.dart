@@ -106,7 +106,7 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
   /// ekranına başlangıç değeri olarak taşıyor.
   late final ReminderChoice _reminder = ReminderChoice(
     at: widget.note.remindAt,
-    everyDays: widget.note.remindEveryDays,
+    cadence: ReminderCadence.fromCode(widget.note.remindEveryDays),
   );
 
   /// Kullanıcı bu kare için hatırlatma istiyor mu.

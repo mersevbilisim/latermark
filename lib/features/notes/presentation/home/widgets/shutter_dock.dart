@@ -8,6 +8,7 @@ import '../../../../../core/theme/app_shape.dart';
 import '../../../../../core/utils/app_format.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../shared/widgets/aperture.dart';
+import '../../../../../shared/widgets/colophon_bar.dart';
 import '../../../../../shared/widgets/icon_orb.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../../paywall/domain/pro_limits.dart';
@@ -18,6 +19,10 @@ import '../../../../paywall/domain/pro_limits.dart';
 /// ne yapılacağını söyleyen iki satır vardır. İlk not kaydedildiği anda
 /// küçülüp aşağı, akışın üstündeki yerine kayar. Böylece uygulama kullanıcıyla
 /// birlikte büyür — iki ayrı ekran yerine tek bir sürekli hareket.
+///
+/// Yerleştiğinde şerit bir makine gövdesi gibi okunur: solda galeri, ortada
+/// deklanşör, sağda seçim. Üç denetim de başparmağın vardığı yerde ve hiçbiri
+/// diğerini bastırmıyor — ortadaki tek dolu kütle, yanlardakiler sessiz cam.
 class ShutterDock extends StatelessWidget {
   const ShutterDock({
     super.key,
@@ -28,6 +33,10 @@ class ShutterDock extends StatelessWidget {
     required this.noteCount,
     required this.isPro,
     this.onOpenSettings,
+    this.selecting = false,
+    this.selectedCount = 0,
+    this.onToggleSelecting,
+    this.onDeleteSelection,
   });
 
   /// `true` ise aşağıya yerleşmiş, `false` ise ortada davet ediyor.
@@ -46,6 +55,18 @@ class ShutterDock extends StatelessWidget {
 
   /// Boş ekranda başlık çubuğu olmadığı için ayarlara giriş buradan verilir.
   final VoidCallback? onOpenSettings;
+
+  /// Toplu silme kipi. Açıkken deklanşörün yeri künye diline bırakılır:
+  /// seçim yaparken çekilecek bir kare yok.
+  final bool selecting;
+  final int selectedCount;
+
+  /// Kipi açıp kapatan sağ denetim. `null` ise akış boştur ve silinecek bir
+  /// şey yoktur; denetim hiç çizilmez.
+  final VoidCallback? onToggleSelecting;
+
+  /// Silme kelimesine dokunulduğunda çağrılır.
+  final VoidCallback? onDeleteSelection;
 
   /// Akışın alt boşluğu bu değere göre ayarlanır.
   static const dockHeight = 148.0;
@@ -94,14 +115,17 @@ class ShutterDock extends StatelessWidget {
 
             // Akış varken galeri eylemi deklanşörün solunda sessizce
             // belirir. Deklanşör merkezde kalır; iki eylem birbirine rakip
-            // olmaz.
+            // olmaz. Seçim kipinde bu yuva boşalır: silinecek kareler
+            // seçilirken yeni kare almanın anlamı yok.
             Positioned(
               left: 24,
               bottom: safeBottom + 32,
               child: IgnorePointer(
-                ignoring: t < 0.5,
-                child: Opacity(
-                  opacity: ((t - 0.35) / 0.65).clamp(0.0, 1.0),
+                ignoring: t < 0.5 || selecting,
+                child: AnimatedOpacity(
+                  key: const ValueKey('dock-gallery-slot'),
+                  duration: AppMotion.fast,
+                  opacity: selecting ? 0 : ((t - 0.35) / 0.65).clamp(0.0, 1.0),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -126,6 +150,35 @@ class ShutterDock extends StatelessWidget {
               ),
             ),
 
+            // Galerinin aynadaki eşi. Şerit böylece bir makine gövdesi gibi
+            // okunuyor: solda geçmiş kareler, ortada çekim, sağda eleme.
+            // Aynı denetim kipi hem açıyor hem kapatıyor — girdiğin kapıdan
+            // çıkıyorsun, üstlükte ikinci bir çarpı aramıyorsun.
+            if (onToggleSelecting != null)
+              Positioned(
+                right: 24,
+                bottom: safeBottom + 32,
+                child: IgnorePointer(
+                  ignoring: t < 0.5,
+                  child: Opacity(
+                    opacity: ((t - 0.35) / 0.65).clamp(0.0, 1.0),
+                    child: IconOrb(
+                      icon: selecting
+                          ? Icons.close_rounded
+                          : Icons.delete_outline_rounded,
+                      semanticLabel: selecting
+                          ? context.l10n.selectionExit
+                          : context.l10n.selectionStart,
+                      onPressed: onToggleSelecting,
+                      size: 44,
+                      iconSize: 19,
+                      tint: palette.ink,
+                      fill: palette.canvasLift,
+                    ),
+                  ),
+                ),
+              ),
+
             Align(
               alignment: Alignment.lerp(
                 const Alignment(0, -0.08),
@@ -136,59 +189,73 @@ class ShutterDock extends StatelessWidget {
                 padding: EdgeInsets.only(
                   bottom: lerpDouble(0, 20 + safeBottom, t)!,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (ProLimits.showsCounter(noteCount, isPro: isPro)) ...[
-                      _LimitCounter(count: noteCount),
-                      const SizedBox(height: 10),
-                    ],
-                    DecoratedBox(
-                      // Gerçek bir objektif diyaframı temayla beyaza dönmez.
-                      // Aydınlık zeminde sabit grafit gövde, kontrollü temas
-                      // gölgesiyle yüzeyden ayrılır; bulanıklık katmanı yoktur.
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: palette.isDark
-                            ? null
-                            : [
-                                BoxShadow(
-                                  color: palette.ink.withValues(alpha: 0.10),
-                                  blurRadius: 26,
-                                  offset: const Offset(0, 11),
-                                ),
-                                BoxShadow(
-                                  color: palette.ink.withValues(alpha: 0.08),
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                      ),
-                      child: ApertureButton(
-                        size: lerpDouble(112, 68, t)!,
-                        breathing: !docked,
-                        bladeBase: palette.isDark
-                            ? palette.canvas
-                            : OnPhoto.canvasDeep,
-                        edgeTint: palette.isDark ? palette.ink : OnPhoto.ink,
-                        onPressed: onCapture,
-                      ),
-                    ),
-                    ClipRect(
-                      child: Align(
-                        heightFactor: (1 - t).clamp(0.0, 1.0),
-                        child: Opacity(
-                          opacity: (1 - t * 2).clamp(0.0, 1.0),
-                          child: _Invitation(
-                            importing: importing,
-                            onImport: onImport,
-                            onOpenSettings: onOpenSettings,
+                child: selecting
+                    ? _SelectionWord(
+                        count: selectedCount,
+                        onDelete: onDeleteSelection,
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (ProLimits.showsCounter(
+                            noteCount,
+                            isPro: isPro,
+                          )) ...[
+                            _LimitCounter(count: noteCount),
+                            const SizedBox(height: 10),
+                          ],
+                          DecoratedBox(
+                            // Gerçek bir objektif diyaframı temayla beyaza dönmez.
+                            // Aydınlık zeminde sabit grafit gövde, kontrollü temas
+                            // gölgesiyle yüzeyden ayrılır; bulanıklık katmanı yoktur.
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: palette.isDark
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: palette.ink.withValues(
+                                          alpha: 0.10,
+                                        ),
+                                        blurRadius: 26,
+                                        offset: const Offset(0, 11),
+                                      ),
+                                      BoxShadow(
+                                        color: palette.ink.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                            ),
+                            child: ApertureButton(
+                              size: lerpDouble(112, 68, t)!,
+                              breathing: !docked,
+                              bladeBase: palette.isDark
+                                  ? palette.canvas
+                                  : OnPhoto.canvasDeep,
+                              edgeTint: palette.isDark
+                                  ? palette.ink
+                                  : OnPhoto.ink,
+                              onPressed: onCapture,
+                            ),
                           ),
-                        ),
+                          ClipRect(
+                            child: Align(
+                              heightFactor: (1 - t).clamp(0.0, 1.0),
+                              child: Opacity(
+                                opacity: (1 - t * 2).clamp(0.0, 1.0),
+                                child: _Invitation(
+                                  importing: importing,
+                                  onImport: onImport,
+                                  onOpenSettings: onOpenSettings,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
@@ -316,6 +383,75 @@ class _Invitation extends StatelessWidget {
           const SizedBox(height: 32),
           const _ManifestoSignature(),
         ],
+      ),
+    );
+  }
+}
+
+/// Seçim kipinde deklanşörün yerini alan tek kelime.
+///
+/// Buraya bir düğme konmuyor. Uygulamanın eylem dili tipografik: not
+/// detayının dibindeki şeritte de kutu, ikon ya da dolgu yok — kelimenin
+/// kendisi duruyor ve karar verildiği an parmağın altında tehlike rengine
+/// dönüyor. Toplu silme için ayrı bir hap düğme çizmek, ekranın en görünür
+/// noktasına uygulamaya ait olmayan ikinci bir dil koymak olurdu.
+///
+/// Kelime deklanşörün tam yerine, aynı eksene oturuyor; yanlardaki iki
+/// denetime değmesin diye orta koridorla sınırlanıyor.
+class _SelectionWord extends StatelessWidget {
+  const _SelectionWord({required this.count, required this.onDelete});
+
+  final int count;
+  final VoidCallback? onDelete;
+
+  /// Sağdaki ve soldaki yuvarlak denetimlere değmeyen orta koridor.
+  static const _corridor = 176.0;
+
+  /// Deklanşörle aynı yükseklik: kip değişirken eksen kaymıyor.
+  static const _height = 68.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return SizedBox(
+      width: _corridor,
+      height: _height,
+      child: AnimatedSwitcher(
+        duration: AppMotion.fast,
+        switchInCurve: AppMotion.ease,
+        switchOutCurve: AppMotion.exit,
+        // Hiçbir şey seçilmemişken sönük bir düğme değil, ne yapılacağını
+        // söyleyen tek satır durur.
+        child: count == 0
+            ? Center(
+                key: const ValueKey('selection-idle'),
+                child: Text(
+                  context.l10n.selectionHint,
+                  textAlign: TextAlign.center,
+                  style: palette.caption.copyWith(
+                    color: palette.inkFaint,
+                    height: 1.35,
+                  ),
+                ),
+              )
+            : ColophonBar(
+                key: const ValueKey('selection-delete'),
+                height: _height,
+                // Şeridi zaten perde sınırlıyor; ikinci bir güverte çizgisi
+                // akışın orada bittiğini söylerdi, oysa kartlar altından
+                // geçmeye devam ediyor.
+                rule: false,
+                actions: [
+                  ColophonAction(
+                    key: const ValueKey('selection-delete-action'),
+                    label: context.l10n.actionDelete,
+                    semanticLabel: context.l10n.actionDelete,
+                    pressColor: palette.danger,
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
       ),
     );
   }

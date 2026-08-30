@@ -18,6 +18,9 @@ class L10nKo extends L10n {
   String get composeSaving => '저장 중';
 
   @override
+  String get composeWaitingForLocation => '위치를 기다리는 중';
+
+  @override
   String get actionCancel => '취소';
 
   @override
@@ -178,6 +181,42 @@ class L10nKo extends L10n {
 
   @override
   String get holdStageGone => '삭제됨';
+
+  @override
+  String get selectionStart => '삭제할 기록 선택';
+
+  @override
+  String get selectionExit => '선택 종료';
+
+  @override
+  String get selectionTitle => '선택';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count개 선택됨',
+      zero: '선택 없음',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => '삭제할 기록을 탭하세요';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count개를 삭제할까요?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption => '사진과 노트가 함께 삭제됩니다.';
 
   @override
   String get cameraNotFoundTitle => '카메라를 사용할 수 없음';
@@ -458,14 +497,39 @@ class L10nKo extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days일마다 · 다음 $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return '매일 · 다음 $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return '매주 · 다음 $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return '매월 · 다음 $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return '매년 · 다음 $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => '한 번';
+
+  @override
+  String get reminderCadenceDaily => '일';
+
+  @override
+  String get reminderCadenceWeekly => '주';
+
+  @override
+  String get reminderCadenceMonthly => '월';
+
+  @override
+  String get reminderCadenceYearly => '년';
 
   @override
   String get reminderBlocked =>
@@ -971,14 +1035,11 @@ class L10nKo extends L10n {
   String get reminderTimeLabel => '시각';
 
   @override
-  String get reminderOnceTitle => '한 번만 알림';
-
-  @override
-  String get reminderRepeatTitle => '계속 알림';
-
-  @override
   String get reminderSkip => '나중에';
 
   @override
   String get reminderDeleteAfterLabel => '알림 1시간 뒤에 삭제';
+
+  @override
+  String get reminderAfterExpiry => '미리 알림은 이 노트가 삭제되기 전이어야 합니다.';
 }

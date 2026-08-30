@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Kaydet",
   "composeSaving": "Kaydediliyor",
+  "composeWaitingForLocation": "Konum bekleniyor",
   "actionCancel": "Vazgeç",
   "actionClose": "Kapat",
   "actionBack": "Geri",
@@ -69,6 +70,27 @@
   "holdStageAlmost": "Neredeyse",
   "holdStageRelease": "Bırakma…",
   "holdStageGone": "Gitti",
+  "selectionStart": "Silinecek kareleri seç",
+  "selectionExit": "Seçimden çık",
+  "selectionTitle": "Seç",
+  "selectionCount": "{count, plural, =0{Seçim yok} other{{count} seçildi}}",
+  "selectionHint": "Silmek istediğin karelere dokun",
+  "deleteManyConfirmTitle": "{count, plural, one{Bu kare silinsin mi?} other{{count} kare silinsin mi?}}",
+  "deleteManyConfirmCaption": "Fotoğraflar ve notlar birlikte kalkacak.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Kamera bulunamadı",
   "cameraNotFoundBody": "Bu cihazda kullanılabilir bir kamera yok.",
   "cameraDeniedTitle": "Kamera izni kapalı",
@@ -162,7 +184,15 @@
   "reminderRepeatOnce": "Bir kez hatırlatılır.",
   "reminderRepeatNeedsInterval": "Önce gün sayısını gir.",
   "reminderRepeatSummary": "{days, plural, one{Her gün hatırlatılır.} other{Her {days} günde bir hatırlatılır.}}",
-  "reminderRepeatingValue": "{days, plural, one{Her gün · sonraki {when}} other{Her {days} günde bir · sonraki {when}}}",
+  "reminderDailyValue": "Her gün · sonraki {when}",
+  "reminderWeeklyValue": "Her hafta · sonraki {when}",
+  "reminderMonthlyValue": "Her ay · sonraki {when}",
+  "reminderYearlyValue": "Her yıl · sonraki {when}",
+  "reminderCadenceOnce": "Bir kez",
+  "reminderCadenceDaily": "Gün",
+  "reminderCadenceWeekly": "Hafta",
+  "reminderCadenceMonthly": "Ay",
+  "reminderCadenceYearly": "Yıl",
   "reminderBlocked": "Bildirimler kapalı. Kayıt yine de saklanır; izin verdiğinde hatırlatma çalışmaya başlar.",
   "editNoteSemantic": "Notu düzenle",
   "editSheetHeader": "NOTU DÜZENLE",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "Kaydedildi",
   "reminderScheduleQuestion": "Bu kare ne zaman dönsün?",
   "reminderTimeLabel": "Saat",
-  "reminderOnceTitle": "Bir kere hatırlat",
-  "reminderRepeatTitle": "Sürekli hatırlat",
   "reminderSkip": "Şimdi değil",
-  "reminderDeleteAfterLabel": "Hatırlattıktan 1 saat sonra sil"
+  "reminderDeleteAfterLabel": "Hatırlattıktan 1 saat sonra sil",
+  "reminderAfterExpiry": "Hatırlatma, bu not silinmeden önce olmalı."
 }

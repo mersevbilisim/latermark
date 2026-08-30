@@ -22,6 +22,9 @@ class Aperture extends StatelessWidget {
     this.bladeCount = 7,
     this.edgeTint,
     this.bladeBase,
+    this.glow = 0,
+    this.glowColor,
+    this.barrel,
   });
 
   /// 0 = tamamen kapalı, 1 = tamamen açık.
@@ -40,6 +43,26 @@ class Aperture extends StatelessWidget {
   /// Ana ekranda temanın zemini, fotoğraf üstünde ise koyu zemin verilir.
   final Color? bladeBase;
 
+  /// Açıklıktan sızan ışığın gücü (0 = yok).
+  ///
+  /// Ayrı bir katman değil, çizimin parçası — çünkü ışık **deliğin şeklini
+  /// alır**. Yuvarlak bir gradyan yedigen bir açıklığın içinde puslu bir leke
+  /// gibi duruyordu; gerçek optikte bokeh'in yedi kenarlı olmasının sebebi de
+  /// aynı: ışık geçtiği diyaframın kesitini taşır.
+  final double glow;
+
+  /// Işığın rengi. Boşsa kor çizilmez.
+  final Color? glowColor;
+
+  /// Bıçakların **arkasındaki** namlunun rengi. Boşsa açıklık saydam kalır.
+  ///
+  /// Deklanşör düğmesinde dolu: aydınlık temada delik, sayfanın zeminini
+  /// gösterip gövdeye açılmış bir delik gibi duruyordu — oysa bir objektifin
+  /// içine bakınca karanlık görürsün, gövdeyle aynı malzeme. Örtücü onayında
+  /// ise iris **fotoğrafın üstüne** kapanıyor; orada namlu doldurulursa kare
+  /// daha iris açıkken örtülürdü. Bu yüzden karar çağırana bırakılıyor.
+  final Color? barrel;
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
@@ -53,6 +76,9 @@ class Aperture extends StatelessWidget {
         bladeCount: bladeCount,
         edgeTint: edgeTint,
         bladeBase: bladeBase ?? OnPhoto.canvas,
+        glow: glow.clamp(0.0, 1.0),
+        glowColor: glowColor,
+        barrel: barrel,
       ),
       isComplex: true,
     );
@@ -66,6 +92,9 @@ class _AperturePainter extends CustomPainter {
     required this.bladeCount,
     required this.edgeTint,
     required this.bladeBase,
+    required this.glow,
+    required this.glowColor,
+    required this.barrel,
   });
 
   final double openness;
@@ -73,6 +102,9 @@ class _AperturePainter extends CustomPainter {
   final int bladeCount;
   final Color? edgeTint;
   final Color bladeBase;
+  final double glow;
+  final Color? glowColor;
+  final Color? barrel;
 
   /// Açıklığın yarıçapı hiçbir zaman sıfıra inmez; sıfır çokgen bozuk yol üretir.
   static const _minInradius = 0.045;
@@ -92,6 +124,7 @@ class _AperturePainter extends CustomPainter {
 
     final hole = Path();
     final edges = Path();
+    final rimAngles = <double>[];
 
     for (var k = 0; k < n; k++) {
       final angle = twist + 2 * math.pi * k / n;
@@ -107,13 +140,18 @@ class _AperturePainter extends CustomPainter {
       }
 
       // Bıçağın arka kenarı: aynı doğru üzerinde, köşeden dış çembere.
+      final rim = touch + tangent * reach;
+      // Yaprak tonlaması bu kenarların arasına düşüyor; açıyı burada bir kez
+      // hesaplayıp saklamak, ton döngüsünde aynı geometriyi tekrar kurmaktan
+      // ucuz ve ikisinin ayrışmasını imkânsız kılıyor.
+      rimAngles.add(math.atan2(rim.dy - center.dy, rim.dx - center.dx));
       if (reach > halfSide) {
-        final rim = touch + tangent * reach;
         edges
           ..moveTo(vertex.dx, vertex.dy)
           ..lineTo(rim.dx, rim.dy);
       }
     }
+    rimAngles.sort();
     hole.close();
     // Çokgeni köşeden başlattığımız için ilk köşeyi sona kapatmak yeterli.
 
@@ -124,17 +162,86 @@ class _AperturePainter extends CustomPainter {
       hole,
     );
 
+    // 0) Açıklıktan sızan ışık — **deliğin kendi şeklinde**.
+    //
+    // Bıçaklar deliği zaten dışarıda bırakıyor, bu yüzden kor doğrudan `hole`
+    // yoluna dökülüyor: yedigen, iris kapandıkça onunla birlikte küçülüyor ve
+    // burulurken onunla dönüyor. Ayrı bir daire katmanı olsaydı hiçbiri
+    // olmazdı.
+    final inside = barrel;
+    if (inside != null) {
+      canvas.drawPath(hole, Paint()..color = inside.withValues(alpha: 0.94));
+    }
+
+    final light = glowColor;
+    if (light != null && glow > 0) {
+      canvas.drawPath(
+        hole,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              light.withValues(alpha: 0.17 * glow),
+              light.withValues(alpha: 0.04 * glow),
+              light.withValues(alpha: 0),
+            ],
+            stops: const [0.0, 0.42, 0.95],
+          ).createShader(hole.getBounds()),
+      );
+    }
+
     // 1) Bıçakların gövdesi. Arkadaki kor parıltısını büyük ölçüde kapatır;
     // aksi halde metal yerine sisli bir bulut gibi görünür.
     canvas.drawPath(blades, Paint()..color = bladeBase.withValues(alpha: 0.88));
 
     final tint = edgeTint ?? OnPhoto.flash;
 
-    // 2) Metalik yanılsama: köşeden köşeye ışık düşüşü.
+    // 2) Yapraklar **tek tek** tonlanıyor.
     //
-    // Gölge rengi de kenar rengiyle aynı kaynaktan gelir. Aydınlık temada bu
-    // koyu bir mürekkeptir; sabit beyaz kullanılsaydı diyafram açık zeminde
-    // tamamen kaybolurdu.
+    // Bütün halkayı tek bir gradyanla boyamak, nesneyi mekanizma değil
+    // *mekanizma resmi* yapıyordu: yedi bıçak da aynı tondaydı ve göz onları
+    // ayıramıyordu. Gerçek bir iriste her yaprak düz bir metal parçası ve
+    // ışığı kendi açısıyla alıyor — ışığa dönük yaprak parlak, karşısındaki
+    // sönük.
+    //
+    // Her yaprak kendi dilimine kırpılıyor. Yarım düzlemle çizmeyi denedim;
+    // dilimler devasa daire parçaları oluyor, üst üste binen yerlerde ton
+    // birikiyor ve nesne metal yerine kâğıt yelpazeye dönüyordu. Dilim sınırı
+    // zaten çizilen bıçak kenarının ta kendisi, yani ton ile çizgi birebir
+    // hizada.
+    //
+    // Yol birleştirme yerine kırpma kullanılıyor: bu çizim boştaki nefes
+    // döngüsünde her kare yeniden koşuyor ve yedi boole işlemi o döngüde
+    // gereksiz pahalı.
+    const lightDx = -0.7071;
+    const lightDy = -0.7071;
+    final sweep = 2 * math.pi / n;
+    final wedgeBounds = Rect.fromCircle(center: center, radius: outer * 1.2);
+
+    for (var k = 0; k < n; k++) {
+      final start = rimAngles[k];
+      final mid = start + sweep / 2;
+      final facing =
+          0.5 + 0.5 * (math.cos(mid) * lightDx + math.sin(mid) * lightDy);
+
+      final wedge = Path()
+        ..moveTo(center.dx, center.dy)
+        ..arcTo(wedgeBounds, start, sweep, false)
+        ..close();
+
+      canvas.save();
+      canvas.clipPath(blades);
+      canvas.clipPath(wedge);
+      canvas.drawRect(
+        bounds,
+        Paint()..color = tint.withValues(alpha: 0.025 + 0.075 * facing),
+      );
+      canvas.restore();
+    }
+
+    // 3) Bütün takımın üzerinden geçen tek parlaklık.
+    //
+    // Yaprak tonları ayrımı kuruyor, bu da onları **aynı** parçanın parçaları
+    // yapıyor: tek bir yüzeyden yansıyan ortak ışık.
     canvas.drawPath(
       blades,
       Paint()
@@ -142,25 +249,39 @@ class _AperturePainter extends CustomPainter {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            tint.withValues(alpha: 0.24),
-            tint.withValues(alpha: 0.06),
-            tint.withValues(alpha: 0.15),
+            tint.withValues(alpha: 0.10),
+            tint.withValues(alpha: 0.02),
+            tint.withValues(alpha: 0.07),
           ],
           stops: const [0.0, 0.55, 1.0],
         ).createShader(bounds),
     );
 
-    // 3) Bıçakları birbirinden ayıran ince kenarlar.
+    // 4) Üstteki yaprağın alttakine düşürdüğü gölge, sonra kenarın kendisi.
+    //
+    // Tek bir açık çizgi, iki yaprağı yan yana duran iki alan gibi
+    // gösteriyordu. Gölge onları üst üste bindiriyor: biri diğerinin altında.
+    // Gölge `bladeBase` değil **siyah**: gövde rengiyle çizilen bir gölge, koyu
+    // temada yaprakların üstünde kayboluyordu. Siyah yerel kontrast üretiyor ve
+    // zeminin parlaklığından bağımsız çalışıyor.
+    canvas.drawPath(
+      edges,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0xFF000000).withValues(alpha: 0.22),
+    );
     canvas.drawPath(
       edges,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
         ..strokeCap = StrokeCap.round
-        ..color = tint.withValues(alpha: 0.22),
+        ..color = tint.withValues(alpha: 0.30),
     );
 
-    // 4) Açıklığın keskin ağzı.
+    // 5) Açıklığın keskin ağzı.
     canvas.drawPath(
       hole,
       Paint()
@@ -170,14 +291,54 @@ class _AperturePainter extends CustomPainter {
         ..color = tint.withValues(alpha: 0.46),
     );
 
-    // 5) Dış gövde halkası.
+    // 6) Gövde halkası — düz bir çember değil, **ışığı tek yönden alan** kenar.
+    //
+    // Eşit parlaklıkta bir çember, gövdeyi çizilmiş bir daireye çeviriyordu.
+    // Gerçek bir objektif halkası ışığı bir yandan alır: sol üstte keskin bir
+    // parlama, sağ altta sönük bir dönüş. Karanlık temada zeminden ayıran şey
+    // de artık bu kenar; etrafa yayılan bir renk bulutuna gerek kalmıyor —
+    // koyu bir nesneyi koyu bir yüzeyde ayıran şey gerçek hayatta da halesi
+    // değil, kenarındaki ışıktır.
+    final rim = Rect.fromCircle(center: center, radius: outer - 0.6);
     canvas.drawCircle(
       center,
       outer - 0.6,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = tint.withValues(alpha: 0.38),
+        ..strokeWidth = 1.3
+        ..shader = SweepGradient(
+          // 0. durak sol üste düşsün: sahnenin ışığı oradan geliyor.
+          transform: const GradientRotation(-math.pi * 0.75),
+          colors: [
+            tint.withValues(alpha: 0.66),
+            tint.withValues(alpha: 0.20),
+            tint.withValues(alpha: 0.09),
+            tint.withValues(alpha: 0.34),
+            tint.withValues(alpha: 0.66),
+          ],
+          stops: const [0.0, 0.26, 0.52, 0.82, 1.0],
+        ).createShader(rim),
+    );
+
+    // 7) Namlunun iç pahı. Bir puanlık ikinci hat gövdeye kalınlık veriyor;
+    // tek çizgi hâlinde halka sac gibi ince duruyordu.
+    canvas.drawCircle(
+      center,
+      outer - 2.1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..shader = SweepGradient(
+          // İç pah dışarıdakinin tersinden aydınlanır: ışık namlunun
+          // içinde karşı duvara çarpıyor.
+          transform: const GradientRotation(math.pi * 0.25),
+          colors: [
+            tint.withValues(alpha: 0.26),
+            tint.withValues(alpha: 0.05),
+            tint.withValues(alpha: 0.18),
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(rim),
     );
   }
 
@@ -187,7 +348,10 @@ class _AperturePainter extends CustomPainter {
       old.twist != twist ||
       old.bladeCount != bladeCount ||
       old.edgeTint != edgeTint ||
-      old.bladeBase != bladeBase;
+      old.bladeBase != bladeBase ||
+      old.glow != glow ||
+      old.glowColor != glowColor ||
+      old.barrel != barrel;
 }
 
 /// Diyaframı dokunulabilir bir deklanşöre çevirir.
@@ -320,90 +484,29 @@ class _ApertureButtonState extends State<ApertureButton>
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    if (widget.glow) ...[
-                      OverflowBox(
-                        maxWidth: widget.size * 1.9,
-                        maxHeight: widget.size * 1.9,
-                        child: _Bloom(
-                          size: widget.size * 1.9,
-                          opacity:
-                              lerpDouble(0.9, 0.35, pressed)! *
-                              lerpDouble(1.0, 0.7, breath)!,
-                        ),
-                      ),
-                      _Core(size: widget.size * openness * 1.35),
-                    ],
+                    // Işık gövdenin **etrafında** değil, açıklığın **içinde**.
+                    //
+                    // Eskiden düğmenin arkasında, çapının iki katına yakın bir
+                    // renk bulutu duruyordu. Gerçek bir objektifte ışık halede
+                    // değil deliktedir; hale yalnız bir efektti ve düğmeyi
+                    // uygulamanın en amatör parçası yapıyordu.
                     Aperture(
                       openness: openness,
                       twist: twist,
                       bladeBase: widget.bladeBase,
                       edgeTint: widget.edgeTint,
+                      glow: widget.glow
+                          ? lerpDouble(1.0, 0.35, pressed)! *
+                                lerpDouble(1.0, 0.78, breath)!
+                          : 0,
+                      glowColor: context.palette.onPhotoAccent,
+                      barrel: widget.bladeBase ?? OnPhoto.canvas,
                     ),
                   ],
                 ),
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-/// Diyaframın dışına taşan geniş, yumuşak hale.
-class _Bloom extends StatelessWidget {
-  const _Bloom({required this.size, required this.opacity});
-
-  final double size;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return IgnorePointer(
-      child: Opacity(
-        opacity: opacity.clamp(0.0, 1.0),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                palette.onPhotoAccentGlow,
-                palette.onPhotoAccent.withValues(alpha: 0),
-              ],
-              stops: [0.25, 1.0],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Açıklıktan sızan sıcak çekirdek.
-class _Core extends StatelessWidget {
-  const _Core({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = context.palette.onPhotoAccent;
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              accent.withValues(alpha: 0.35),
-              accent.withValues(alpha: 0),
-            ],
-            stops: [0.0, 1.0],
-          ),
         ),
       ),
     );

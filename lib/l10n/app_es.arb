@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Guardar",
   "composeSaving": "Guardando",
+  "composeWaitingForLocation": "Esperando la ubicación",
   "actionCancel": "Cancelar",
   "actionClose": "Cerrar",
   "actionBack": "Atrás",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "Ya casi",
   "holdStageRelease": "Sigue pulsando…",
   "holdStageGone": "Eliminada",
+  "selectionStart": "Elegir tomas para eliminar",
+  "selectionExit": "Salir de la selección",
+  "selectionTitle": "Seleccionar",
+  "selectionCount": "{count, plural, =0{Nada seleccionado} one{1 seleccionada} other{{count} seleccionadas}}",
+  "selectionHint": "Toca las tomas que quieras eliminar",
+  "deleteManyConfirmTitle": "{count, plural, one{¿Eliminar esta toma?} other{¿Eliminar {count} tomas?}}",
+  "deleteManyConfirmCaption": "Las fotos y las notas se eliminarán juntas.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Cámara no disponible",
   "cameraNotFoundBody": "Este dispositivo no tiene una cámara disponible.",
   "cameraDeniedTitle": "Acceso a la cámara desactivado",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "Se recuerda una vez.",
   "reminderRepeatNeedsInterval": "Introduce primero el número de días.",
   "reminderRepeatSummary": "{days, plural, one{Se recuerda cada día.} other{Se recuerda cada {days} días.}}",
-  "reminderRepeatingValue": "{days, plural, one{Cada día · siguiente {when}} other{Cada {days} días · siguiente {when}}}",
+  "reminderDailyValue": "Cada día · siguiente {when}",
+  "reminderWeeklyValue": "Cada semana · siguiente {when}",
+  "reminderMonthlyValue": "Cada mes · siguiente {when}",
+  "reminderYearlyValue": "Cada año · siguiente {when}",
+  "reminderCadenceOnce": "Una vez",
+  "reminderCadenceDaily": "Día",
+  "reminderCadenceWeekly": "Semana",
+  "reminderCadenceMonthly": "Mes",
+  "reminderCadenceYearly": "Año",
   "reminderBlocked": "Las notificaciones están desactivadas. La captura se guardará igualmente; el recordatorio empezará a funcionar cuando las permitas.",
   "editNoteSemantic": "Editar nota",
   "editSheetHeader": "EDITAR NOTA",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "Guardado",
   "reminderScheduleQuestion": "¿Cuándo debe volver esta foto?",
   "reminderTimeLabel": "Hora",
-  "reminderOnceTitle": "Recordar una vez",
-  "reminderRepeatTitle": "Recordar siempre",
   "reminderSkip": "Ahora no",
-  "reminderDeleteAfterLabel": "Eliminar 1 hora después de recordar"
+  "reminderDeleteAfterLabel": "Eliminar 1 hora después de recordar",
+  "reminderAfterExpiry": "El recordatorio debe ser anterior a la eliminación de esta nota."
 }

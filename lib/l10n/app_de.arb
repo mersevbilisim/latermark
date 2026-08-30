@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Sichern",
   "composeSaving": "Wird gesichert",
+  "composeWaitingForLocation": "Warte auf Standort",
   "actionCancel": "Abbrechen",
   "actionClose": "Schließen",
   "actionBack": "Zurück",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "Fast geschafft",
   "holdStageRelease": "Weiter halten …",
   "holdStageGone": "Gelöscht",
+  "selectionStart": "Aufnahmen zum Löschen auswählen",
+  "selectionExit": "Auswahl beenden",
+  "selectionTitle": "Auswählen",
+  "selectionCount": "{count, plural, =0{Nichts ausgewählt} one{1 ausgewählt} other{{count} ausgewählt}}",
+  "selectionHint": "Tippe die Aufnahmen an, die du löschen willst",
+  "deleteManyConfirmTitle": "{count, plural, one{Diese Aufnahme löschen?} other{{count} Aufnahmen löschen?}}",
+  "deleteManyConfirmCaption": "Fotos und Notizen werden gemeinsam gelöscht.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Kamera nicht verfügbar",
   "cameraNotFoundBody": "Auf diesem Gerät ist keine Kamera verfügbar.",
   "cameraDeniedTitle": "Kamerazugriff deaktiviert",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "Einmalige Erinnerung.",
   "reminderRepeatNeedsInterval": "Zuerst die Anzahl der Tage eingeben.",
   "reminderRepeatSummary": "{days, plural, one{Tägliche Erinnerung.} other{Erinnerung alle {days} Tage.}}",
-  "reminderRepeatingValue": "{days, plural, one{Täglich · nächste {when}} other{Alle {days} Tage · nächste {when}}}",
+  "reminderDailyValue": "Täglich · nächste {when}",
+  "reminderWeeklyValue": "Wöchentlich · nächste {when}",
+  "reminderMonthlyValue": "Monatlich · nächste {when}",
+  "reminderYearlyValue": "Jährlich · nächste {when}",
+  "reminderCadenceOnce": "Einmal",
+  "reminderCadenceDaily": "Tag",
+  "reminderCadenceWeekly": "Woche",
+  "reminderCadenceMonthly": "Monat",
+  "reminderCadenceYearly": "Jahr",
   "reminderBlocked": "Mitteilungen sind deaktiviert. Die Aufnahme wird trotzdem gesichert; die Erinnerung wird aktiv, sobald du Mitteilungen erlaubst.",
   "editNoteSemantic": "Notiz bearbeiten",
   "editSheetHeader": "NOTIZ BEARBEITEN",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "Gespeichert",
   "reminderScheduleQuestion": "Wann soll dieses Bild zurückkommen?",
   "reminderTimeLabel": "Uhrzeit",
-  "reminderOnceTitle": "Einmal erinnern",
-  "reminderRepeatTitle": "Immer wieder erinnern",
   "reminderSkip": "Jetzt nicht",
-  "reminderDeleteAfterLabel": "1 Stunde nach der Erinnerung löschen"
+  "reminderDeleteAfterLabel": "1 Stunde nach der Erinnerung löschen",
+  "reminderAfterExpiry": "Die Erinnerung muss vor dem Löschen dieser Notiz liegen."
 }

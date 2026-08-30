@@ -578,11 +578,13 @@ void main() {
           calls.where((call) => call.method == 'periodicallyShowWithDuration'),
           isEmpty,
         );
+        // Ritim işletim sisteminin takvim eşlemesine bırakıldığı için tek
+        // kayıt yetiyor; kayan pencereye gerek kalmadı.
         expect(
           calls.where((call) => call.method == 'zonedSchedule'),
-          hasLength(kRollingReminderWindowPerNote),
+          hasLength(1),
         );
-        expect(pendingNotifications, hasLength(kRollingReminderWindowPerNote));
+        expect(pendingNotifications, hasLength(1));
         await service.dispose();
       },
     );
@@ -977,14 +979,21 @@ void main() {
       await service.initialize();
       final l10n = await L10n.delegate.load(const Locale('en'));
       final anchor = DateTime.now();
+      final day31 = DateTime(
+        anchor.year + 1,
+        DateTime.january,
+        31,
+        anchor.hour,
+        anchor.minute,
+      );
       final note = Note(
         id: 401,
         imageName: '401.jpg',
-        body: 'Her 30 günde bir',
+        body: 'Her ayın son geçerli günü',
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAt: shiftLocalCalendarDays(anchor, 30),
+        remindAt: day31,
         remindEveryDays: 30,
       );
 
@@ -1011,47 +1020,41 @@ void main() {
       await service.dispose();
     });
 
-    test(
-      'iOS 365 günlük tekrar anchor fazında kesin tarihlerle kurulur',
-      () async {
-        final service = ReminderService(supported: true);
-        await service.initialize();
-        final l10n = await L10n.delegate.load(const Locale('en'));
-        final anchor = DateTime.now();
-        final note = Note(
-          id: 402,
-          imageName: '402.jpg',
-          body: 'Her yıl',
-          createdAt: anchor,
-          retention: Retention.off,
-          customMinutes: 0,
-          remindAt: shiftLocalCalendarDays(anchor, 365),
-          remindEveryDays: 365,
-        );
+    test('iOS normal yıllık tekrar native takvim kaydı olur', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final anchor = DateTime.now();
+      final note = Note(
+        id: 402,
+        imageName: '402.jpg',
+        body: 'Her yıl',
+        createdAt: anchor,
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAt: shiftLocalCalendarDays(anchor, 365),
+        remindEveryDays: 365,
+      );
 
-        calls.clear();
-        await service.sync(
-          [note],
-          const AppSettings(reminderEnabled: true, proUnlocked: true),
-          l10n,
-        );
+      calls.clear();
+      await service.sync(
+        [note],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
 
-        final exact = calls.where((item) => item.method == 'zonedSchedule');
-        expect(exact, hasLength(kRollingReminderWindowPerNote));
-        expect(
-          (exact.first.arguments as Map)['payload'],
-          contains(
-            '/at/'
-            '${anchor.add(const Duration(days: 365)).toUtc().millisecondsSinceEpoch}',
-          ),
-        );
-        expect(
-          calls.where((item) => item.method == 'periodicallyShowWithDuration'),
-          isEmpty,
-        );
-        await service.dispose();
-      },
-    );
+      final exact = calls.where((item) => item.method == 'zonedSchedule');
+      expect(exact, hasLength(1));
+      expect(
+        (exact.single.arguments as Map)['matchDateTimeComponents'],
+        DateTimeComponents.dateAndTime.index,
+      );
+      expect(
+        calls.where((item) => item.method == 'periodicallyShowWithDuration'),
+        isEmpty,
+      );
+      await service.dispose();
+    });
 
     test('otomatik silinen tekrar native değil sonlu kurulur', () async {
       final service = ReminderService(supported: true);
@@ -1290,52 +1293,61 @@ void main() {
       await service.dispose();
     });
 
-    test('aralık düzenlenince eski tekrar sökülüp yeni aralık kurulur', () async {
-      final service = ReminderService(supported: true);
-      await service.initialize();
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      final anchor = DateTime.now();
-      final id = reminderNotificationId(54, 0);
-      pendingNotifications = <Map<String, Object?>>[
-        <String, Object?>{'id': id, 'payload': 'note/54/v2/every/3/1000'},
-      ];
-      final note = Note(
-        id: 54,
-        imageName: '54.jpg',
-        body: 'Yeni aralık',
-        createdAt: anchor,
-        retention: Retention.off,
-        customMinutes: 0,
-        remindAt: shiftLocalCalendarDays(anchor, 30),
-        remindEveryDays: 30,
-      );
+    test(
+      'aralık düzenlenince eski tekrar sökülüp yeni aralık kurulur',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final anchor = DateTime.now();
+        final nextMonth = DateTime(
+          anchor.year,
+          anchor.month + 1,
+          1,
+          anchor.hour,
+          anchor.minute,
+        );
+        final id = reminderNotificationId(54, 0);
+        pendingNotifications = <Map<String, Object?>>[
+          <String, Object?>{'id': id, 'payload': 'note/54/v2/every/3/1000'},
+        ];
+        final note = Note(
+          id: 54,
+          imageName: '54.jpg',
+          body: 'Yeni aralık',
+          createdAt: anchor,
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAt: nextMonth,
+          remindEveryDays: 30,
+        );
 
-      calls.clear();
-      await service.sync(
-        [note],
-        const AppSettings(reminderEnabled: true, proUnlocked: true),
-        l10n,
-      );
+        calls.clear();
+        await service.sync(
+          [note],
+          const AppSettings(reminderEnabled: true, proUnlocked: true),
+          l10n,
+        );
 
-      expect(
-        calls.where((call) => call.method == 'cancel' && call.arguments == id),
-        hasLength(1),
-      );
-      final exact = calls.where((call) => call.method == 'zonedSchedule');
-      expect(exact, hasLength(kRollingReminderWindowPerNote));
-      expect(
-        (exact.first.arguments as Map)['payload'],
-        contains(
-          '/at/'
-          '${anchor.add(const Duration(days: 30)).toUtc().millisecondsSinceEpoch}',
-        ),
-      );
-      expect(
-        calls.where((call) => call.method == 'periodicallyShowWithDuration'),
-        isEmpty,
-      );
-      await service.dispose();
-    });
+        expect(
+          calls.where(
+            (call) => call.method == 'cancel' && call.arguments == id,
+          ),
+          hasLength(1),
+        );
+        final exact = calls.where((call) => call.method == 'zonedSchedule');
+        expect(exact, hasLength(1));
+        expect(
+          (exact.single.arguments as Map)['matchDateTimeComponents'],
+          DateTimeComponents.dayOfMonthAndTime.index,
+        );
+        expect(
+          calls.where((call) => call.method == 'periodicallyShowWithDuration'),
+          isEmpty,
+        );
+        await service.dispose();
+      },
+    );
 
     test(
       'Pro hakkı geri alınınca açık ana şalter de tümünü iptal eder',
@@ -1386,6 +1398,10 @@ void main() {
     setUp(() {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       AndroidFlutterLocalNotificationsPlugin.registerWith();
+      messenger.setMockMethodCallHandler(actionChannel, (call) async {
+        if (call.method == 'timeZoneIdentifier') return 'Europe/Istanbul';
+        return null;
+      });
       appEnabled = true;
       channels = <Map<String, Object?>>[];
       androidCalls = <MethodCall>[];
@@ -1407,6 +1423,7 @@ void main() {
 
     tearDown(() {
       messenger.setMockMethodCallHandler(channel, null);
+      messenger.setMockMethodCallHandler(actionChannel, null);
       debugDefaultTargetPlatformOverride = null;
       IOSFlutterLocalNotificationsPlugin.registerWith();
     });
@@ -1445,14 +1462,15 @@ void main() {
       await service.dispose();
     });
 
-    test('native tekrar ilk kesin anchor oluşumundan başlar', () async {
+    test('native haftalık tekrar ilk kesin oluşumdan başlar', () async {
       final service = ReminderService(supported: true);
       await service.initialize();
       final l10n = await L10n.delegate.load(const Locale('en'));
-      final anchor = DateTime.now().subtract(const Duration(days: 22));
+      final anchor = DateTime.now();
+      final remindAt = shiftLocalCalendarDays(anchor, 1);
       final expected = pendingReminderAt(
-        remindAt: shiftLocalCalendarDays(anchor, 30),
-        everyDays: 30,
+        remindAt: remindAt,
+        cadence: ReminderCadence.weekly,
         now: DateTime.now(),
       );
       final note = Note(
@@ -1462,8 +1480,8 @@ void main() {
         createdAt: anchor,
         retention: Retention.off,
         customMinutes: 0,
-        remindAt: shiftLocalCalendarDays(anchor, 30),
-        remindEveryDays: 30,
+        remindAt: remindAt,
+        remindEveryDays: 7,
       );
 
       androidCalls.clear();
@@ -1473,14 +1491,25 @@ void main() {
         l10n,
       );
 
-      final periodic = androidCalls.singleWhere(
-        (call) => call.method == 'periodicallyShowWithDuration',
+      // İlk kesin an `scheduledDateTime` ile gidiyor, ritim de haftanın
+      // günü ve saat bileşenleriyle eşleşiyor.
+      final scheduled = androidCalls.singleWhere(
+        (call) => call.method == 'zonedSchedule',
       );
-      final arguments = periodic.arguments as Map;
-      expect(arguments['calledAt'], expected!.millisecondsSinceEpoch);
+      final arguments = scheduled.arguments as Map;
       expect(
-        arguments['repeatIntervalMilliseconds'],
-        const Duration(days: 30).inMilliseconds,
+        arguments['matchDateTimeComponents'],
+        DateTimeComponents.dayOfWeekAndTime.index,
+      );
+      expect(arguments['timeZoneName'], 'Europe/Istanbul');
+      // Karşılaştırma **an** üzerinden: `scheduledDateTime` bölgesiz yazılıyor,
+      // ISO8601 alanı ise kaymayı taşıyor.
+      final sent = DateTime.parse(
+        arguments['scheduledDateTimeISO8601'] as String,
+      );
+      expect(
+        sent.difference(expected!).abs(),
+        lessThan(const Duration(seconds: 1)),
       );
       await service.dispose();
     });

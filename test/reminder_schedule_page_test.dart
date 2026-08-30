@@ -19,7 +19,6 @@ import 'package:latermark/features/notes/presentation/reminder/reminder_schedule
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
 import 'package:latermark/l10n/app_localizations.dart';
-import 'package:latermark/shared/widgets/ember_switch.dart';
 
 final _pixel = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC'
@@ -73,7 +72,6 @@ void main() {
     WidgetTester tester, {
     Locale locale = const Locale('tr'),
     ReminderChoice initial = const ReminderChoice.off(),
-    bool deleteAfter = false,
     Size size = const Size(393, 852),
     double textScale = 1,
   }) async {
@@ -109,12 +107,8 @@ void main() {
     unawaited(
       navigatorKey.currentState!.push(
         MaterialPageRoute<void>(
-          builder: (_) => ReminderSchedulePage(
-            noteId: noteId,
-            initial: initial,
-            initialDeleteAfter: deleteAfter,
-            now: now,
-          ),
+          builder: (_) =>
+              ReminderSchedulePage(noteId: noteId, initial: initial, now: now),
         ),
       ),
     );
@@ -200,6 +194,56 @@ void main() {
     await close(tester);
   });
 
+  testWidgets('öneri gün duruyorken yazılan saat bugüne düşer', (tester) async {
+    // Ekran "yarın aynı saatte" diye açılıyor, ama bu bir öneri. Saat 10:00'da
+    // 18:30 yazan biri "bugün akşam" demek istiyor; öneriyi olduğu gibi
+    // bırakıp saati onun üstüne bindirmek, hatırlatmayı hata vermeden yirmi
+    // dört saat ileri atardı.
+    await open(tester);
+
+    await tester.enterText(find.byKey(const Key('reminder-time-hour')), '18');
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('reminder-time-minute')), '30');
+    await _settle(tester);
+    await saveAndClose(tester);
+
+    expect((await readNote()).remindAt, DateTime(2026, 8, 8, 18, 30));
+    await close(tester);
+  });
+
+  testWidgets('takvimden gün seçilmişse yazılan saat o günde kalır', (
+    tester,
+  ) async {
+    // Gün artık öneri değil karar: saat yazmak onu bugüne çekmemeli.
+    await open(tester);
+
+    await tester.tap(find.byKey(const Key('reminder-day-2026-8-20')));
+    await _settle(tester);
+    await tester.enterText(find.byKey(const Key('reminder-time-hour')), '07');
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('reminder-time-minute')), '45');
+    await _settle(tester);
+    await saveAndClose(tester);
+
+    expect((await readNote()).remindAt, DateTime(2026, 8, 20, 7, 45));
+    await close(tester);
+  });
+
+  testWidgets('kayıtlı hatırlatmanın günü öneri sayılmaz', (tester) async {
+    // Kayıtta gün zaten kullanıcının seçimi; saati değiştirmek onu bugüne
+    // taşımamalı.
+    await open(tester, initial: ReminderChoice(at: DateTime(2026, 8, 20, 9)));
+
+    await tester.enterText(find.byKey(const Key('reminder-time-hour')), '18');
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('reminder-time-minute')), '30');
+    await _settle(tester);
+    await saveAndClose(tester);
+
+    expect((await readNote()).remindAt, DateTime(2026, 8, 20, 18, 30));
+    await close(tester);
+  });
+
   testWidgets('bugüne düşen geçmiş saat kayda yazılmaz', (tester) async {
     await open(tester);
 
@@ -215,73 +259,47 @@ void main() {
     await close(tester);
   });
 
-  testWidgets('sürekli hatırlat aralığı seçilen güne göre kurar', (
-    tester,
-  ) async {
+  testWidgets('günlük ritim native ilk oluşuma hizalanır', (tester) async {
+    // Native günlük kayıt gelecekteki başlangıç gününü taşıyamaz; yalnız
+    // saati eşleştirir. Ekranın kaydettiği ilk halka da bu yüzden o saatin
+    // gerçek bir sonraki oluşumudur: kayıt ekrandan önce çalmaz.
     await open(tester);
 
-    await tester.tap(find.byKey(const Key('reminder-day-2026-8-15')));
+    await tester.tap(find.byKey(const Key('reminder-day-2026-8-20')));
     await _settle(tester);
-    // Kip rayında "sürekli"ye geçmek aralığı seçilen güne göre kurar.
-    await tester.tap(find.text('Sürekli hatırlat'));
-    await _settle(tester);
-    await saveAndClose(tester);
-
-    final note = await readNote();
-    expect(note.remindAt, DateTime(2026, 8, 15, 10));
-    expect(note.remindEveryDays, 7);
-    await close(tester);
-  });
-
-  testWidgets('silme sözü yalnız tek atışta görünür ve kayda geçer', (
-    tester,
-  ) async {
-    await open(tester);
-
-    final row = find.byKey(const Key('reminder-delete-after-row'));
-    expect(row, findsOneWidget);
-
-    // Sürekli hatırlatmada söz anlamsız: ikinci oluşum hiç gelmezdi.
-    await tester.tap(find.text('Sürekli hatırlat'));
-    await _settle(tester);
-    expect(row, findsNothing);
-
-    await tester.tap(find.text('Bir kere hatırlat'));
-    await _settle(tester);
-    await tester.ensureVisible(row);
-    await tester.tap(row);
+    await tester.tap(find.text('Gün'));
     await _settle(tester);
     await saveAndClose(tester);
 
     final note = await readNote();
     expect(note.remindAt, DateTime(2026, 8, 9, 10));
-    expect(note.expiresAt, DateTime(2026, 8, 9, 10).add(kReminderExpiryGrace));
+    expect(note.remindEveryDays, 1);
     await close(tester);
   });
 
-  testWidgets('kayıtlı silme sözüyle açılınca anahtar açık gelir', (
+  testWidgets('haftalık ritim bir sonraki aynı hafta gününe hizalanır', (
     tester,
   ) async {
-    await open(
-      tester,
-      initial: ReminderChoice(at: DateTime(2026, 9, 3, 21, 30)),
-      deleteAfter: true,
-    );
+    await open(tester);
 
-    expect(
-      tester
-          .widget<EmberSwitch>(
-            find.byKey(const Key('reminder-delete-after-switch')),
-          )
-          .value,
-      isTrue,
-    );
-
+    await tester.tap(find.byKey(const Key('reminder-day-2026-8-20')));
+    await _settle(tester);
+    await tester.tap(find.text('Hafta'));
+    await _settle(tester);
     await saveAndClose(tester);
-    expect(
-      (await readNote()).expiresAt,
-      DateTime(2026, 9, 3, 21, 30).add(kReminderExpiryGrace),
-    );
+
+    final note = await readNote();
+    expect(note.remindAt, DateTime(2026, 8, 13, 10));
+    expect(note.remindEveryDays, 7);
+    await close(tester);
+  });
+
+  testWidgets('hatırlatma sonrası otomatik silme seçeneği sunulmaz', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(find.byKey(const Key('reminder-delete-after-row')), findsNothing);
+    expect(find.text('Hatırlattıktan 1 saat sonra sil'), findsNothing);
     await close(tester);
   });
 

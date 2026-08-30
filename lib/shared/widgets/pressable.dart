@@ -16,6 +16,7 @@ class Pressable extends StatefulWidget {
     this.scale = 0.97,
     this.haptic = HapticFeedback.selectionClick,
     this.semanticLabel,
+    this.selected,
   });
 
   final Widget child;
@@ -27,6 +28,11 @@ class Pressable extends StatefulWidget {
   final double scale;
   final VoidCallback? haptic;
   final String? semanticLabel;
+
+  /// Seçilebilir bağlamlarda öğenin işaretli olup olmadığı. Yalnız görsel bir
+  /// halka bırakmak ekran okuyucuda seçimi görünmez kılardı; `null` verildiğinde
+  /// öğe seçilebilir sayılmaz.
+  final bool? selected;
 
   @override
   State<Pressable> createState() => _PressableState();
@@ -48,6 +54,7 @@ class _PressableState extends State<Pressable> {
       button: true,
       enabled: _enabled,
       label: widget.semanticLabel,
+      selected: widget.selected,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _setDown(true),

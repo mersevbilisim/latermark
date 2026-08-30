@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "保存",
   "composeSaving": "保存中",
+  "composeWaitingForLocation": "位置情報を待っています",
   "actionCancel": "キャンセル",
   "actionClose": "閉じる",
   "actionBack": "戻る",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "あと少し",
   "holdStageRelease": "そのまま長押し…",
   "holdStageGone": "削除しました",
+  "selectionStart": "削除する記録を選ぶ",
+  "selectionExit": "選択をやめる",
+  "selectionTitle": "選択",
+  "selectionCount": "{count, plural, =0{未選択} other{{count}件を選択中}}",
+  "selectionHint": "削除したい記録をタップしてください",
+  "deleteManyConfirmTitle": "{count, plural, other{{count}件を削除しますか？}}",
+  "deleteManyConfirmCaption": "写真とノートがまとめて削除されます。",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "カメラを利用できません",
   "cameraNotFoundBody": "このデバイスで利用できるカメラがありません。",
   "cameraDeniedTitle": "カメラアクセスがオフです",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "1回だけ通知します。",
   "reminderRepeatNeedsInterval": "先に日数を入力してください。",
   "reminderRepeatSummary": "{days, plural, other{{days}日ごとに通知します。}}",
-  "reminderRepeatingValue": "{days, plural, other{{days}日ごと · 次回 {when}}}",
+  "reminderDailyValue": "毎日 · 次は {when}",
+  "reminderWeeklyValue": "毎週 · 次は {when}",
+  "reminderMonthlyValue": "毎月 · 次は {when}",
+  "reminderYearlyValue": "毎年 · 次は {when}",
+  "reminderCadenceOnce": "1回",
+  "reminderCadenceDaily": "日",
+  "reminderCadenceWeekly": "週",
+  "reminderCadenceMonthly": "月",
+  "reminderCadenceYearly": "年",
   "reminderBlocked": "通知がオフです。記録は保存され、通知を許可するとリマインダーが作動します。",
   "editNoteSemantic": "ノートを編集",
   "editSheetHeader": "ノートを編集",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "保存しました",
   "reminderScheduleQuestion": "この一枚をいつ戻しますか？",
   "reminderTimeLabel": "時刻",
-  "reminderOnceTitle": "1回だけ知らせる",
-  "reminderRepeatTitle": "くり返し知らせる",
   "reminderSkip": "今はしない",
-  "reminderDeleteAfterLabel": "通知の1時間後に削除"
+  "reminderDeleteAfterLabel": "通知の1時間後に削除",
+  "reminderAfterExpiry": "リマインダーはこのノートが削除される前に設定してください。"
 }

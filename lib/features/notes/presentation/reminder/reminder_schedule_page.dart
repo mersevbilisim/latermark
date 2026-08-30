@@ -8,18 +8,16 @@ import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_shape.dart';
 import '../../../../core/utils/app_format.dart';
+import '../../../../l10n/enum_labels.dart';
 import '../../../../l10n/l10n_context.dart';
-import '../../../../shared/widgets/aperture.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/choice_rail.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
-import '../../../../shared/widgets/ember_switch.dart';
 import '../../../reminders/reminder_service.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
 import '../../domain/note_reminder.dart';
 import '../home/widgets/note_photo.dart';
-import '../widgets/note_option_label.dart';
 import '../widgets/reminder_calendar.dart';
 import '../widgets/reminder_control.dart';
 
@@ -38,7 +36,6 @@ class ReminderSchedulePage extends StatefulWidget {
     super.key,
     required this.noteId,
     this.initial = const ReminderChoice.off(),
-    this.initialDeleteAfter = false,
     this.onFlowClosed,
     this.now,
   });
@@ -47,10 +44,6 @@ class ReminderSchedulePage extends StatefulWidget {
 
   /// Kayıtlı hatırlatma; yeni bir karede kapalı gelir.
   final ReminderChoice initial;
-
-  /// Kayıtlı notun silinme anı hatırlatmasından mı türemiş — yani kullanıcı
-  /// bu sözü daha önce vermiş mi.
-  final bool initialDeleteAfter;
 
   /// Kameradan başlayan dış yönlendirme zincirinin son halkası. Yazma ekranı
   /// bu sayfaya yerini bıraktığı için zinciri artık bu sayfa kapatıyor.
@@ -77,15 +70,25 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
   late DateTime _at =
       pendingReminderAt(
         remindAt: widget.initial.at,
-        everyDays: widget.initial.everyDays,
+        cadence: widget.initial.cadence,
         now: _now,
       ) ??
       _defaultMoment;
 
-  late int _everyDays = widget.initial.everyDays;
+  late ReminderCadence _cadence = widget.initial.cadence;
 
-  /// "Hatırlattıktan bir saat sonra sil." Yalnız tek atışta anlamlı.
-  late bool _deleteAfter = widget.initialDeleteAfter;
+  /// Takvimdeki gün **gerçek bir seçim** mi, yoksa ekranın önerisi mi?
+  ///
+  /// Ekran boş bir takvimle karşılamıyor, "yarın aynı saatte" diye açılıyor.
+  /// Ama bu bir öneri; kullanıcı ona bakıp yalnız saati yazdığında niyeti
+  /// "yarın" değil, "yazdığım saatte" oluyordu. Öneri gün olarak sessizce
+  /// kaldığı için "bir dakika sonra" dediğini sanan biri hatırlatmasını yirmi
+  /// dört saat sonrasına kuruyordu — hata vermeden, ekranda bir şey değişmeden.
+  ///
+  /// Bu yüzden gün iki hâlde "çivili" sayılıyor: takvimden dokunulduğunda ve
+  /// kayıtta zaten bir hatırlatma varken (o günü kullanıcı daha önce seçmiş).
+  /// Çivili değilse yazılan saat, o saatin **bir sonraki** oluşumuna çözülür.
+  late bool _dayPinned = widget.initial.isOn;
 
   bool _saving = false;
   bool _flowClosed = false;
@@ -127,21 +130,36 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
     widget.onFlowClosed?.call();
   }
 
-  /// Takvimden seçilen gün, tekrar açıkken aralığı da tazeler: "6 Eylül" diyen
-  /// kullanıcı tekrarı da o güne göre kurmuş olur.
-  int _intervalFor(DateTime at) =>
-      math.max(1, localCalendarDaysBetween(_now, at));
-
-  void _selectMoment(DateTime at) {
-    setState(() {
-      _at = at;
-      if (_everyDays > 0) _everyDays = _intervalFor(at);
-    });
+  DateTime _momentForCadence(DateTime at, ReminderCadence cadence) {
+    if (cadence != ReminderCadence.daily && cadence != ReminderCadence.weekly) {
+      return at;
+    }
+    return nextNativeRepeatAt(pattern: at, now: _now, cadence: cadence);
   }
 
-  void _setRepeats(bool value) {
+  void _selectMoment(DateTime at) {
+    setState(() => _at = _momentForCadence(at, _cadence));
+  }
+
+  /// Takvimden gün seçmek öneriyi karara çevirir.
+  void _selectDay(DateTime at) {
+    _dayPinned = true;
+    _selectMoment(at);
+  }
+
+  /// Ritim tarihten türetilmiyor, doğrudan seçiliyor.
+  ///
+  /// Eskiden tekrar tek bir anahtardı ve aralık "bugünden seçilen güne kaç gün
+  /// var" diye hesaplanıyordu. 1 Eylül'ü seçip tekrarı açan biri "her ay"
+  /// demek isterken kayıt "her 24 günde bir" oluyor, sonraki oluşum da 25
+  /// Eylül'e kayıyordu — kimsenin kastetmediği bir ritim. Tarih dizinin
+  /// **başladığı** an, ritim ise nasıl yineleneceği.
+  void _setCadence(ReminderCadence cadence) {
     HapticFeedback.selectionClick();
-    setState(() => _everyDays = value ? _intervalFor(_at) : 0);
+    setState(() {
+      _cadence = cadence;
+      _at = _momentForCadence(_at, cadence);
+    });
   }
 
   Future<void> _save() async {
@@ -153,9 +171,13 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
     try {
       await _repository!.setReminder(
         widget.noteId,
-        ReminderChoice(at: _at, everyDays: _everyDays),
-        deleteAfterReminder: _deleteAfter,
+        ReminderChoice(at: _at, cadence: _cadence),
       );
+    } on ReminderAfterExpiryException {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showToast(context, context.l10n.reminderAfterExpiry, error: true);
+      return;
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -212,7 +234,7 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                           ReminderCalendar(
                             value: _at,
                             now: _now,
-                            onChanged: _selectMoment,
+                            onChanged: _selectDay,
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -222,6 +244,7 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                               ReminderClock(
                                 value: _at,
                                 now: _now,
+                                dayPinned: _dayPinned,
                                 onChanged: _selectMoment,
                               ),
                             ],
@@ -231,38 +254,27 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                             children: [
                               const _Rule(),
                               const SizedBox(height: 18),
-                              // Tekrar kipi ikili bir karar; uygulamanın her
-                              // yerdeki seçim rayı bunu tek satırda söylüyor.
+                              // Ritim, uygulamanın her yerdeki seçim rayında.
                               // Sonucun cümlesi kaydetmenin hemen üstünde
                               // zaten yazıyor — rayın altına ikinci kez
                               // yazmak aynı şeyi iki kere söylemek olurdu.
-                              ChoiceRail<bool>(
+                              ChoiceRail<ReminderCadence>(
                                 key: const Key('reminder-cadence-rail'),
-                                options: const [false, true],
-                                value: _everyDays > 0,
-                                onChanged: _setRepeats,
-                                labelOf: (repeats) => repeats
-                                    ? l10n.reminderRepeatTitle
-                                    : l10n.reminderOnceTitle,
-                              ),
-                              // Silme sözü yalnız tek atışta duruyor: sürekli
-                              // hatırlatılan bir kareyi ilk bildirimden sonra
-                              // silmek, verilen sözün kendisini yerdi.
-                              AnimatedSize(
-                                duration: AppMotion.medium,
-                                curve: AppMotion.ease,
-                                alignment: Alignment.topCenter,
-                                child: _everyDays > 0
-                                    ? const SizedBox(width: double.infinity)
-                                    : Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: _DeleteAfterRow(
-                                          value: _deleteAfter,
-                                          onChanged: (value) => setState(
-                                            () => _deleteAfter = value,
-                                          ),
-                                        ),
-                                      ),
+                                options: ReminderCadence.values,
+                                value: _cadence,
+                                onChanged: _setCadence,
+                                labelOf: (cadence) => switch (cadence) {
+                                  ReminderCadence.once =>
+                                    l10n.reminderCadenceOnce,
+                                  ReminderCadence.daily =>
+                                    l10n.reminderCadenceDaily,
+                                  ReminderCadence.weekly =>
+                                    l10n.reminderCadenceWeekly,
+                                  ReminderCadence.monthly =>
+                                    l10n.reminderCadenceMonthly,
+                                  ReminderCadence.yearly =>
+                                    l10n.reminderCadenceYearly,
+                                },
                               ),
                             ],
                           ),
@@ -282,18 +294,32 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 6, 22, 10),
-                child: AnimatedSwitcher(
-                  duration: AppMotion.fast,
-                  child: Text(
-                    l10n.reminderValue(
-                      at: _at,
-                      everyDays: _everyDays,
-                      use24Hour: context.use24Hour,
+                // Cümle **iki satırlık** yer tutuyor, bir satırlık değil.
+                //
+                // "Bir kez" seçiliyken tek satır ("27 Ağustos 21:30"), ritim
+                // seçilince iki satır oluyordu ("Her hafta · sonraki …") ve
+                // aradaki fark üstteki kaydırma alanını kısaltıp ritim rayını
+                // her seçimde aşağı kaydırıyordu. Sabit yer, rayı yerine
+                // çiviliyor; iki satıra çıkmayan diller de aynı hizada kalıyor.
+                child: SizedBox(
+                  height: MediaQuery.textScalerOf(context).scale(16) * 1.32 * 2,
+                  child: Center(
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.fast,
+                      child: Text(
+                        _cadence.sentence(
+                          l10n,
+                          at: _at,
+                          use24Hour: context.use24Hour,
+                        ),
+                        key: ValueKey((_at, _cadence)),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: palette.bodyStrong.copyWith(
+                          color: palette.ember,
+                        ),
+                      ),
                     ),
-                    key: ValueKey((_at, _everyDays)),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    style: palette.bodyStrong.copyWith(color: palette.ember),
                   ),
                 ),
               ),
@@ -408,71 +434,6 @@ class _SavedFrame extends StatelessWidget {
   }
 }
 
-/// "Hatırlattıktan 1 saat sonra sil."
-///
-/// Soldaki işaret bir ikon değil, uygulamanın kendi irisi: söz verildiğinde
-/// kapanmaya başlar. Aynı iris not detayında kalan ömrü, silme onayında da
-/// kararın kendisini gösteriyor — üç ekran tek bir cümle kuruyor.
-class _DeleteAfterRow extends StatelessWidget {
-  const _DeleteAfterRow({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final label = context.l10n.reminderDeleteAfterLabel;
-
-    return GestureDetector(
-      key: const Key('reminder-delete-after-row'),
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: MergeSemantics(
-        child: NoteOptionRow(
-          label: ExcludeSemantics(
-            child: Row(
-              children: [
-                SizedBox.square(
-                  dimension: 21,
-                  child: AnimatedSwitcher(
-                    duration: AppMotion.medium,
-                    child: Aperture(
-                      key: ValueKey(value),
-                      openness: value ? 0.22 : 0.72,
-                      twist: value ? -0.34 : 0,
-                      bladeCount: 7,
-                      edgeTint: value ? palette.ember : palette.inkFaint,
-                      bladeBase: palette.canvas,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: palette.bodyStrong.copyWith(
-                      color: value ? palette.ink : palette.inkSoft,
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing: EmberSwitch(
-            key: const Key('reminder-delete-after-switch'),
-            value: value,
-            onChanged: onChanged,
-            semanticLabel: label,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Bölümleri ayıran saç teli. Kutu yerine çizgi: sayfanın kendisi zaten bir
 /// yüzey, her bölümü ayrıca çerçevelemek sınır sayısını artırmaktan başka bir
 /// şey yapmıyor.
@@ -499,11 +460,17 @@ class ReminderClock extends StatefulWidget {
     required this.value,
     required this.now,
     required this.onChanged,
+    this.dayPinned = true,
   });
 
   final DateTime value;
   final DateTime now;
   final ValueChanged<DateTime> onChanged;
+
+  /// Gün kullanıcının kararıysa yazılan saat o günün üstüne biner. Gün yalnız
+  /// ekranın önerisiyse yazılan saat kendi gününü seçer: bugün hâlâ o saate
+  /// varılıyorsa bugün, varılmıyorsa yarın.
+  final bool dayPinned;
 
   @override
   State<ReminderClock> createState() => _ReminderClockState();
@@ -599,13 +566,25 @@ class _ReminderClockState extends State<ReminderClock> {
       setState(() => _invalid = true);
       return;
     }
-    final moment = reminderMomentOf(day, TimeOfDay(hour: hour, minute: minute));
+    final time = TimeOfDay(hour: hour, minute: minute);
+    final moment = widget.dayPinned
+        ? reminderMomentOf(day, time)
+        : _nextOccurrenceOf(time);
     if (!moment.isAfter(widget.now)) {
       setState(() => _invalid = true);
       return;
     }
     setState(() => _invalid = false);
     widget.onChanged(moment);
+  }
+
+  /// Yazılan saatin bir sonraki oluşumu — çalar saat mantığı.
+  DateTime _nextOccurrenceOf(TimeOfDay time) {
+    final today = reminderDayOf(widget.now);
+    final onToday = reminderMomentOf(today, time);
+    return onToday.isAfter(widget.now)
+        ? onToday
+        : reminderMomentOf(shiftLocalCalendarDays(today, 1), time);
   }
 
   @override

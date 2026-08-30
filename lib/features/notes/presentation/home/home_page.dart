@@ -63,6 +63,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   SearchHits _hits = SearchHits.none;
   Timer? _searchDebounce;
 
+  /// Toplu silme kipi.
+  ///
+  /// İşaretli kayıtlar kimlikleriyle tutuluyor, `Note` nesneleriyle değil:
+  /// akış seçim açıkken yeni bir değer yayabilir (kayıt süresi dolar, bildirim
+  /// düğmesinden bir not silinir) ve elde tutulan kopya o anda eskir. Kimlik
+  /// listede aranır, bulunmayan sessizce düşer.
+  bool _selecting = false;
+  final _selected = <int>{};
+
+  /// Silme sürerken şerit kilitli kalır; ikinci dokunuş aynı kayıtları bir
+  /// daha silmeye kalkmaz.
+  bool _deletingSelection = false;
+
   /// Yaş bölümlerinin dayandığı yerel gün. Akış açıkken gece yarısı geçilse
   /// bile "Bugün / Dün" başlıkları bir sonraki veri değişimini beklememeli.
   late DateTime _calendarReference;
@@ -478,6 +491,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
+  /// Toplu silme kipine girer ya da çıkar.
+  ///
+  /// Arama ile seçim aynı anda açık olamaz: ikisi de başlığın aynı satırını
+  /// kullanıyor ve iki kip birden açıkken üstlük ne yaptığını söyleyemez.
+  /// Seçim başlarken arama kapanır.
+  ///
+  /// Kipi açan denetim aynı zamanda kapatan denetim: alt şeritte, galerinin
+  /// karşısındaki yuvada.
+  void _toggleSelecting() {
+    setState(() {
+      _selecting = !_selecting;
+      _selected.clear();
+      if (_selecting && _searching) {
+        _searching = false;
+        _searchDebounce?.cancel();
+        _searchTicket++;
+        _hits = SearchHits.none;
+        _searchController.clear();
+        _searchFocus.unfocus();
+      }
+    });
+  }
+
+  /// Akış boşaldığı için görünürden düşen kipi durumdan da siler.
+  void _dropStaleSelection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_selecting) return;
+      setState(() {
+        _selecting = false;
+        _selected.clear();
+      });
+    });
+  }
+
+  void _toggleSelection(Note note) {
+    setState(() {
+      if (!_selected.remove(note.id)) _selected.add(note.id);
+    });
+  }
+
   /// Her tuş vuruşu bir sorgu değil.
   ///
   /// Gecikme olmadan "fatura" yazmak altı ayrı tam tarama başlatırdı ve ilk
@@ -532,6 +585,45 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  /// İşaretli kayıtları topluca siler.
+  ///
+  /// Onay tekli silmeyle **aynı** ritüel: örtücü kapanana kadar parmak basılı
+  /// tutulur. Yıkıcılığı sayıyla artan bir eylem için ayrı, daha kolay bir
+  /// kapı açmak tuhaf olurdu. Örtücünün altına seçilenlerin ilki konur;
+  /// başlık kaç karenin gittiğini söyler.
+  Future<void> _deleteSelection(List<Note> targets) async {
+    if (targets.isEmpty || _deletingSelection) return;
+
+    final confirmed = await showShutterConfirm(
+      context,
+      photo: _repository!.imageOf(targets.first),
+      title: context.l10n.deleteManyConfirmTitle(targets.length),
+      caption: context.l10n.deleteManyConfirmCaption,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingSelection = true);
+    var deleted = false;
+    try {
+      await _repository!.deleteAll(targets);
+      deleted = true;
+    } catch (_) {
+      if (mounted) {
+        showToast(context, context.l10n.toastDeleteFailed, error: true);
+      }
+    }
+    if (!mounted) return;
+
+    setState(() {
+      _deletingSelection = false;
+      // Silme başarısızsa seçim durur: kullanıcı yeniden deneyebilsin.
+      if (deleted) {
+        _selecting = false;
+        _selected.clear();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final preferences = AppScope.preferences(context);
@@ -557,6 +649,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           final notes = _searching && _hits.filtering
               ? all.where((note) => _hits.contains(note.id)).toList()
               : all;
+
+          // Kip listeden türetiliyor: son kayıt silindiğinde akış boş kalır,
+          // seçim şeridi de o karede kendiliğinden kalkar. İşaretliler de
+          // listenin kendisinden süzülüyor; arada süresi dolan bir kayıt
+          // sayacı şişirmez.
+          final selecting = _selecting && all.isNotEmpty;
+          // Son kayıt seçim açıkken başka bir yerden kalkabilir (süresi dolar,
+          // bildirim düğmesinden silinir). Kip yalnız görsel olarak kapanırsa
+          // bir sonraki fotoğrafta kendiliğinden geri gelirdi; bayrak da
+          // düşürülüyor.
+          if (_selecting && !selecting) _dropStaleSelection();
+          final selection = selecting
+              ? [for (final note in notes) if (_selected.contains(note.id)) note]
+              : const <Note>[];
 
           return _Canvas(
             child: Stack(
@@ -591,6 +697,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           searchFocus: _searchFocus,
                           onSearchChanged: _onQueryChanged,
                           onToggleSearch: _toggleSearch,
+                          selecting: selecting,
+                          selectedIds: _selected,
+                          onToggleSelection: _toggleSelection,
                         );
                       },
                     ),
@@ -603,6 +712,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   onCapture: _openCamera,
                   onImport: _pickFromGallery,
                   onOpenSettings: notes.isEmpty ? _openSettings : null,
+                  selecting: selecting,
+                  selectedCount: selection.length,
+                  // Akış boşken silinecek bir şey yok: yuva hiç çizilmiyor.
+                  onToggleSelecting: all.isEmpty ? null : _toggleSelecting,
+                  onDeleteSelection: _deletingSelection
+                      ? null
+                      : () => _deleteSelection(selection),
                 ),
               ],
             ),

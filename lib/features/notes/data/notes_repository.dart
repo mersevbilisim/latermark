@@ -59,6 +59,15 @@ final class _ProcessedImport {
   final bool completed;
 }
 
+void _ensureReminderBeforeExpiry({
+  required DateTime? remindAt,
+  required DateTime? expiresAt,
+}) {
+  if (remindAt != null && expiresAt != null && !expiresAt.isAfter(remindAt)) {
+    throw const ReminderAfterExpiryException();
+  }
+}
+
 /// Arayüzün veriye tek giriş kapısı.
 ///
 /// Ekranlar Drift'i veya dosya sistemini doğrudan tanımaz; hepsi buradan geçer.
@@ -222,6 +231,11 @@ class NotesRepository {
         ? retention
         : freeRetentionFallback(retention);
     final effectiveReminder = isPro ? reminder : const ReminderChoice.off();
+    final expiry = effectiveRetention.expiryFrom(stamp);
+    _ensureReminderBeforeExpiry(
+      remindAt: effectiveReminder.at,
+      expiresAt: expiry,
+    );
     final id = await _db
         .into(_db.notes)
         .insert(
@@ -231,7 +245,7 @@ class NotesRepository {
             createdAt: stamp,
             retention: Value(effectiveRetention.retention),
             customMinutes: Value(effectiveRetention.customMinutes),
-            expiresAt: Value(effectiveRetention.expiryFrom(stamp)),
+            expiresAt: Value(expiry),
             remindAt: Value(effectiveReminder.at),
             remindEveryDays: Value(
               effectiveReminder.repeats ? effectiveReminder.everyDays : 0,
@@ -293,6 +307,14 @@ class NotesRepository {
       final isPro = await _isProUnlocked();
       final effective = isPro ? reminder : const ReminderChoice.off();
       final everyDays = effective.repeats ? effective.everyDays : 0;
+      final hasLegacyReminderExpiry = isReminderExpiry(
+        remindAt: note.remindAt,
+        expiresAt: note.expiresAt,
+      );
+      _ensureReminderBeforeExpiry(
+        remindAt: effective.at,
+        expiresAt: hasLegacyReminderExpiry ? null : note.expiresAt,
+      );
 
       // Damga yalnızca gerçekten bir şey değiştiyse vurulur. Düzenleme
       // ekranını açıp hiçbir şeye dokunmadan kaydetmek notu "düzenlenmiş"
@@ -306,8 +328,7 @@ class NotesRepository {
       // Kullanıcı anahtarı kapattığında geriye çalmayacak bir bildirimin
       // saatine ayarlanmış bir silme kalmamalı.
       final dropsReminderExpiry =
-          effective.at == null &&
-          isReminderExpiry(remindAt: note.remindAt, expiresAt: note.expiresAt);
+          effective.at == null && hasLegacyReminderExpiry;
 
       await (_db.update(_db.notes)..where((t) => t.id.equals(note.id))).write(
         NotesCompanion(
@@ -374,6 +395,10 @@ class NotesRepository {
       final hadReminderExpiry = isReminderExpiry(
         remindAt: note.remindAt,
         expiresAt: note.expiresAt,
+      );
+      _ensureReminderBeforeExpiry(
+        remindAt: wantsExpiry ? null : at,
+        expiresAt: hadReminderExpiry ? null : note.expiresAt,
       );
 
       var retention = const Value<Retention>.absent();
@@ -449,7 +474,7 @@ class NotesRepository {
         action: action,
         reminder: ReminderChoice(
           at: note.remindAt,
-          everyDays: note.remindEveryDays,
+          cadence: ReminderCadence.fromCode(note.remindEveryDays),
         ),
         now: moment,
         firedAt: firedAt,
@@ -691,6 +716,20 @@ class NotesRepository {
   Future<void> delete(Note note) async {
     await (_db.delete(_db.notes)..where((t) => t.id.equals(note.id))).go();
     await _store.remove(note.imageName);
+  }
+
+  /// Birden çok kaydı **tek** silme deyiminde kaldırır.
+  ///
+  /// Döngüyle tek tek silmek her kayıtta akışa yeni bir değer yayardı: liste
+  /// on kayıt için on kez yeniden çizilir, kartlar birer birer eriyip giderdi.
+  /// Tek deyim tek yayın üretir; seçim topluca ve tek karede kalkar.
+  Future<void> deleteAll(Iterable<Note> notes) async {
+    final doomed = notes.toList(growable: false);
+    if (doomed.isEmpty) return;
+
+    final ids = [for (final note in doomed) note.id];
+    await (_db.delete(_db.notes)..where((t) => t.id.isIn(ids))).go();
+    await _store.removeAll(doomed.map((note) => note.imageName));
   }
 
   /// Süresi dolmuş notları temizler. Açılışta, uygulama öne geldiğinde ve

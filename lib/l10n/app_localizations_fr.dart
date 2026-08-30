@@ -18,6 +18,9 @@ class L10nFr extends L10n {
   String get composeSaving => 'Enregistrement';
 
   @override
+  String get composeWaitingForLocation => 'Localisation en cours';
+
+  @override
   String get actionCancel => 'Annuler';
 
   @override
@@ -192,6 +195,45 @@ class L10nFr extends L10n {
 
   @override
   String get holdStageGone => 'Supprimé';
+
+  @override
+  String get selectionStart => 'Choisir des vues à supprimer';
+
+  @override
+  String get selectionExit => 'Quitter la sélection';
+
+  @override
+  String get selectionTitle => 'Sélection';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sélectionnées',
+      one: '1 sélectionnée',
+      zero: 'Aucune sélection',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Touchez les vues que vous voulez supprimer';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Supprimer $count vues ?',
+      one: 'Supprimer cette vue ?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'Les photos et les notes seront supprimées ensemble.';
 
   @override
   String get cameraNotFoundTitle => 'Caméra indisponible';
@@ -490,15 +532,39 @@ class L10nFr extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'Tous les $days jours · prochain $when',
-      one: 'Chaque jour · prochain $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Chaque jour · prochain $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Chaque semaine · prochain $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Chaque mois · prochain $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Chaque année · prochain $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Une fois';
+
+  @override
+  String get reminderCadenceDaily => 'Jour';
+
+  @override
+  String get reminderCadenceWeekly => 'Semaine';
+
+  @override
+  String get reminderCadenceMonthly => 'Mois';
+
+  @override
+  String get reminderCadenceYearly => 'An';
 
   @override
   String get reminderBlocked =>
@@ -1110,14 +1176,12 @@ class L10nFr extends L10n {
   String get reminderTimeLabel => 'Heure';
 
   @override
-  String get reminderOnceTitle => 'Rappeler une fois';
-
-  @override
-  String get reminderRepeatTitle => 'Rappeler en boucle';
-
-  @override
   String get reminderSkip => 'Pas maintenant';
 
   @override
   String get reminderDeleteAfterLabel => 'Supprimer 1 heure après le rappel';
+
+  @override
+  String get reminderAfterExpiry =>
+      'Le rappel doit précéder la suppression de cette note.';
 }

@@ -18,6 +18,9 @@ class L10nJa extends L10n {
   String get composeSaving => '保存中';
 
   @override
+  String get composeWaitingForLocation => '位置情報を待っています';
+
+  @override
   String get actionCancel => 'キャンセル';
 
   @override
@@ -178,6 +181,42 @@ class L10nJa extends L10n {
 
   @override
   String get holdStageGone => '削除しました';
+
+  @override
+  String get selectionStart => '削除する記録を選ぶ';
+
+  @override
+  String get selectionExit => '選択をやめる';
+
+  @override
+  String get selectionTitle => '選択';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件を選択中',
+      zero: '未選択',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => '削除したい記録をタップしてください';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件を削除しますか？',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption => '写真とノートがまとめて削除されます。';
 
   @override
   String get cameraNotFoundTitle => 'カメラを利用できません';
@@ -459,14 +498,39 @@ class L10nJa extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days日ごと · 次回 $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return '毎日 · 次は $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return '毎週 · 次は $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return '毎月 · 次は $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return '毎年 · 次は $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => '1回';
+
+  @override
+  String get reminderCadenceDaily => '日';
+
+  @override
+  String get reminderCadenceWeekly => '週';
+
+  @override
+  String get reminderCadenceMonthly => '月';
+
+  @override
+  String get reminderCadenceYearly => '年';
 
   @override
   String get reminderBlocked => '通知がオフです。記録は保存され、通知を許可するとリマインダーが作動します。';
@@ -968,14 +1032,11 @@ class L10nJa extends L10n {
   String get reminderTimeLabel => '時刻';
 
   @override
-  String get reminderOnceTitle => '1回だけ知らせる';
-
-  @override
-  String get reminderRepeatTitle => 'くり返し知らせる';
-
-  @override
   String get reminderSkip => '今はしない';
 
   @override
   String get reminderDeleteAfterLabel => '通知の1時間後に削除';
+
+  @override
+  String get reminderAfterExpiry => 'リマインダーはこのノートが削除される前に設定してください。';
 }

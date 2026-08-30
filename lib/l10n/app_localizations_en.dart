@@ -18,6 +18,9 @@ class L10nEn extends L10n {
   String get composeSaving => 'Saving';
 
   @override
+  String get composeWaitingForLocation => 'Waiting for location';
+
+  @override
   String get actionCancel => 'Cancel';
 
   @override
@@ -192,6 +195,45 @@ class L10nEn extends L10n {
 
   @override
   String get holdStageGone => 'Gone';
+
+  @override
+  String get selectionStart => 'Select frames to delete';
+
+  @override
+  String get selectionExit => 'Leave selection';
+
+  @override
+  String get selectionTitle => 'Select';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+      zero: 'None selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Tap the frames you want to delete';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count frames?',
+      one: 'Delete this frame?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'The photos and notes will be deleted together.';
 
   @override
   String get cameraNotFoundTitle => 'Camera unavailable';
@@ -487,15 +529,39 @@ class L10nEn extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'Every $days days · next $when',
-      one: 'Every day · next $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Every day · next $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Every week · next $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Every month · next $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Every year · next $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Once';
+
+  @override
+  String get reminderCadenceDaily => 'Day';
+
+  @override
+  String get reminderCadenceWeekly => 'Week';
+
+  @override
+  String get reminderCadenceMonthly => 'Month';
+
+  @override
+  String get reminderCadenceYearly => 'Year';
 
   @override
   String get reminderBlocked =>
@@ -1102,14 +1168,12 @@ class L10nEn extends L10n {
   String get reminderTimeLabel => 'Time';
 
   @override
-  String get reminderOnceTitle => 'Remind once';
-
-  @override
-  String get reminderRepeatTitle => 'Remind repeatedly';
-
-  @override
   String get reminderSkip => 'Not now';
 
   @override
   String get reminderDeleteAfterLabel => 'Delete 1 hour after reminding';
+
+  @override
+  String get reminderAfterExpiry =>
+      'The reminder must be before this note is deleted.';
 }

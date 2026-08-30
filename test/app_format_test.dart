@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latermark/features/notes/domain/note_reminder.dart';
+import 'package:latermark/l10n/enum_labels.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:latermark/core/utils/app_format.dart';
 import 'package:latermark/l10n/app_localizations.dart';
@@ -101,18 +103,25 @@ void main() {
   });
 
   group('hatırlatma değeri', () {
-    test('tekrarı gün olarak söyler', () {
+    test('ritim adıyla ve sonraki oluşumla söylenir', () {
       final at = DateTime(2026, 8, 9, 14, 32);
 
       expect(
-        tr.reminderValue(at: at, everyDays: 3),
-        'Her 3 günde bir · sonraki 9 Ağustos 2026 · 14:32',
+        ReminderCadence.monthly.sentence(tr, at: at),
+        'Her ay · sonraki 9 Ağustos 2026 · 14:32',
+      );
+      expect(
+        ReminderCadence.yearly.sentence(tr, at: at),
+        'Her yıl · sonraki 9 Ağustos 2026 · 14:32',
       );
     });
 
-    test('tek atışta cadence eki yazılmaz', () {
+    test('tek atışta ritim eki yazılmaz', () {
       final at = DateTime(2026, 8, 9, 14, 32);
-      expect(tr.reminderValue(at: at, everyDays: 0), '9 Ağustos 2026 · 14:32');
+      expect(
+        ReminderCadence.once.sentence(tr, at: at),
+        '9 Ağustos 2026 · 14:32',
+      );
     });
   });
 
@@ -135,8 +144,8 @@ void main() {
       expect(en.time(at, use24Hour: true), '14:32');
       expect(en.stamp(at, use24Hour: true), 'August 9, 2026 · 14:32');
       expect(
-        en.reminderValue(at: at, everyDays: 3, use24Hour: true),
-        'Every 3 days · next August 9, 2026 · 14:32',
+        ReminderCadence.daily.sentence(en, at: at, use24Hour: true),
+        'Every day · next August 9, 2026 · 14:32',
       );
       // Zaten 24 saat yazan bir dilde anahtar hiçbir şeyi değiştirmez.
       expect(tr.time(at, use24Hour: true), tr.time(at));

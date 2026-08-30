@@ -35,13 +35,70 @@ void main() {
   });
 
   group('tekrarlayan hatırlatma', () {
-    test('aralık boyunca ardışık anlar üretir', () {
+    test('ritim boyunca ardışık anlar üretir', () {
       expect(
-        reminderOccurrences(remindAt: day(3), everyDays: 3, now: now, limit: 3),
+        reminderOccurrences(
+          remindAt: day(3),
+          cadence: ReminderCadence.weekly,
+          now: now,
+          limit: 3,
+        ),
         [
           DateTime(2026, 8, 4, 12),
-          DateTime(2026, 8, 7, 12),
-          DateTime(2026, 8, 10, 12),
+          DateTime(2026, 8, 11, 12),
+          DateTime(2026, 8, 18, 12),
+        ],
+      );
+    });
+
+    test('aylık ritim olmayan günü ayın sonuna kısar', () {
+      // Hesap hep 31 Ocak çıpasından yapılır: Şubat'taki kısılma
+      // Mart'ı kalıcı olarak 28'e kaydırmaz.
+      expect(
+        reminderOccurrences(
+          remindAt: DateTime(2026, 1, 31, 9),
+          cadence: ReminderCadence.monthly,
+          now: DateTime(2026, 1, 1),
+          limit: 3,
+        ),
+        [
+          DateTime(2026, 1, 31, 9),
+          DateTime(2026, 2, 28, 9),
+          DateTime(2026, 3, 31, 9),
+        ],
+      );
+    });
+
+    test('yıllık ritimde 29 Şubat son geçerli güne kısılır', () {
+      expect(
+        reminderOccurrences(
+          remindAt: DateTime(2028, 2, 29, 9),
+          cadence: ReminderCadence.yearly,
+          now: DateTime(2028, 3, 1),
+          limit: 5,
+        ),
+        [
+          DateTime(2029, 2, 28, 9),
+          DateTime(2030, 2, 28, 9),
+          DateTime(2031, 2, 28, 9),
+          DateTime(2032, 2, 29, 9),
+          DateTime(2033, 2, 28, 9),
+        ],
+      );
+    });
+
+    test('1 Ocak aylık ritmi her ayın 1’inde kalır', () {
+      expect(
+        reminderOccurrences(
+          remindAt: DateTime(2027, 1, 1, 9),
+          cadence: ReminderCadence.monthly,
+          now: DateTime(2026, 12, 31),
+          limit: 3,
+        ),
+        [
+          DateTime(2027, 1, 1, 9),
+          DateTime(2027, 2, 1, 9),
+          DateTime(2027, 3, 1, 9),
         ],
       );
     });
@@ -50,7 +107,7 @@ void main() {
       expect(
         reminderOccurrences(
           remindAt: day(1),
-          everyDays: 1,
+          cadence: ReminderCadence.daily,
           now: DateTime(2026, 8, 10, 15),
           limit: 2,
         ),
@@ -62,11 +119,11 @@ void main() {
       expect(
         reminderOccurrences(
           remindAt: day(5),
-          everyDays: 30,
+          cadence: ReminderCadence.monthly,
           now: now,
           limit: 2,
         ),
-        [DateTime(2026, 8, 6, 12), DateTime(2026, 9, 5, 12)],
+        [DateTime(2026, 8, 6, 12), DateTime(2026, 9, 6, 12)],
       );
     });
 
@@ -74,10 +131,10 @@ void main() {
       expect(
         reminderOccurrences(
           remindAt: day(2),
-          everyDays: 2,
+          cadence: ReminderCadence.daily,
           now: DateTime(2026, 8, 5, 12),
         ),
-        [DateTime(2026, 8, 7, 12)],
+        [DateTime(2026, 8, 6, 12)],
       );
     });
 
@@ -85,15 +142,15 @@ void main() {
       expect(
         reminderOccurrences(
           remindAt: day(2),
-          everyDays: 2,
-          expiresAt: DateTime(2026, 8, 8),
+          cadence: ReminderCadence.daily,
+          expiresAt: DateTime(2026, 8, 6),
           now: now,
           limit: 60,
         ),
         [
           DateTime(2026, 8, 3, 12),
+          DateTime(2026, 8, 4, 12),
           DateTime(2026, 8, 5, 12),
-          DateTime(2026, 8, 7, 12),
         ],
       );
     });
@@ -102,7 +159,7 @@ void main() {
       expect(
         pendingReminderAt(
           remindAt: day(1),
-          everyDays: 1,
+          cadence: ReminderCadence.daily,
           now: DateTime(2026, 8, 10, 15),
         ),
         DateTime(2026, 8, 11, 12),
@@ -154,15 +211,13 @@ void main() {
     ReminderRequest request(
       int id, {
       required DateTime at,
-      int everyDays = 0,
+      ReminderCadence cadence = ReminderCadence.once,
       DateTime? expiresAt,
-      bool allowNativeRepeat = true,
     }) => ReminderRequest(
       noteId: id,
       remindAt: at,
-      everyDays: everyDays,
+      cadence: cadence,
       expiresAt: expiresAt,
-      allowNativeRepeat: allowNativeRepeat,
     );
 
     test('geçmişte kalmış tek atış programa girmez', () {
@@ -176,50 +231,126 @@ void main() {
       expect(schedule.map((item) => item.noteId), [2]);
     });
 
-    test('süresiz tekrar işletim sisteminde tek kayıt kullanır', () {
+    test('aylık tekrar son-gün kuralı için kesin tarihler kullanır', () {
       final schedule = reminderSchedule(
-        requests: [request(1, at: day(30), everyDays: 30)],
+        requests: [request(1, at: day(30), cadence: ReminderCadence.monthly)],
+        now: now,
+        budget: 3,
+        maxPerNote: 3,
+      );
+
+      expect(schedule, hasLength(3));
+      expect(schedule.every((item) => item.repeat == null), isTrue);
+      expect(schedule.map((item) => item.at), [
+        DateTime(2026, 8, 31, 12),
+        DateTime(2026, 9, 30, 12),
+        DateTime(2026, 10, 31, 12),
+      ]);
+    });
+
+    test('normal yıllık ritim native tek kayıt kullanır', () {
+      final schedule = reminderSchedule(
+        requests: [request(1, at: day(365), cadence: ReminderCadence.yearly)],
+        now: now,
+      );
+      expect(schedule, hasLength(1));
+      expect(schedule.single.repeat, ReminderCadence.yearly);
+    });
+
+    test('29 Şubat yıllık ritmi kesin tarihler halinde kurulur', () {
+      final schedule = reminderSchedule(
+        requests: [
+          request(
+            1,
+            at: DateTime(2028, 2, 29, 9),
+            cadence: ReminderCadence.yearly,
+          ),
+        ],
+        now: DateTime(2028, 1, 1),
+        budget: 3,
+        maxPerNote: 3,
+      );
+
+      expect(schedule.map((item) => item.at), [
+        DateTime(2028, 2, 29, 9),
+        DateTime(2029, 2, 28, 9),
+        DateTime(2030, 2, 28, 9),
+      ]);
+      expect(schedule.every((item) => item.repeat == null), isTrue);
+    });
+
+    test('ayın 1–28’indeki aylık ritim native tek kayıt kullanır', () {
+      final schedule = reminderSchedule(
+        requests: [request(1, at: day(2), cadence: ReminderCadence.monthly)],
         now: now,
       );
 
       expect(schedule, hasLength(1));
-      expect(schedule.single.repeatInterval, const Duration(days: 30));
-      expect(schedule.single.repeatsIndefinitely, isTrue);
+      expect(schedule.single.repeat, ReminderCadence.monthly);
     });
 
-    test('365 gün gerçekten 365 günlük native aralıktır', () {
-      final schedule = reminderSchedule(
-        requests: [request(1, at: day(365), everyDays: 365)],
+    test('yakın günlük ve haftalık tekrar native tek kayıt kullanır', () {
+      final daily = reminderSchedule(
+        requests: [request(1, at: day(2), cadence: ReminderCadence.daily)],
         now: now,
       );
-      expect(schedule.single.repeatInterval, const Duration(days: 365));
+      final weekly = reminderSchedule(
+        requests: [request(2, at: day(2), cadence: ReminderCadence.weekly)],
+        now: now,
+      );
+
+      expect(daily.single.repeat, ReminderCadence.daily);
+      expect(weekly.single.repeat, ReminderCadence.weekly);
     });
 
-    test('native fazı kuramayan platform kesin tek-atış dizisi üretir', () {
+    test('gecikmeli native tekrar erken çalmak yerine kesin kurulur', () {
+      final schedule = reminderSchedule(
+        requests: [request(1, at: day(30), cadence: ReminderCadence.daily)],
+        now: now,
+        budget: 3,
+        maxPerNote: 3,
+      );
+
+      expect(schedule.map((item) => item.at), [
+        DateTime(2026, 8, 31, 12),
+        DateTime(2026, 9, 1, 12),
+        DateTime(2026, 9, 2, 12),
+      ]);
+      expect(schedule.every((item) => item.repeat == null), isTrue);
+    });
+
+    test('silinme tarihi olan tekrar kesin tek-atış dizisi üretir', () {
+      // İşletim sistemi notun ne zaman gideceğini bilmiyor; sonsuz bir kayıt
+      // silinmiş bir kare için çalmayı sürdürürdü.
       final schedule = reminderSchedule(
         requests: [
-          request(9, at: day(3), everyDays: 3, allowNativeRepeat: false),
+          request(
+            9,
+            at: day(3),
+            cadence: ReminderCadence.daily,
+            expiresAt: DateTime(2026, 8, 20),
+          ),
         ],
         now: now,
         budget: 4,
       );
 
       expect(schedule, hasLength(4));
-      expect(schedule.every((item) => item.repeatInterval == null), isTrue);
+      expect(schedule.every((item) => item.repeat == null), isTrue);
       expect(schedule.map((item) => item.at), [
         DateTime(2026, 8, 4, 12),
+        DateTime(2026, 8, 5, 12),
+        DateTime(2026, 8, 6, 12),
         DateTime(2026, 8, 7, 12),
-        DateTime(2026, 8, 10, 12),
-        DateTime(2026, 8, 13, 12),
       ]);
     });
 
-    test('exact tekrar penceresi ilerlerken oluşum kimliği sabit kalır', () {
+    test('kayan pencere ilerlerken oluşum kimliği sabit kalır', () {
       final requestValue = request(
         9,
         at: day(3),
-        everyDays: 3,
-        allowNativeRepeat: false,
+        cadence: ReminderCadence.daily,
+        expiresAt: DateTime(2027, 1, 1),
       );
       final first = reminderSchedule(
         requests: [requestValue],
@@ -249,8 +380,8 @@ void main() {
             request(
               3,
               at: day(2),
-              everyDays: 2,
-              expiresAt: DateTime(2026, 8, 8),
+              cadence: ReminderCadence.daily,
+              expiresAt: DateTime(2026, 8, 6),
             ),
           ],
           now: now,
@@ -260,8 +391,8 @@ void main() {
         expect(schedule.every((item) => !item.repeatsIndefinitely), isTrue);
         expect(schedule.map((item) => item.at), [
           DateTime(2026, 8, 3, 12),
+          DateTime(2026, 8, 4, 12),
           DateTime(2026, 8, 5, 12),
-          DateTime(2026, 8, 7, 12),
         ]);
       },
     );
@@ -270,7 +401,7 @@ void main() {
       final requestValue = request(
         3,
         at: day(1),
-        everyDays: 1,
+        cadence: ReminderCadence.daily,
         expiresAt: DateTime(2026, 10),
       );
       final first = reminderSchedule(
@@ -294,8 +425,18 @@ void main() {
     test('her not ikinci oluşumundan önce birincisini alır', () {
       final schedule = reminderSchedule(
         requests: [
-          request(1, at: day(1), everyDays: 1, expiresAt: DateTime(2026, 9)),
-          request(2, at: day(1), everyDays: 1, expiresAt: DateTime(2026, 9)),
+          request(
+            1,
+            at: day(1),
+            cadence: ReminderCadence.daily,
+            expiresAt: DateTime(2026, 9),
+          ),
+          request(
+            2,
+            at: day(1),
+            cadence: ReminderCadence.daily,
+            expiresAt: DateTime(2026, 9),
+          ),
         ],
         now: now,
         budget: 3,
@@ -328,7 +469,12 @@ void main() {
     test('tek notun faz koruyan kayan penceresi küçük tutulur', () {
       final schedule = reminderSchedule(
         requests: [
-          request(9, at: day(3), everyDays: 3, allowNativeRepeat: false),
+          request(
+            9,
+            at: day(3),
+            cadence: ReminderCadence.weekly,
+            expiresAt: DateTime(2030, 1, 1),
+          ),
         ],
         now: now,
         maxPerNote: kRollingReminderWindowPerNote,
@@ -336,7 +482,7 @@ void main() {
 
       expect(schedule, hasLength(kRollingReminderWindowPerNote));
       expect(kRollingReminderWindowPerNote, lessThan(kPendingReminderBudget));
-      expect(schedule.every((item) => item.repeatInterval == null), isTrue);
+      expect(schedule.every((item) => item.repeat == null), isTrue);
     });
   });
 }

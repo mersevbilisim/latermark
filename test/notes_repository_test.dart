@@ -180,7 +180,7 @@ void main() {
     );
 
     final note = (await repository.watchNotes().first).single;
-    final remindAt = DateTime(2026, 8, 10, 9);
+    final remindAt = DateTime(2026, 8, 9, 9);
     await repository.update(
       note,
       body: 'ikinci',
@@ -218,7 +218,7 @@ void main() {
       body: fresh.body,
       reminder: ReminderChoice(
         at: fresh.remindAt,
-        everyDays: fresh.remindEveryDays,
+        cadence: ReminderCadence.fromCode(fresh.remindEveryDays),
       ),
     );
     expect((await repository.watchNotes().first).single.updatedAt, isNull);
@@ -295,17 +295,66 @@ void main() {
       final before = (await repository.watchNotes().first).single;
       await repository.setReminder(
         id,
-        ReminderChoice(at: DateTime(2026, 8, 20, 9), everyDays: 12),
+        ReminderChoice(
+          at: DateTime(2026, 8, 20, 9),
+          cadence: ReminderCadence.fromCode(12),
+        ),
       );
 
       final after = (await repository.watchNotes().first).single;
       expect(after.remindAt, DateTime(2026, 8, 20, 9));
-      expect(after.remindEveryDays, 12);
+      expect(
+        ReminderCadence.fromCode(after.remindEveryDays),
+        ReminderCadence.monthly,
+      );
       // Hatırlatma kurmak notu düzenlemek değil: gövde de damga da yerinde.
       expect(after.body, before.body);
       expect(after.updatedAt, before.updatedAt);
     },
   );
+
+  test('not silindikten sonraya hatırlatma kurulamaz', () async {
+    await settings.setProUnlocked(true);
+    final created = DateTime(2026, 8, 8, 12);
+    final id = await repository.create(
+      capture: await fakeCapture(),
+      body: 'kısa ömürlü',
+      retention: const RetentionChoice(Retention.threeDays),
+      createdAt: created,
+    );
+
+    await expectLater(
+      repository.setReminder(id, ReminderChoice(at: DateTime(2026, 8, 11, 12))),
+      throwsA(isA<ReminderAfterExpiryException>()),
+    );
+    expect((await repository.noteById(id))!.remindAt, isNull);
+
+    await repository.setReminder(
+      id,
+      ReminderChoice(at: DateTime(2026, 8, 11, 11, 59)),
+    );
+    expect(
+      (await repository.noteById(id))!.remindAt,
+      DateTime(2026, 8, 11, 11, 59),
+    );
+  });
+
+  test('oluştururken de silinme sonrası hatırlatma reddedilir', () async {
+    await settings.setProUnlocked(true);
+    final created = DateTime(2026, 8, 8, 12);
+
+    await expectLater(
+      repository.create(
+        capture: await fakeCapture(),
+        body: 'yetişmeyen',
+        retention: RetentionChoice.custom(60),
+        reminder: ReminderChoice(at: created.add(const Duration(hours: 1))),
+        createdAt: created,
+      ),
+      throwsA(isA<ReminderAfterExpiryException>()),
+    );
+    expect(await repository.watchNotes().first, isEmpty);
+  });
 
   test('hak kapalıyken planlama ekranı hatırlatma yazamaz', () async {
     final id = await repository.create(
@@ -325,7 +374,10 @@ void main() {
       capture: await fakeCapture(),
       body: 'tekrarlıydı',
       retention: RetentionChoice(Retention.off),
-      reminder: ReminderChoice(at: DateTime(2026, 8, 10, 9), everyDays: 7),
+      reminder: ReminderChoice(
+        at: DateTime(2026, 8, 10, 9),
+        cadence: ReminderCadence.weekly,
+      ),
     );
 
     await repository.setReminder(
@@ -380,7 +432,10 @@ void main() {
 
     await repository.setReminder(
       id,
-      ReminderChoice(at: DateTime(2026, 8, 20, 9), everyDays: 7),
+      ReminderChoice(
+        at: DateTime(2026, 8, 20, 9),
+        cadence: ReminderCadence.weekly,
+      ),
       deleteAfterReminder: true,
     );
 
@@ -518,6 +573,48 @@ void main() {
     expect(image.existsSync(), isFalse);
   });
 
+  test(
+    'toplu silme yalnızca verilen kayıtları ve karelerini kaldırır',
+    () async {
+      for (final body in ['ilk', 'ikinci', 'kalan']) {
+        await repository.create(
+          capture: await fakeCapture(),
+          body: body,
+          retention: RetentionChoice(Retention.off),
+        );
+      }
+
+      final all = await repository.watchNotes().first;
+      final doomed = all.where((note) => note.body != 'kalan').toList();
+      final doomedImages = [
+        for (final note in doomed) repository.imageOf(note),
+      ];
+      final survivor = all.firstWhere((note) => note.body == 'kalan');
+      final survivorImage = repository.imageOf(survivor);
+
+      await repository.deleteAll(doomed);
+
+      final left = await repository.watchNotes().first;
+      expect(left.map((note) => note.body), ['kalan']);
+      for (final image in doomedImages) {
+        expect(image.existsSync(), isFalse);
+      }
+      expect(survivorImage.existsSync(), isTrue);
+    },
+  );
+
+  test('boş seçimle silme çağrısı hiçbir kaydı düşürmez', () async {
+    await repository.create(
+      capture: await fakeCapture(),
+      body: 'duruyor',
+      retention: RetentionChoice(Retention.off),
+    );
+
+    await repository.deleteAll(const []);
+
+    expect(await repository.watchNotes().first, hasLength(1));
+  });
+
   test('sweepOrphanFiles kaydı olmayan dosyaları atar', () async {
     await repository.create(
       capture: await fakeCapture(),
@@ -642,7 +739,7 @@ void main() {
       final now = DateTime(2026, 8, 15, 12);
       final before = pendingReminderAt(
         remindAt: shiftLocalCalendarDays(anchor, 30),
-        everyDays: 30,
+        cadence: ReminderCadence.monthly,
         now: now,
       );
 
@@ -662,7 +759,7 @@ void main() {
       expect(
         pendingReminderAt(
           remindAt: note.remindAt,
-          everyDays: note.remindEveryDays,
+          cadence: ReminderCadence.fromCode(note.remindEveryDays),
           now: now,
         ),
         before,

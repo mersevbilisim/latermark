@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/theme/app_motion.dart';
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/theme/app_shape.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -7,7 +8,9 @@ import '../../../../../shared/widgets/life_rule.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
+import '../../../domain/note_reminder.dart';
 import 'note_photo.dart';
+import '../../../../../l10n/enum_labels.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../core/utils/app_format.dart';
 
@@ -57,14 +60,23 @@ class NoteCard extends StatelessWidget {
     this.aspect,
     this.now,
     this.reminderAt,
+    this.selecting = false,
+    this.selected = false,
   });
 
   final Note note;
   final NotesRepository repository;
   final VoidCallback onTap;
 
-  /// Basılı tutmak silme onayını açar — listeden çıkmadan.
-  final VoidCallback onLongPress;
+  /// Basılı tutmak silme onayını açar — listeden çıkmadan. Seçim kipinde
+  /// kapalıdır: orada dokunmanın tek anlamı işaretlemektir.
+  final VoidCallback? onLongPress;
+
+  /// Toplu silme kipi açık mı.
+  final bool selecting;
+
+  /// Bu kayıt seçilenler arasında mı.
+  final bool selected;
 
   final CardScale scale;
 
@@ -88,30 +100,56 @@ class NoteCard extends StatelessWidget {
       hasBody ? note.body : l10n.noteWithoutBody,
       if (reminderAt != null)
         '${l10n.reminderLabel}: '
-            '${l10n.reminderValue(at: reminderAt!, everyDays: note.remindEveryDays, use24Hour: context.use24Hour)}',
+            '${ReminderCadence.fromCode(note.remindEveryDays).sentence(l10n, at: reminderAt!, use24Hour: context.use24Hour)}',
     ].join('. ');
 
     return Pressable(
       onPressed: onTap,
-      onLongPressed: onLongPress,
+      onLongPressed: selecting ? null : onLongPress,
       scale: 0.985,
       semanticLabel: semanticLabel,
+      selected: selecting ? selected : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Köşe ölçekle değişmiyor: baskı her boyutta baskıdır.
-          ClipRSuperellipse(
-            borderRadius: AppShape.all(AppShape.print),
-            child: AspectRatio(
-              aspectRatio: aspect ?? scale.aspect,
-              child: Hero(
-                tag: 'note-photo-${note.id}',
-                child: NotePhoto(
-                  file: repository.imageOf(note),
-                  decodeWidth: _printWidth(context),
+          AspectRatio(
+            aspectRatio: aspect ?? scale.aspect,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Seçilen baskı yuvasından **çekilir**: çerçeve yerinde
+                // kalır, kare içeri çekilip etrafında ince bir kor hattı
+                // bırakır. Kontakt baskıdan bir kareyi ayırmak gibi; işaret
+                // fotoğrafın üstüne basılmaz, kenarında durur.
+                if (selecting && selected)
+                  DecoratedBox(
+                    decoration: ShapeDecoration(
+                      shape: AppShape.border(
+                        AppShape.print + 4,
+                        side: BorderSide(color: palette.ember, width: 1.5),
+                      ),
+                    ),
+                  ),
+                AnimatedPadding(
+                  duration: AppMotion.fast,
+                  curve: AppMotion.ease,
+                  padding: EdgeInsets.all(selecting && selected ? 6 : 0),
+                  // Köşe ölçekle değişmiyor: baskı her boyutta baskıdır.
+                  child: ClipRSuperellipse(
+                    borderRadius: AppShape.all(AppShape.print),
+                    child: Hero(
+                      tag: 'note-photo-${note.id}',
+                      child: NotePhoto(
+                        file: repository.imageOf(note),
+                        decodeWidth: _printWidth(context),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (selecting && selected)
+                  const Positioned(right: 10, bottom: 10, child: _SelectMark()),
+              ],
             ),
           ),
 
@@ -155,6 +193,46 @@ class NoteCard extends StatelessWidget {
     final screen = MediaQuery.sizeOf(context).width;
     // Izgara: 16 kenar + 12 ara + 16 kenar, iki sütun. Sütun: 16 × 2 kenar.
     return scale.isCompact ? (screen - 44) / 2 : screen - 32;
+  }
+}
+
+/// Seçilmiş karenin köşesindeki onay çentiği.
+///
+/// Yalnız **seçilenlerde** çizilir. Kipteki her kareye boş bir halka koymak,
+/// kartın kendi kuralını ("kareye dokunulmaz") elli fotoğraf boyunca çiğnemek
+/// olurdu; seçilmemiş baskı olduğu gibi kalır, karar verilen kare işaretlenir.
+class _SelectMark extends StatelessWidget {
+  const _SelectMark();
+
+  static const _size = 24.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return ExcludeSemantics(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: AppMotion.fast,
+        curve: AppMotion.spring,
+        builder: (context, t, child) =>
+            Transform.scale(scale: t, child: child),
+        child: Container(
+          width: _size,
+          height: _size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: palette.ember,
+            // Kor lekesi koyu bir fotoğrafın üstünde eriyip gitmesin.
+            border: Border.all(
+              color: OnPhoto.ink.withValues(alpha: 0.85),
+              width: 1.5,
+            ),
+          ),
+          child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+        ),
+      ),
+    );
   }
 }
 

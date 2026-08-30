@@ -5,11 +5,13 @@ import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/utils/app_format.dart';
 import '../../../../../core/utils/map_link.dart';
 import '../../../../../l10n/app_localizations.dart';
+import '../../../../../l10n/enum_labels.dart';
 import '../../../../../l10n/l10n_context.dart';
 import '../../../../../shared/widgets/app_toast.dart';
 import '../../../../../shared/widgets/aperture.dart';
 import '../../../../../shared/widgets/life_rule.dart';
 import '../../../data/notes_database.dart';
+import '../../../domain/note_reminder.dart';
 
 /// Sayfanın tek yatay marjı.
 ///
@@ -58,23 +60,10 @@ class DetailSheet extends StatelessWidget {
   /// Testlerde zamanı sabitlemek için.
   final DateTime? now;
 
-  /// Bu uzunluğa kadar not bir cümle değil, bir **etiket**tir: "B2, sarı
-  /// bölge", "Test5". Sola yaslandığında geniş bir boşluğun kenarında öksüz
-  /// duruyor; ortalandığında karenin altına asılmış bir künye levhası gibi
-  /// okunuyor. Dört kelimeden sonra metin bir paragrafa dönüşmeye başlar ve
-  /// ortalamak okumayı zorlaştırır — orada sola yaslı kalır.
-  static const _centeredWordLimit = 3;
-
-  static bool _isShort(String body) {
-    if (body.isEmpty) return true;
-    return body.split(RegExp(r'\s+')).length <= _centeredWordLimit;
-  }
-
   @override
   Widget build(BuildContext context) {
     final body = note.body.trim();
     final hasBody = body.isNotEmpty;
-    final centered = _isShort(body);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(kDetailMargin, 26, kDetailMargin, 20),
@@ -94,11 +83,7 @@ class DetailSheet extends StatelessWidget {
               _Reveal(
                 t: _stage(t, .16, .74),
                 lift: 14,
-                child: _NoteCopy(
-                  body: body,
-                  onEdit: onEdit,
-                  centered: centered,
-                ),
+                child: _NoteCopy(body: body, onEdit: onEdit),
               ),
               Padding(
                 padding: EdgeInsets.only(top: hasBody ? 32 : 24),
@@ -154,16 +139,17 @@ class _Reveal extends StatelessWidget {
 }
 
 /// Notun kendisi — ya da henüz yazılmamışsa yazmaya çağıran soru.
+///
+/// Metin her uzunlukta **ortalanır**. Bir zamanlar yalnız üç kelimeye kadar
+/// ortalanıyor, sonrası sola yaslanıyordu; iki not arasında gezinirken hizanın
+/// yer değiştirmesi sayfayı her seferinde yeniden kuruyormuş gibi
+/// gösteriyordu. Tek hizada kalınca not, karenin altına asılmış bir künye
+/// levhası gibi okunuyor ve sayfadan sayfaya aynı omurga korunuyor.
 class _NoteCopy extends StatelessWidget {
-  const _NoteCopy({
-    required this.body,
-    required this.onEdit,
-    required this.centered,
-  });
+  const _NoteCopy({required this.body, required this.onEdit});
 
   final String body;
   final VoidCallback onEdit;
-  final bool centered;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +177,7 @@ class _NoteCopy extends StatelessWidget {
           child: Text(
             hasBody ? body : l10n.composeHint,
             key: const ValueKey('detail-note-copy'),
-            textAlign: centered ? TextAlign.center : TextAlign.start,
+            textAlign: TextAlign.center,
             style: style,
           ),
         ),
@@ -261,11 +247,9 @@ class _Colophon extends StatelessWidget {
   /// Hatırlatma satırının metni. Sesli okuma etiketi ile görünen satır aynı
   /// cümleyi kurmalı; ikisi de buradan geçiyor.
   String _reminderValue(L10n l10n, {required bool use24Hour}) =>
-      l10n.reminderValue(
-        at: reminderAt!,
-        everyDays: note.remindEveryDays,
-        use24Hour: use24Hour,
-      );
+      ReminderCadence.fromCode(
+        note.remindEveryDays,
+      ).sentence(l10n, at: reminderAt!, use24Hour: use24Hour);
 
   @override
   Widget build(BuildContext context) {

@@ -98,7 +98,10 @@ void main() {
 
     final note = await database.select(database.notes).getSingle();
     expect(note.remindAt, DateTime(2026, 8, 31));
-    expect(note.remindEveryDays, 30);
+    expect(
+      ReminderCadence.fromCode(note.remindEveryDays),
+      ReminderCadence.monthly,
+    );
   });
 
   test('hatırlattıktan sonra sil sözü yedekten aynen döner', () async {

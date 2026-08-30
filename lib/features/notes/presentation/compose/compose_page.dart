@@ -31,7 +31,12 @@ enum ComposeSource { camera, gallery, shared }
 /// `sealed` tek karelik bir eşik: kalıcı kopya yazıldıktan sonra rota
 /// kapanana kadar geçen an. Ayrı bir görüntüsü yok, yalnızca kaydetme
 /// eyleminin yeniden tetiklenmesini engelliyor.
-enum ComposeSavePhase { idle, saving, sealed }
+/// Kaydetmenin evreleri.
+///
+/// [locating] ayrı bir evre çünkü kullanıcının gördüğü şey farklı: kayıt değil,
+/// bir sabitleme bekleniyor. Aynı sessiz bekleyişi "kaydediliyor" diye
+/// göstermek, dört saniye boyunca uygulamanın takıldığını düşündürüyordu.
+enum ComposeSavePhase { idle, locating, saving, sealed }
 
 class ComposePage extends StatefulWidget {
   const ComposePage({
@@ -177,12 +182,22 @@ class _ComposePageState extends State<ComposePage> {
       // açılıyor ve gerekirse kaydın kendi ekranından değiştiriliyor.
       final settings = await AppScope.settingsOf(context).read();
 
-      // Kaydetme evresi zaten başladı; düğme çalıştığını gösteriyor. Bekleyen
-      // sabitleme varsa kısa bir pay tanınır, gelmezse konumsuz devam edilir.
-      final location = wantsLocation
-          ? _location ??
-                await _locationController.settle(limit: _locationSettleLimit)
-          : null;
+      // Bekleyen sabitleme varsa kısa bir pay tanınır, gelmezse konumsuz devam
+      // edilir. Pay boyunca şeridin kelimesi ne beklendiğini söylüyor: dört
+      // saniye sessiz duran bir düğme, tökezlemiş bir uygulamadan ayırt
+      // edilemiyordu.
+      NoteLocation? location;
+      if (wantsLocation) {
+        location = _location;
+        if (location == null) {
+          setState(() => _savePhase = ComposeSavePhase.locating);
+          location = await _locationController.settle(
+            limit: _locationSettleLimit,
+          );
+          if (!mounted) return;
+          setState(() => _savePhase = ComposeSavePhase.saving);
+        }
+      }
       if (!mounted) return;
 
       noteId = await repository.create(
@@ -403,6 +418,9 @@ class _ComposePageState extends State<ComposePage> {
                               : context.l10n.actionSave,
                           accent: true,
                           busy: _savePhase != ComposeSavePhase.idle,
+                          busyLabel: _savePhase == ComposeSavePhase.locating
+                              ? context.l10n.composeWaitingForLocation
+                              : context.l10n.composeSaving,
                           onPressed: _save,
                         ),
                       ],

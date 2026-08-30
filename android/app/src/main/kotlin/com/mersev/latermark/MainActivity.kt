@@ -20,6 +20,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.io.File
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -32,6 +33,7 @@ class MainActivity : FlutterActivity() {
         const val SETTINGS_CHANNEL = "latermark/app_settings"
         const val OCR_CHANNEL = "latermark/ocr"
         const val IMAGE_CHANNEL = "latermark/image"
+        const val REMINDER_ACTION_CHANNEL = "latermark/reminder_actions"
         const val INBOX = "latermark_shared_imports"
         const val OCR_MAX_DIMENSION = 2560
         const val OCR_LOG_TAG = "LatermarkOCR"
@@ -43,6 +45,7 @@ class MainActivity : FlutterActivity() {
     private var settingsChannel: MethodChannel? = null
     private var ocrChannel: MethodChannel? = null
     private var imageChannel: MethodChannel? = null
+    private var reminderActionChannel: MethodChannel? = null
     private var locationChannel: MethodChannel? = null
     private var location: LocationChannel? = null
 
@@ -114,6 +117,18 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        reminderActionChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            REMINDER_ACTION_CHANNEL,
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "timeZoneIdentifier" -> result.success(TimeZone.getDefault().id)
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
         settingsChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             SETTINGS_CHANNEL,
@@ -134,6 +149,8 @@ class MainActivity : FlutterActivity() {
         settingsChannel = null
         ocrChannel?.setMethodCallHandler(null)
         ocrChannel = null
+        reminderActionChannel?.setMethodCallHandler(null)
+        reminderActionChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

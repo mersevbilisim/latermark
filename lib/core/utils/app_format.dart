@@ -35,23 +35,6 @@ extension AppFormat on L10n {
   String stamp(DateTime at, {bool use24Hour = false}) =>
       '${calendarDate(at)} · ${time(at, use24Hour: use24Hour)}';
 
-  /// Bir hatırlatmanın künyede görünen değeri.
-  ///
-  /// Tek atışta yalnızca an yazılır — tekrar eklenmeden önceki metnin aynısı.
-  /// Tekrarlıda aralık da söylenir: yoksa `6 Ağustos 2026 · 14:32` gören
-  /// kullanıcı bunu son hatırlatma sanardı, oysa arkası geliyor.
-  ///
-  /// Kart ile detay aynı cümleyi kurmak zorunda; iki yerde ayrı
-  /// biçimlendirmek, birini değiştirip diğerini unutmanın kısa yolu.
-  String reminderValue({
-    required DateTime at,
-    required int everyDays,
-    bool use24Hour = false,
-  }) {
-    final moment = stamp(at, use24Hour: use24Hour);
-    return everyDays > 0 ? reminderRepeatingValue(everyDays, moment) : moment;
-  }
-
   /// Akıştaki gün ayıracı: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
   String dayHeader(DateTime at, {DateTime? now}) {
     final today = _startOfDay(now ?? DateTime.now());

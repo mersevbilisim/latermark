@@ -29,12 +29,24 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
     required this.searchFocus,
     required this.onSearchChanged,
     required this.onToggleSearch,
+    this.selecting = false,
+    this.selectedCount = 0,
   });
 
   final AppPalette palette;
   final double topPadding;
   final int noteCount;
   final VoidCallback onOpenSettings;
+
+  /// Seçim kipi. Arama gibi bu da ayrı bir ekran değil, başlığın bir hâli:
+  /// "Notlar" yerine ne yapıldığı yazar, sayaç satırı da kaç karenin
+  /// işaretlendiğini söyler.
+  ///
+  /// Üstlük kip boyunca yalnız *anlatır*: kipi açan da kapatan da alt şeritteki
+  /// denetim. Silme kipindeyken arama ve ayarlar da çekiliyor — o an yapılacak
+  /// tek iş kare işaretlemek.
+  final bool selecting;
+  final int selectedCount;
 
   /// Arama kipi. Denetimin durumu (metin, odak) üstlükte tutulamaz: bu bir
   /// [SliverPersistentHeaderDelegate] ve kaydırmanın her karesinde yeniden
@@ -45,6 +57,14 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
   final FocusNode searchFocus;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onToggleSearch;
+
+  /// Sayaç satırının o anki hâli: seçim > arama > toplam.
+  String _tally(BuildContext context) {
+    final l10n = context.l10n;
+    if (selecting) return l10n.selectionCount(selectedCount);
+    if (searching) return l10n.searchResults(resultCount);
+    return l10n.noteCount(noteCount);
+  }
 
   static const _expandedHeight = 116.0;
   static const _collapsedHeight = 56.0;
@@ -86,16 +106,12 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
                             child: Padding(
                               padding: const EdgeInsets.only(bottom: 6),
                               child: Text(
-                                context.l10n.upper(
-                                  searching
-                                      ? context.l10n.searchResults(resultCount)
-                                      : context.l10n.noteCount(noteCount),
-                                ),
-                                // Aramada sayaç kor rengine döner: kullanıcı
-                                // filtrelenmiş bir listeye baktığını, sayının
+                                context.l10n.upper(_tally(context)),
+                                // Arama ve seçimde sayaç kor rengine döner:
+                                // kullanıcı bir alt kümeye baktığını, sayının
                                 // toplam kayıt olmadığını görmeli.
                                 style: palette.overline.copyWith(
-                                  color: searching
+                                  color: searching || selecting
                                       ? palette.ember
                                       : palette.inkFaint,
                                 ),
@@ -109,6 +125,7 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
                       // okunuyor.
                       _TitleOrField(
                         searching: searching,
+                        selecting: selecting,
                         palette: palette,
                         controller: searchController,
                         focus: searchFocus,
@@ -130,7 +147,7 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
                     tint: palette.ink,
                     fill: palette.glass,
                   )
-                else ...[
+                else if (!selecting) ...[
                   IconOrb(
                     icon: Icons.search_rounded,
                     semanticLabel: context.l10n.searchHint,
@@ -185,13 +202,16 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
       old.noteCount != noteCount ||
       old.palette != palette ||
       old.searching != searching ||
-      old.resultCount != resultCount;
+      old.resultCount != resultCount ||
+      old.selecting != selecting ||
+      old.selectedCount != selectedCount;
 }
 
 /// Başlık ile arama girdisi arasındaki geçiş.
 class _TitleOrField extends StatelessWidget {
   const _TitleOrField({
     required this.searching,
+    required this.selecting,
     required this.palette,
     required this.controller,
     required this.focus,
@@ -201,6 +221,7 @@ class _TitleOrField extends StatelessWidget {
   });
 
   final bool searching;
+  final bool selecting;
   final AppPalette palette;
   final TextEditingController controller;
   final FocusNode focus;
@@ -216,7 +237,12 @@ class _TitleOrField extends StatelessWidget {
     );
 
     if (!searching) {
-      return Text(context.l10n.notesTitle, style: style);
+      return Text(
+        selecting ? context.l10n.selectionTitle : context.l10n.notesTitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
     }
 
     return TextField(

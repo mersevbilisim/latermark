@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Salva",
   "composeSaving": "Salvataggio",
+  "composeWaitingForLocation": "Attendo la posizione",
   "actionCancel": "Annulla",
   "actionClose": "Chiudi",
   "actionBack": "Indietro",
@@ -54,6 +55,27 @@
   "holdStageAlmost": "Ci siamo quasi",
   "holdStageRelease": "Continua a tenere premuto…",
   "holdStageGone": "Eliminato",
+  "selectionStart": "Scegli gli scatti da eliminare",
+  "selectionExit": "Esci dalla selezione",
+  "selectionTitle": "Selezione",
+  "selectionCount": "{count, plural, =0{Nessuna selezione} one{1 selezionato} other{{count} selezionati}}",
+  "selectionHint": "Tocca gli scatti che vuoi eliminare",
+  "deleteManyConfirmTitle": "{count, plural, one{Eliminare questo scatto?} other{Eliminare {count} scatti?}}",
+  "deleteManyConfirmCaption": "Le foto e le note verranno eliminate insieme.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Fotocamera non disponibile",
   "cameraNotFoundBody": "Questo dispositivo non dispone di una fotocamera.",
   "cameraDeniedTitle": "Accesso alla fotocamera disattivato",
@@ -140,7 +162,15 @@
   "reminderRepeatOnce": "Promemoria singolo.",
   "reminderRepeatNeedsInterval": "Inserisci prima il numero di giorni.",
   "reminderRepeatSummary": "{days, plural, one{Promemoria ogni giorno.} other{Promemoria ogni {days} giorni.}}",
-  "reminderRepeatingValue": "{days, plural, one{Ogni giorno · prossimo {when}} other{Ogni {days} giorni · prossimo {when}}}",
+  "reminderDailyValue": "Ogni giorno · prossimo {when}",
+  "reminderWeeklyValue": "Ogni settimana · prossimo {when}",
+  "reminderMonthlyValue": "Ogni mese · prossimo {when}",
+  "reminderYearlyValue": "Ogni anno · prossimo {when}",
+  "reminderCadenceOnce": "Una volta",
+  "reminderCadenceDaily": "Giorno",
+  "reminderCadenceWeekly": "Settimana",
+  "reminderCadenceMonthly": "Mese",
+  "reminderCadenceYearly": "Anno",
   "reminderBlocked": "Le notifiche sono disattivate. Lo scatto verrà comunque salvato; il promemoria funzionerà non appena le riattiverai.",
   "editNoteSemantic": "Modifica nota",
   "editSheetHeader": "MODIFICA NOTA",
@@ -290,8 +320,7 @@
   "reminderScheduleSaved": "Salvato",
   "reminderScheduleQuestion": "Quando deve tornare questo scatto?",
   "reminderTimeLabel": "Ora",
-  "reminderOnceTitle": "Ricorda una volta",
-  "reminderRepeatTitle": "Ricorda sempre",
   "reminderSkip": "Non ora",
-  "reminderDeleteAfterLabel": "Elimina 1 ora dopo il promemoria"
+  "reminderDeleteAfterLabel": "Elimina 1 ora dopo il promemoria",
+  "reminderAfterExpiry": "Il promemoria deve precedere l’eliminazione di questa nota."
 }

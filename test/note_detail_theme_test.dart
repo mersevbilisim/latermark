@@ -193,6 +193,9 @@ void main() {
       inInclusiveRange(24, 28),
     );
     expect(tester.widget<Text>(noteCopy).style?.color, palette.ink);
+    // Not uzunluğuna bakılmaksızın ortalanır: iki kayıt arasında gezinirken
+    // hizanın yer değiştirmemesi sayfayı tek bir omurgada tutuyor.
+    expect(tester.widget<Text>(noteCopy).textAlign, TextAlign.center);
 
     // Süresiz kayıtta künye sessiz: çizecek bir ömür yoksa çizgi de yok.
     expect(find.byKey(const ValueKey('detail-life-edge')), findsNothing);

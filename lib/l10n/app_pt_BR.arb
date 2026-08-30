@@ -3,6 +3,7 @@
   "appTitle": "Latermark",
   "actionSave": "Salvar",
   "composeSaving": "Salvando",
+  "composeWaitingForLocation": "Aguardando a localização",
   "actionCancel": "Cancelar",
   "actionClose": "Fechar",
   "actionBack": "Voltar",
@@ -68,6 +69,27 @@
   "holdStageAlmost": "Quase",
   "holdStageRelease": "Continue pressionando…",
   "holdStageGone": "Apagado",
+  "selectionStart": "Escolher fotos para apagar",
+  "selectionExit": "Sair da seleção",
+  "selectionTitle": "Selecionar",
+  "selectionCount": "{count, plural, =0{Nada selecionado} one{1 selecionada} other{{count} selecionadas}}",
+  "selectionHint": "Toque nas fotos que quiser apagar",
+  "deleteManyConfirmTitle": "{count, plural, one{Apagar esta foto?} other{Apagar {count} fotos?}}",
+  "deleteManyConfirmCaption": "A foto e a nota serão apagadas juntas.",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deleteManyConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "cameraNotFoundTitle": "Câmera indisponível",
   "cameraNotFoundBody": "Não há uma câmera disponível neste aparelho.",
   "cameraDeniedTitle": "Acesso à câmera desativado",
@@ -161,7 +183,15 @@
   "reminderRepeatOnce": "Lembra uma vez.",
   "reminderRepeatNeedsInterval": "Digite primeiro o número de dias.",
   "reminderRepeatSummary": "{days, plural, one{Lembra todos os dias.} other{Lembra a cada {days} dias.}}",
-  "reminderRepeatingValue": "{days, plural, one{Todos os dias · próximo {when}} other{A cada {days} dias · próximo {when}}}",
+  "reminderDailyValue": "Todos os dias · próximo {when}",
+  "reminderWeeklyValue": "Toda semana · próximo {when}",
+  "reminderMonthlyValue": "Todo mês · próximo {when}",
+  "reminderYearlyValue": "Todo ano · próximo {when}",
+  "reminderCadenceOnce": "Uma vez",
+  "reminderCadenceDaily": "Dia",
+  "reminderCadenceWeekly": "Semana",
+  "reminderCadenceMonthly": "Mês",
+  "reminderCadenceYearly": "Ano",
   "reminderBlocked": "As notificações estão desativadas. O registro será salvo mesmo assim; o lembrete começará a funcionar quando você permitir.",
   "editNoteSemantic": "Editar nota",
   "editSheetHeader": "EDITAR NOTA",
@@ -484,8 +514,7 @@
   "reminderScheduleSaved": "Salvo",
   "reminderScheduleQuestion": "Quando esta foto deve voltar?",
   "reminderTimeLabel": "Hora",
-  "reminderOnceTitle": "Lembrar uma vez",
-  "reminderRepeatTitle": "Lembrar sempre",
   "reminderSkip": "Agora não",
-  "reminderDeleteAfterLabel": "Apagar 1 hora depois de lembrar"
+  "reminderDeleteAfterLabel": "Apagar 1 hora depois de lembrar",
+  "reminderAfterExpiry": "O lembrete deve ser anterior à exclusão desta nota."
 }

@@ -37,6 +37,9 @@ class NotesFeed extends StatelessWidget {
     required this.searchFocus,
     required this.onSearchChanged,
     required this.onToggleSearch,
+    required this.selecting,
+    required this.selectedIds,
+    required this.onToggleSelection,
   });
 
   final List<Note> notes;
@@ -59,6 +62,11 @@ class NotesFeed extends StatelessWidget {
   final FocusNode searchFocus;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onToggleSearch;
+
+  /// Toplu silme kipi ve içindeki işaretli kimlikler.
+  final bool selecting;
+  final Set<int> selectedIds;
+  final ValueChanged<Note> onToggleSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +95,8 @@ class NotesFeed extends StatelessWidget {
             searchFocus: searchFocus,
             onSearchChanged: onSearchChanged,
             onToggleSearch: onToggleSearch,
+            selecting: selecting,
+            selectedCount: selectedIds.length,
           ),
         ),
         // Arama sonucu tek bir kümedir: burada zaman başlıkları eşleşmeleri
@@ -125,7 +135,11 @@ class NotesFeed extends StatelessWidget {
       aspect: aspect,
       now: reminderReference,
       reminderAt: reminderAt,
-      onTap: () => onOpen(note),
+      selecting: selecting,
+      selected: selectedIds.contains(note.id),
+      // Seçim kipinde dokunmanın tek anlamı işaretlemektir: detay sayfası da,
+      // basılı tutmanın tekli silme onayı da o kip boyunca kapalı.
+      onTap: () => selecting ? onToggleSelection(note) : onOpen(note),
       onLongPress: () => onDelete(note),
     );
   }

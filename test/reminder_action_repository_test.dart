@@ -46,15 +46,18 @@ void main() {
     return XFile(file.path);
   }
 
-  /// Hatırlatması olan bir kayıt. [everyDays] sıfırsa tek atışlık.
-  Future<Note> noteWithReminder({DateTime? remindAt, int everyDays = 0}) async {
+  /// Hatırlatması olan bir kayıt.
+  Future<Note> noteWithReminder({
+    DateTime? remindAt,
+    ReminderCadence cadence = ReminderCadence.once,
+  }) async {
     final id = await repository.create(
       capture: await fakeCapture(),
       body: 'Kombi bakımı',
       retention: const RetentionChoice.off(),
       reminder: ReminderChoice(
         at: remindAt ?? DateTime(2026, 8, 8, 9),
-        everyDays: everyDays,
+        cadence: cadence,
       ),
     );
     return (await repository.noteById(id))!;
@@ -76,7 +79,7 @@ void main() {
     expect(
       pendingReminderAt(
         remindAt: updated!.remindAt,
-        everyDays: updated.remindEveryDays,
+        cadence: ReminderCadence.fromCode(updated.remindEveryDays),
         now: now,
       ),
       DateTime(2026, 8, 9, 9),
@@ -116,7 +119,7 @@ void main() {
   });
 
   test('tamam tekrarlayan hatırlatmayı sürdürür', () async {
-    final note = await noteWithReminder(everyDays: 30);
+    final note = await noteWithReminder(cadence: ReminderCadence.monthly);
     final now = DateTime(2026, 8, 8, 9);
 
     final updated = await repository.applyReminderAction(
@@ -125,16 +128,19 @@ void main() {
       now: now,
     );
 
-    expect(updated!.remindEveryDays, 30);
     expect(
-      pendingReminderAt(remindAt: updated.remindAt, everyDays: 30, now: now),
-      DateTime(2026, 9, 7, 9),
+      ReminderCadence.fromCode(updated!.remindEveryDays),
+      ReminderCadence.monthly,
+    );
+    expect(
+      pendingReminderAt(remindAt: updated.remindAt, cadence: ReminderCadence.monthly, now: now),
+      DateTime(2026, 9, 8, 9),
     );
   });
 
   test('bildirimleri kapat tek atış ve tekrar alanlarını temizler', () async {
-    for (final everyDays in [0, 30]) {
-      final note = await noteWithReminder(everyDays: everyDays);
+    for (final cadence in [ReminderCadence.once, ReminderCadence.monthly]) {
+      final note = await noteWithReminder(cadence: cadence);
 
       final updated = await repository.applyReminderAction(
         note.id,
@@ -155,7 +161,7 @@ void main() {
   test(
     'aynı notification action yeniden teslim edilirse ikinci kez yazmaz',
     () async {
-      final note = await noteWithReminder(everyDays: 7);
+      final note = await noteWithReminder(cadence: ReminderCadence.weekly);
       final firedAt = DateTime(2026, 8, 8, 9);
       final now = DateTime(2026, 8, 8, 9, 1);
       const eventId = '2560:latermark.reminder.tomorrow:payload-v3';

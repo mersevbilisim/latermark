@@ -18,6 +18,9 @@ class L10nTr extends L10n {
   String get composeSaving => 'Kaydediliyor';
 
   @override
+  String get composeWaitingForLocation => 'Konum bekleniyor';
+
+  @override
   String get actionCancel => 'Vazgeç';
 
   @override
@@ -186,6 +189,44 @@ class L10nTr extends L10n {
 
   @override
   String get holdStageGone => 'Gitti';
+
+  @override
+  String get selectionStart => 'Silinecek kareleri seç';
+
+  @override
+  String get selectionExit => 'Seçimden çık';
+
+  @override
+  String get selectionTitle => 'Seç';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seçildi',
+      zero: 'Seçim yok',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get selectionHint => 'Silmek istediğin karelere dokun';
+
+  @override
+  String deleteManyConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kare silinsin mi?',
+      one: 'Bu kare silinsin mi?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteManyConfirmCaption =>
+      'Fotoğraflar ve notlar birlikte kalkacak.';
 
   @override
   String get cameraNotFoundTitle => 'Kamera bulunamadı';
@@ -478,15 +519,39 @@ class L10nTr extends L10n {
   }
 
   @override
-  String reminderRepeatingValue(int days, String when) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'Her $days günde bir · sonraki $when',
-      one: 'Her gün · sonraki $when',
-    );
-    return '$_temp0';
+  String reminderDailyValue(String when) {
+    return 'Her gün · sonraki $when';
   }
+
+  @override
+  String reminderWeeklyValue(String when) {
+    return 'Her hafta · sonraki $when';
+  }
+
+  @override
+  String reminderMonthlyValue(String when) {
+    return 'Her ay · sonraki $when';
+  }
+
+  @override
+  String reminderYearlyValue(String when) {
+    return 'Her yıl · sonraki $when';
+  }
+
+  @override
+  String get reminderCadenceOnce => 'Bir kez';
+
+  @override
+  String get reminderCadenceDaily => 'Gün';
+
+  @override
+  String get reminderCadenceWeekly => 'Hafta';
+
+  @override
+  String get reminderCadenceMonthly => 'Ay';
+
+  @override
+  String get reminderCadenceYearly => 'Yıl';
 
   @override
   String get reminderBlocked =>
@@ -1078,14 +1143,12 @@ class L10nTr extends L10n {
   String get reminderTimeLabel => 'Saat';
 
   @override
-  String get reminderOnceTitle => 'Bir kere hatırlat';
-
-  @override
-  String get reminderRepeatTitle => 'Sürekli hatırlat';
-
-  @override
   String get reminderSkip => 'Şimdi değil';
 
   @override
   String get reminderDeleteAfterLabel => 'Hatırlattıktan 1 saat sonra sil';
+
+  @override
+  String get reminderAfterExpiry =>
+      'Hatırlatma, bu not silinmeden önce olmalı.';
 }

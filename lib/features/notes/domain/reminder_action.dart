@@ -76,12 +76,12 @@ ReminderChoice? reminderOutcomeFor({
     //
     // Not hiçbir durumda silinmiyor. Uygulamanın "tamamlandı" diye bir kaydı
     // yok; olan tek şey hatırlatmanın kendisi.
-    return reminder.repeats
-        ? ReminderChoice(
-            at: shiftLocalCalendarDays(now, reminder.everyDays),
-            everyDays: reminder.everyDays,
-          )
-        : const ReminderChoice.off();
+    // Yinelenen kayıtta çıpaya **dokunulmuyor**: dizi zaten çıpadan türüyor ve
+    // sıradaki halka kendiliğinden geliyor. Çıpayı "şimdi + bir aralık"a
+    // taşımak, ritmi kullanıcının cevap verdiği saate göre yeniden fazlardı —
+    // ayın 1'inde 09:00'a kurulmuş aylık bir hatırlatma, 14:00'te "Tamam"
+    // denince gelecek ay 14:00'e kayardı.
+    return reminder.repeats ? reminder : const ReminderChoice.off();
   }
 
   final base = firedAt == null || now.difference(firedAt) > _staleNotification
@@ -97,7 +97,6 @@ ReminderChoice? reminderOutcomeFor({
     target = shiftLocalCalendarDays(target, snoozeDays);
   }
 
-  // Kullanıcının seçtiği aralık ("30 günde bir") korunuyor: ertelenen yalnızca
-  // sıradaki halkanın tarihi.
-  return ReminderChoice(at: target, everyDays: reminder.everyDays);
+  // Kullanıcının seçtiği ritim korunuyor: ertelenen yalnızca dizinin çıpası.
+  return ReminderChoice(at: target, cadence: reminder.cadence);
 }

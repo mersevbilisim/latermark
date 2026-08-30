@@ -15,7 +15,7 @@ void main() {
   DateTime? nextOccurrence(ReminderChoice outcome, {DateTime? at}) =>
       pendingReminderAt(
         remindAt: outcome.at,
-        everyDays: outcome.everyDays,
+        cadence: outcome.cadence,
         now: at ?? now,
       );
 
@@ -49,18 +49,19 @@ void main() {
       // bir alarma dönüşürdü.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.tomorrow,
-        reminder: ReminderChoice(at: firedAt, everyDays: 30),
+        reminder: ReminderChoice(at: firedAt, cadence: ReminderCadence.monthly),
         now: now,
         firedAt: firedAt,
       )!;
 
-      expect(outcome.everyDays, 30);
+      expect(outcome.cadence, ReminderCadence.monthly);
       expect(outcome.repeats, isTrue);
-      // Ertelenen oluşumdan sonrası yine 30 günlük aralıkla sürer.
+      // Ertelenen oluşumdan sonrası aynı ritimle sürer: ay, gün sayısıyla
+      // değil takvimle ilerliyor.
       expect(nextOccurrence(outcome), DateTime(2026, 8, 9, 9));
       expect(
         nextOccurrence(outcome, at: DateTime(2026, 8, 9, 9, 1)),
-        DateTime(2026, 9, 8, 9),
+        DateTime(2026, 9, 9, 9),
       );
     });
 
@@ -127,25 +128,26 @@ void main() {
       // hatırlatılmazdı ve bunu ancak aylar sonra fark ederdi.
       final outcome = reminderOutcomeFor(
         action: ReminderAction.done,
-        reminder: ReminderChoice(at: firedAt, everyDays: 30),
+        reminder: ReminderChoice(at: firedAt, cadence: ReminderCadence.monthly),
         now: now,
         firedAt: firedAt,
       )!;
 
       expect(outcome.isOn, isTrue);
-      expect(outcome.everyDays, 30);
-      expect(nextOccurrence(outcome), DateTime(2026, 9, 7, 9, 1));
+      expect(outcome.cadence, ReminderCadence.monthly);
+      // Çıpaya dokunulmuyor: dizi kendi takviminde sürüyor.
+      expect(nextOccurrence(outcome), DateTime(2026, 9, 8, 9));
     });
   });
 
   group('bildirimleri kapat', () {
-    for (final everyDays in [0, 30]) {
+    for (final cadence in [ReminderCadence.once, ReminderCadence.monthly]) {
       test(
-        '${everyDays > 0 ? 'tekrarlı' : 'tek atışlı'} hatırlatmanın bütün alanlarını temizler',
+        '${cadence.repeats ? 'tekrarlı' : 'tek atışlı'} hatırlatmanın bütün alanlarını temizler',
         () {
           final outcome = reminderOutcomeFor(
             action: ReminderAction.turnOff,
-            reminder: ReminderChoice(at: firedAt, everyDays: everyDays),
+            reminder: ReminderChoice(at: firedAt, cadence: cadence),
             now: now,
             firedAt: firedAt,
           )!;

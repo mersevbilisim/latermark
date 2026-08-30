@@ -163,24 +163,29 @@ class ReminderService {
     }
   }
 
+  /// Yerel bölge gerçekten çözüldü mü.
+  ///
+  /// UTC'ye düşmek sessiz ama pahalı bir hata: tek atışlı kayıt mutlak anla
+  /// yine doğru kurulur, ama **tekrarlı** kayıt iki platformda da takvim
+  /// bileşenleri kullanıyor ve saat/dakikayı yerel bölgeden okuyor.
+  /// Bölge UTC kalırsa günlük hatırlatma, kullanıcının seçtiği saatte değil
+  /// UTC farkı kadar kaymış bir saatte çalar.
+  bool _timeZoneResolved = false;
+
   Future<void> _configureTimeZone() async {
-    if (!_isIos) {
-      // Bu görev Android programını değiştirmiyor; mevcut mutlak UTC davranışı
-      // aynen korunuyor.
-      tz.setLocalLocation(tz.UTC);
-      return;
-    }
     try {
       final identifier = await _actionChannel.invokeMethod<String>(
         'timeZoneIdentifier',
       );
       if (identifier == null) throw StateError('Saat dilimi bulunamadı.');
       tz.setLocalLocation(tz.getLocation(identifier));
+      _timeZoneResolved = true;
+      debugPrint('Yerel saat dilimi: $identifier');
     } on Object catch (error) {
-      // Tek atışlı kayıt mutlak anla yine doğrudur. Sonraki lifecycle sync'i
-      // bölgeyi yeniden çözmeyi dener.
       debugPrint('Yerel saat dilimi çözülemedi: $error');
-      tz.setLocalLocation(tz.UTC);
+      // Daha önce doğru bir bölge bulunduysa geçici kanal hatası onu UTC
+      // ile ezmesin. Hiç çözülememiş soğuk açılışta güvenli taban UTC'dir.
+      if (!_timeZoneResolved) tz.setLocalLocation(tz.UTC);
     }
   }
 
@@ -497,7 +502,7 @@ class ReminderService {
   }) {
     return pendingReminderAt(
       remindAt: note.remindAt,
-      everyDays: note.remindEveryDays,
+      cadence: ReminderCadence.fromCode(note.remindEveryDays),
       expiresAt: note.expiresAt,
       now: now,
     );
@@ -599,11 +604,26 @@ class ReminderService {
   Future<void> sync(List<Note> notes, AppSettings settings, L10n l10n) async {
     if (!_supported) return;
     await initialize();
+    // Bölge yalnız `initialize` içinde çözülüyordu ve `initialize` ömürde bir
+    // kez koşuyor: soğuk açılışta native kanal bir kare geç hazır olduysa
+    // uygulama **süreç boyunca** UTC'de kalıyor, o oturumda kurulan her
+    // tekrarlı hatırlatma yanlış saate düşüyordu. Kod bunun "sonraki sync'te
+    // yeniden denenir" olduğunu varsayıyordu; denenmiyordu.
+    // Kullanıcı seyahatte veya sistem ayarından bölgeyi değiştirmiş
+    // olabilir. Uygulama her öne dönüşte sync yaptığı için burada yeniden
+    // okumak günlük/haftalık duvar saatini eski bölgeye kilitlemez.
+    await _configureTimeZone();
     await _syncCategoryLanguage(l10n);
 
     try {
       if (!settings.proUnlocked || !settings.reminderEnabled) {
         await _plugin.cancelAll();
+        // Program tümden kalktığına göre bildirime iliştirilen kareler de
+        // sahipsiz kaldı. Süpürme normalde aşağıda, hedef küme belliyken
+        // yapılıyor; bu erken dönüşte atlanırsa kopyalar diskte kalıyordu ve
+        // onları toplayan başka bir yol yok (`sweepOrphanFiles` yalnız notun
+        // kendi fotoğraf deposuna bakıyor).
+        await _sweepAttachments(const {});
         return;
       }
 
@@ -615,16 +635,8 @@ class ReminderService {
             ReminderRequest(
               noteId: note.id,
               remindAt: remindAt,
-              everyDays: note.remindEveryDays,
+              cadence: ReminderCadence.fromCode(note.remindEveryDays),
               expiresAt: note.expiresAt,
-              // Android ilk kesin anı `calledAt` ile taşıyabiliyor. iOS'ta
-              // günlük/haftalık calendar trigger fazı korur, diğer aralıklar
-              // aşağıdaki küçük kayan tek-atış penceresine açılır.
-              allowNativeRepeat:
-                  _isAndroid ||
-                  (!_isIos) ||
-                  note.remindEveryDays == 1 ||
-                  note.remindEveryDays == 7,
             ),
       ];
       final schedule = reminderSchedule(
@@ -735,10 +747,12 @@ class ReminderService {
 
       await _sweepAttachments(desired.keys.toSet());
 
+      var installed = 0;
       for (final entry in desired.entries) {
         if (existing.contains(entry.key)) continue;
         try {
           await _schedule(entry.value, l10n);
+          installed++;
         } on PlatformException catch (error) {
           // Tek bir bozuk native kayıt, aynı senkrondaki diğer notların
           // programını kesmemeli. `_schedule` kare reddini zaten karesiz
@@ -749,6 +763,35 @@ class ReminderService {
           );
         }
       }
+
+      // Programın **kararını** görünür kılan tek satır.
+      //
+      // Bu yol sessiz başarısızlığa çok müsait: izin okuması kesin cevap
+      // vermezse, bütçe boş dönerse ya da kayıt zaten kurulu sayılırsa hiçbir
+      // şey olmuyor ve hiçbir yerde iz kalmıyordu. Satır yalnız debug
+      // derlemesinde çalışıyor; `assert` gövdesi release'de tamamen düşüyor.
+      assert(() {
+        debugPrint(
+          'Hatırlatma senkronu: izin=${permission.name} '
+          'bölge=${tz.local.name} istek=${requests.length} '
+          'istenen=${desired.length} zaten=${existing.length} '
+          'kurulan=$installed',
+        );
+        for (final request in requests) {
+          debugPrint(
+            '  kayıt#${request.noteId} an=${request.remindAt.toIso8601String()} '
+            'ritim=${request.cadence.name} son=${request.expiresAt}',
+          );
+        }
+        for (final value in desired.values) {
+          debugPrint(
+            '  kurulacak#${value.reminder.notificationId} '
+            'an=${value.reminder.at.toIso8601String()} '
+            'ritim=${value.reminder.repeat?.name}',
+          );
+        }
+        return true;
+      }());
     } on PlatformException catch (error) {
       // İzin yoksa veya tam zamanlı alarm hakkı verilmemişse sessizce geç.
       debugPrint('Hatırlatmalar kurulamadı: $error');
@@ -963,64 +1006,38 @@ class ReminderService {
       ),
     );
 
-    final interval = reminder.repeatInterval;
-    if (interval != null) {
-      final calendarRepeat = _isIos
-          ? switch (interval.inDays) {
-              1 => DateTimeComponents.time,
-              7 => DateTimeComponents.dayOfWeekAndTime,
-              _ => null,
-            }
-          : null;
-      if (calendarRepeat != null) {
+    final repeat = reminder.repeat;
+    if (repeat != null) {
+      // Günlük/haftalık ile native olarak güvenli normal aylık/yıllık
+      // ritimler buraya gelir. 29/30/31 aylık ve 29 Şubat yıllık bileşen
+      // eşleşmesi olmayan tarihi atlar; onlar "son geçerli gün" kuralını
+      // koruyan kesin tarihlerdir.
+      // Scheduler ayrıca ilk native eşleşmenin saklanan ilk halkayla aynı
+      // olduğunu doğrulamıştır; bu kayıt kullanıcının seçiminden önce
+      // çalmaz.
+      final matching = switch (repeat) {
+        ReminderCadence.once => null,
+        ReminderCadence.daily => DateTimeComponents.time,
+        ReminderCadence.weekly => DateTimeComponents.dayOfWeekAndTime,
+        ReminderCadence.monthly => DateTimeComponents.dayOfMonthAndTime,
+        ReminderCadence.yearly => DateTimeComponents.dateAndTime,
+      };
+      if (matching != null) {
         await _plugin.zonedSchedule(
           id: reminder.notificationId,
           scheduledDate: tz.TZDateTime.from(reminder.at, tz.local),
           title: _title,
+          // Yinelenen kayıt işletim sisteminde uzun süre bekliyor; not gövdesi
+          // o arada değişebilir. Metin bu yüzden zamansız kalıyor, dokununca
+          // açılan not her zaman veritabanındaki güncel hâlidir.
           body: l10n.notificationBodyNoBody,
           payload: desired.payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           notificationDetails: details,
-          matchDateTimeComponents: calendarRepeat,
+          matchDateTimeComponents: matching,
         );
         return;
       }
-      if (_isAndroid) {
-        final android = _plugin
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
-        if (android != null) {
-          await android.periodicallyShowWithDuration(
-            id: reminder.notificationId,
-            repeatDurationInterval: interval,
-            // Plugin'in varsayılanı çağrı anıdır. Domain'in hesapladığı ilk
-            // kesin tarihi taşımak; upgrade, off/on ve reboot sonrasında
-            // tekrar fazının "şimdi + N" diye sıfırlanmasını önler.
-            firstScheduledAt: reminder.at,
-            title: _title,
-            body: l10n.notificationBodyNoBody,
-            payload: desired.payload,
-            scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            notificationDetails: details.android,
-          );
-          return;
-        }
-      }
-      await _plugin.periodicallyShowWithDuration(
-        id: reminder.notificationId,
-        repeatDurationInterval: interval,
-        // Native tekrar aynı kalan programda yeniden kurulmaz; aksi hâlde
-        // uygulamayı açmak sayacı başa sarardı. Bu nedenle metin de not
-        // gövdesinin eski bir kopyasını taşımak yerine zamansız/genel kalır.
-        // Dokununca açılan not her zaman veritabanındaki güncel gövdedir.
-        title: _title,
-        body: l10n.notificationBodyNoBody,
-        payload: desired.payload,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        notificationDetails: details,
-      );
-      return;
     }
 
     await _plugin.zonedSchedule(
