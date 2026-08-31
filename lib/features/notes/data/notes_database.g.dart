@@ -32,6 +32,17 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _originalNameMeta = const VerificationMeta(
+    'originalName',
+  );
+  @override
+  late final GeneratedColumn<String> originalName = GeneratedColumn<String>(
+    'original_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _bodyMeta = const VerificationMeta('body');
   @override
   late final GeneratedColumn<String> body = GeneratedColumn<String>(
@@ -157,6 +168,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   List<GeneratedColumn> get $columns => [
     id,
     imageName,
+    originalName,
     body,
     createdAt,
     retention,
@@ -191,6 +203,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       );
     } else if (isInserting) {
       context.missing(_imageNameMeta);
+    }
+    if (data.containsKey('original_name')) {
+      context.handle(
+        _originalNameMeta,
+        originalName.isAcceptableOrUnknown(
+          data['original_name']!,
+          _originalNameMeta,
+        ),
+      );
     }
     if (data.containsKey('body')) {
       context.handle(
@@ -280,6 +301,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.string,
         data['${effectivePrefix}image_name'],
       )!,
+      originalName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_name'],
+      ),
       body: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}body'],
@@ -347,6 +372,20 @@ class Note extends DataClass implements Insertable<Note> {
   /// kurulumda değişir ve kayıtlı yollar geçersizleşir. Klasör her açılışta
   /// fotoğraf deposu tarafından yeniden çözülür.
   final String imageName;
+
+  /// Kullanıcı "gerçek boyutu da koru" dediyse, dokunulmamış karenin dosya adı.
+  ///
+  /// `null` olağan hâl: seçenek her zaman kapalı başlıyor ve yükseltmeden
+  /// gelen bütün kayıtlarda `null`. Orijinal, işlenmiş karenin **yerine
+  /// geçmiyor** — yanına ekleniyor. Izgara, arama, ana ekran ve widget'lar her
+  /// zaman işlenmiş kareyi çiziyor; orijinal yalnızca detay ekranında ve
+  /// kullanıcı açıkça istediğinde paylaşımda kullanılıyor.
+  ///
+  /// Aynı klasörde düz duruyor, [imageName] gibi. Küçük kopyalar alt klasörde
+  /// çünkü onlar türetilebilir; orijinal türetilemez — yedeğe girmesi ve geri
+  /// yüklemede aynen dönmesi gerekiyor. Düz tutmak yedekleme, geri yükleme ve
+  /// yetim toplamanın üçünü de olduğu gibi çalıştırıyor.
+  final String? originalName;
   final String body;
   final DateTime createdAt;
   final Retention retention;
@@ -415,6 +454,7 @@ class Note extends DataClass implements Insertable<Note> {
   const Note({
     required this.id,
     required this.imageName,
+    this.originalName,
     required this.body,
     required this.createdAt,
     required this.retention,
@@ -432,6 +472,9 @@ class Note extends DataClass implements Insertable<Note> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['image_name'] = Variable<String>(imageName);
+    if (!nullToAbsent || originalName != null) {
+      map['original_name'] = Variable<String>(originalName);
+    }
     map['body'] = Variable<String>(body);
     map['created_at'] = Variable<DateTime>(createdAt);
     {
@@ -466,6 +509,9 @@ class Note extends DataClass implements Insertable<Note> {
     return NotesCompanion(
       id: Value(id),
       imageName: Value(imageName),
+      originalName: originalName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalName),
       body: Value(body),
       createdAt: Value(createdAt),
       retention: Value(retention),
@@ -500,6 +546,7 @@ class Note extends DataClass implements Insertable<Note> {
     return Note(
       id: serializer.fromJson<int>(json['id']),
       imageName: serializer.fromJson<String>(json['imageName']),
+      originalName: serializer.fromJson<String?>(json['originalName']),
       body: serializer.fromJson<String>(json['body']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       retention: $NotesTable.$converterretention.fromJson(
@@ -521,6 +568,7 @@ class Note extends DataClass implements Insertable<Note> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'imageName': serializer.toJson<String>(imageName),
+      'originalName': serializer.toJson<String?>(originalName),
       'body': serializer.toJson<String>(body),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'retention': serializer.toJson<int>(
@@ -540,6 +588,7 @@ class Note extends DataClass implements Insertable<Note> {
   Note copyWith({
     int? id,
     String? imageName,
+    Value<String?> originalName = const Value.absent(),
     String? body,
     DateTime? createdAt,
     Retention? retention,
@@ -554,6 +603,7 @@ class Note extends DataClass implements Insertable<Note> {
   }) => Note(
     id: id ?? this.id,
     imageName: imageName ?? this.imageName,
+    originalName: originalName.present ? originalName.value : this.originalName,
     body: body ?? this.body,
     createdAt: createdAt ?? this.createdAt,
     retention: retention ?? this.retention,
@@ -570,6 +620,9 @@ class Note extends DataClass implements Insertable<Note> {
     return Note(
       id: data.id.present ? data.id.value : this.id,
       imageName: data.imageName.present ? data.imageName.value : this.imageName,
+      originalName: data.originalName.present
+          ? data.originalName.value
+          : this.originalName,
       body: data.body.present ? data.body.value : this.body,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       retention: data.retention.present ? data.retention.value : this.retention,
@@ -595,6 +648,7 @@ class Note extends DataClass implements Insertable<Note> {
     return (StringBuffer('Note(')
           ..write('id: $id, ')
           ..write('imageName: $imageName, ')
+          ..write('originalName: $originalName, ')
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
@@ -614,6 +668,7 @@ class Note extends DataClass implements Insertable<Note> {
   int get hashCode => Object.hash(
     id,
     imageName,
+    originalName,
     body,
     createdAt,
     retention,
@@ -632,6 +687,7 @@ class Note extends DataClass implements Insertable<Note> {
       (other is Note &&
           other.id == this.id &&
           other.imageName == this.imageName &&
+          other.originalName == this.originalName &&
           other.body == this.body &&
           other.createdAt == this.createdAt &&
           other.retention == this.retention &&
@@ -648,6 +704,7 @@ class Note extends DataClass implements Insertable<Note> {
 class NotesCompanion extends UpdateCompanion<Note> {
   final Value<int> id;
   final Value<String> imageName;
+  final Value<String?> originalName;
   final Value<String> body;
   final Value<DateTime> createdAt;
   final Value<Retention> retention;
@@ -662,6 +719,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   const NotesCompanion({
     this.id = const Value.absent(),
     this.imageName = const Value.absent(),
+    this.originalName = const Value.absent(),
     this.body = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.retention = const Value.absent(),
@@ -677,6 +735,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   NotesCompanion.insert({
     this.id = const Value.absent(),
     required String imageName,
+    this.originalName = const Value.absent(),
     this.body = const Value.absent(),
     required DateTime createdAt,
     this.retention = const Value.absent(),
@@ -693,6 +752,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   static Insertable<Note> custom({
     Expression<int>? id,
     Expression<String>? imageName,
+    Expression<String>? originalName,
     Expression<String>? body,
     Expression<DateTime>? createdAt,
     Expression<int>? retention,
@@ -708,6 +768,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (imageName != null) 'image_name': imageName,
+      if (originalName != null) 'original_name': originalName,
       if (body != null) 'body': body,
       if (createdAt != null) 'created_at': createdAt,
       if (retention != null) 'retention': retention,
@@ -725,6 +786,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   NotesCompanion copyWith({
     Value<int>? id,
     Value<String>? imageName,
+    Value<String?>? originalName,
     Value<String>? body,
     Value<DateTime>? createdAt,
     Value<Retention>? retention,
@@ -740,6 +802,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     return NotesCompanion(
       id: id ?? this.id,
       imageName: imageName ?? this.imageName,
+      originalName: originalName ?? this.originalName,
       body: body ?? this.body,
       createdAt: createdAt ?? this.createdAt,
       retention: retention ?? this.retention,
@@ -762,6 +825,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     }
     if (imageName.present) {
       map['image_name'] = Variable<String>(imageName.value);
+    }
+    if (originalName.present) {
+      map['original_name'] = Variable<String>(originalName.value);
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
@@ -806,6 +872,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     return (StringBuffer('NotesCompanion(')
           ..write('id: $id, ')
           ..write('imageName: $imageName, ')
+          ..write('originalName: $originalName, ')
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('retention: $retention, ')
@@ -1982,6 +2049,7 @@ typedef $$NotesTableCreateCompanionBuilder =
     NotesCompanion Function({
       Value<int> id,
       required String imageName,
+      Value<String?> originalName,
       Value<String> body,
       required DateTime createdAt,
       Value<Retention> retention,
@@ -1998,6 +2066,7 @@ typedef $$NotesTableUpdateCompanionBuilder =
     NotesCompanion Function({
       Value<int> id,
       Value<String> imageName,
+      Value<String?> originalName,
       Value<String> body,
       Value<DateTime> createdAt,
       Value<Retention> retention,
@@ -2050,6 +2119,11 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<String> get imageName => $composableBuilder(
     column: $table.imageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalName => $composableBuilder(
+    column: $table.originalName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2154,6 +2228,11 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalName => $composableBuilder(
+    column: $table.originalName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get body => $composableBuilder(
     column: $table.body,
     builder: (column) => ColumnOrderings(column),
@@ -2224,6 +2303,11 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<String> get imageName =>
       $composableBuilder(column: $table.imageName, builder: (column) => column);
+
+  GeneratedColumn<String> get originalName => $composableBuilder(
+    column: $table.originalName,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
@@ -2320,6 +2404,7 @@ class $$NotesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> imageName = const Value.absent(),
+                Value<String?> originalName = const Value.absent(),
                 Value<String> body = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<Retention> retention = const Value.absent(),
@@ -2334,6 +2419,7 @@ class $$NotesTableTableManager
               }) => NotesCompanion(
                 id: id,
                 imageName: imageName,
+                originalName: originalName,
                 body: body,
                 createdAt: createdAt,
                 retention: retention,
@@ -2350,6 +2436,7 @@ class $$NotesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String imageName,
+                Value<String?> originalName = const Value.absent(),
                 Value<String> body = const Value.absent(),
                 required DateTime createdAt,
                 Value<Retention> retention = const Value.absent(),
@@ -2364,6 +2451,7 @@ class $$NotesTableTableManager
               }) => NotesCompanion.insert(
                 id: id,
                 imageName: imageName,
+                originalName: originalName,
                 body: body,
                 createdAt: createdAt,
                 retention: retention,

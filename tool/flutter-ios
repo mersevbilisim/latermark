@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Flutter'ın ürettiği SPM bildirgesindeki dağıtım hedefini derleme boyunca
+# düzelten sarmalayıcı.
+#
+# Neden gerekiyor: Flutter, `FlutterGeneratedPluginSwiftPackage/Package.swift`
+# dosyasını her derlemede kendi sabit kodlu minimumuyla (13.0) üretiyor
+# (`flutter_tools/lib/src/darwin/darwin.dart` → `deploymentTarget()`).
+# Projenin gerçek hedefini (15.6) okuyup dosyayı düzeltiyor ama bunu
+# `xcodebuild -showBuildSettings` adımından **sonra** yapıyor; o adım paket
+# grafiğini çoktan 13.0 ile çözmüş oluyor. Sonuç: iOS 14 isteyen `home_widget`
+# "bu hedef 13.0 destekliyor" hatası veriyor.
+#
+# Sarmalayıcı, dosya 13.0 olarak her yazıldığında anında projenin hedefine
+# çeviriyor — yani elle yetişmeye çalışmanın otomatik hâli.
+#
+# Kullanım:  tool/flutter-ios build ios --release
+#            tool/flutter-ios run --profile
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+manifest="$root/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift"
+
+# Hedef: Runner'ın kendi dağıtım hedefi.
+#
+# Bu paketi **yalnızca Runner** bağlıyor; uzantıların (NotWidget, ShareExtension)
+# hedefleri farklı olabilir ve onları hesaba katmak yanlış sonuç verir. Projedeki
+# en küçüğü almak 15.0'a, en büyüğü almak 17.0'a düşüyordu; ikisi de Runner'ın
+# gerçek değeri değil. Flutter'ın `-showBuildSettings` ile okuduğu değer 15.6.
+#
+# Gerekirse ortam değişkeniyle geçilebilir:  LATERMARK_IOS_TARGET=16.0 tool/flutter-ios ...
+target="${LATERMARK_IOS_TARGET:-15.6}"
+
+# home_widget iOS 14 istiyor; altına düşen bir değer hatayı geri getirir.
+if [[ "$(printf '%s\n14.0\n' "$target" | sort -V | head -1)" != "14.0" ]]; then
+  echo "flutter-ios: hedef ($target) 14.0'ın altında; home_widget derlenmez" >&2
+  exit 1
+fi
+
+echo "flutter-ios: SPM hedefi $target olarak sabitlenecek"
+
+(
+  while :; do
+    if [[ -f "$manifest" ]] && grep -q '\.iOS("13\.0")' "$manifest" 2>/dev/null; then
+      sed -i '' "s/\.iOS(\"13\.0\")/.iOS(\"$target\")/" "$manifest" 2>/dev/null || true
+    fi
+    sleep 0.05
+  done
+) &
+watcher=$!
+trap 'kill "$watcher" 2>/dev/null || true' EXIT INT TERM
+
+flutter "$@"

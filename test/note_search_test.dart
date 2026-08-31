@@ -265,6 +265,7 @@ void main() {
       // v7 sütununu ve v8'in hatırlatma şeklini geri alıyoruz: o sürümde
       // hatırlatma "çıpa + kaç gün sonra" olarak duruyordu.
       v6.execute(
+        'ALTER TABLE notes DROP COLUMN original_name; '
         'ALTER TABLE settings DROP COLUMN share_signature; '
         'ALTER TABLE note_search DROP COLUMN photo_fingerprint; '
         'ALTER TABLE notes DROP COLUMN remind_at; '

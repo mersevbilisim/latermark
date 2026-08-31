@@ -123,6 +123,24 @@ class NotesRepository {
   /// Kayıtlı bir notun fotoğrafını diskte gösterir.
   File imageOf(Note note) => _store.fileFor(note.imageName);
 
+  /// Izgaranın çizeceği dosya: varsa küçük kopya, yoksa tam kare.
+  ///
+  /// Akışta yüzlerce kare aynı anda çözülüyor ve 2048'lik kaynaktan çözmek
+  /// kare başına altı kat pahalı. Küçük kopyası henüz üretilmemiş kayıt tam
+  /// kareyi çizmeye devam ediyor — yükseltmeden gelen kullanıcı hiçbir şey
+  /// eksik görmüyor, akış kopyalar üretildikçe hızlanıyor.
+  File gridImageOf(Note note) => _store.gridFileFor(note.imageName);
+
+  /// Küçük kopyası olmayan kayıtlar için kopyayı üretir.
+  Future<bool> ensureThumbnail(Note note) =>
+      _store.ensureThumbnail(note.imageName);
+
+  /// Küçük kopyası hazır mı. Ölçüm ve teşhis için.
+  bool hasThumbnail(Note note) => _store.thumbFor(note.imageName).existsSync();
+
+  /// Bu ortamda küçük kopya üretilebiliyor mu.
+  bool get canThumbnail => _store.canThumbnail;
+
   /// Kamera çıktısını kalıcılaştırır ve notu yazar. Yeni notun kimliğini döner.
   ///
   /// [createdAt] verilmezse şimdiki an kullanılır. Çekim ekranı, kaydın

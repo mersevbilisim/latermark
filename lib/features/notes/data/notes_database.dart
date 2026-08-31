@@ -22,6 +22,20 @@ class Notes extends Table {
   /// fotoğraf deposu tarafından yeniden çözülür.
   TextColumn get imageName => text()();
 
+  /// Kullanıcı "gerçek boyutu da koru" dediyse, dokunulmamış karenin dosya adı.
+  ///
+  /// `null` olağan hâl: seçenek her zaman kapalı başlıyor ve yükseltmeden
+  /// gelen bütün kayıtlarda `null`. Orijinal, işlenmiş karenin **yerine
+  /// geçmiyor** — yanına ekleniyor. Izgara, arama, ana ekran ve widget'lar her
+  /// zaman işlenmiş kareyi çiziyor; orijinal yalnızca detay ekranında ve
+  /// kullanıcı açıkça istediğinde paylaşımda kullanılıyor.
+  ///
+  /// Aynı klasörde düz duruyor, [imageName] gibi. Küçük kopyalar alt klasörde
+  /// çünkü onlar türetilebilir; orijinal türetilemez — yedeğe girmesi ve geri
+  /// yüklemede aynen dönmesi gerekiyor. Düz tutmak yedekleme, geri yükleme ve
+  /// yetim toplamanın üçünü de olduğu gibi çalıştırıyor.
+  TextColumn get originalName => text().nullable()();
+
   TextColumn get body => text().withDefault(const Constant(''))();
 
   DateTimeColumn get createdAt => dateTime()();
@@ -222,7 +236,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -376,6 +390,10 @@ class NotesDatabase extends _$NotesDatabase {
         // Ayarlar'da görünür yerde duruyor.
         await m.addColumn(settingsTable, settingsTable.shareSignature);
       }
+      // Sütun nullable ve geri doldurulmuyor: yükseltmeden gelen her kayıt
+      // "orijinali yok" durumunda kalıyor ve bu doğru hâl. Kimsenin karesi
+      // değişmiyor, hiçbir dosya taşınmıyor.
+      if (from < 10) await m.addColumn(notes, notes.originalName);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

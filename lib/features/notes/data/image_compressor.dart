@@ -16,10 +16,17 @@ import 'package:flutter/services.dart';
 /// Yerel kanal kullanılıyor çünkü `flutter_image_compress` iOS'ta CocoaPods
 /// zorunlu kılıyor ve projenin Swift Package Manager kurulumunu bozardı.
 class ImageCompressor {
-  ImageCompressor({@visibleForTesting MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel('latermark/image');
+  ImageCompressor({
+    @visibleForTesting MethodChannel? channel,
+    @visibleForTesting bool? supported,
+  }) : _channel = channel ?? const MethodChannel('latermark/image'),
+       _supportedOverride = supported;
 
   final MethodChannel _channel;
+
+  /// Yerel kanal yalnız iOS/Android'de var. Testler bu kapıyı açıp sahte bir
+  /// kanalla küçültme davranışını sınayabilsin diye ayrıldı.
+  final bool? _supportedOverride;
 
   /// Saklanan karenin uzun kenarı için üst sınır.
   ///
@@ -30,7 +37,8 @@ class ImageCompressor {
   /// JPEG kalitesi. 88, gözle fark edilmeyen ama boyutu belirgin düşüren aralık.
   static const quality = 88;
 
-  bool get supported => Platform.isIOS || Platform.isAndroid;
+  bool get supported =>
+      _supportedOverride ?? (Platform.isIOS || Platform.isAndroid);
 
   /// Kareyi **yerinde** küçültür.
   ///
@@ -38,14 +46,18 @@ class ImageCompressor {
   /// iyileştirme, kullanıcının karesini kaybetmektense büyük saklamak yeğdir.
   /// Kare zaten sınırın altındaysa da `false` döner — yeniden kodlamak
   /// yalnızca kalite kaybettirirdi.
-  Future<bool> compress(File image) async {
+  ///
+  /// [edge] ve [quality] verilmezse saklama sınırları kullanılır. Izgaranın
+  /// küçük kopyası aynı yolu daha küçük bir hedefle çağırıyor; iki platformun
+  /// yerel tarafı da hedefi zaten parametre olarak alıyordu.
+  Future<bool> compress(File image, {int? edge, int? quality}) async {
     if (!supported || !image.existsSync()) return false;
 
     try {
       final done = await _channel.invokeMethod<bool>('compress', {
         'path': image.path,
-        'maxEdge': maxEdge,
-        'quality': quality,
+        'maxEdge': edge ?? ImageCompressor.maxEdge,
+        'quality': quality ?? ImageCompressor.quality,
       });
       return done ?? false;
     } on PlatformException catch (error) {

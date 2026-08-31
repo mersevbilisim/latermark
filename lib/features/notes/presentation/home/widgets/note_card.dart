@@ -146,7 +146,12 @@ class NoteCard extends StatelessWidget {
                     child: Hero(
                       tag: 'note-photo-${note.id}',
                       child: NotePhoto(
-                        file: repository.imageOf(note),
+                        // Izgarada küçük kopya; tek sütun ve detay tam kareyi
+                        // okumaya devam ediyor. Kopya yoksa ikisi de aynı
+                        // dosyayı gösteriyor.
+                        file: scale.isCompact
+                            ? repository.gridImageOf(note)
+                            : repository.imageOf(note),
                         decodeWidth: _printWidth(context),
                       ),
                     ),

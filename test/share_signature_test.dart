@@ -47,6 +47,7 @@ void main() {
 
     final v8 = raw.sqlite3.open(path);
     v8.execute(
+      'ALTER TABLE notes DROP COLUMN original_name; '
       'ALTER TABLE settings DROP COLUMN share_signature; '
       'PRAGMA user_version = 8;',
     );

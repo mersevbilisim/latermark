@@ -112,6 +112,17 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   late final _location = widget.location ?? LocationService();
   bool _scanning = false;
 
+  /// Küçük kopya geri doldurmasının kapsadığı kayıt sayısı.
+  ///
+  /// Yeni kayıtların kopyası zaten kaydedilirken üretiliyor; bu geçiş yalnızca
+  /// yükseltmeden gelen eski arşiv için. Tarama bittikten sonra her not
+  /// yayınında yüzlerce dosya yoklamak boşuna olurdu, ama "bir kez koştu,
+  /// bitti" demek de yanlış: **yedek geri yükleme bütün fotoğraf klasörünü
+  /// değiştiriyor** ve küçük kopyalar o sırada gidiyor. Sayı değiştiğinde
+  /// tarama kendiliğinden yeniden koşuyor.
+  int? _thumbnailsCovered;
+  bool _fillingThumbnails = false;
+
   AppSettings _preferences = const AppSettings();
   StreamSubscription<AppSettings>? _settingsSub;
   StreamSubscription<List<Note>>? _notesSub;
@@ -168,6 +179,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       _notesLoaded = true;
       _syncRemindersWhenReady();
       unawaited(_scanPending());
+      unawaited(_fillThumbnails());
     });
   }
 
@@ -304,6 +316,59 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   /// Kaydetme akışına hiç dokunmuyor: kullanıcı notunu yazıp çıkıyor, tarama
   /// liste her değiştiğinde birer birer ilerliyor. Eski kayıtlar da böylece
   /// kullanıcıdan bir şey istemeden indeksleniyor.
+  /// Küçük kopyası olmayan eski kayıtlar için kopyayı arkada üretir.
+  ///
+  /// Yükseltmeden gelen kullanıcının arşivinde tek bir kopya yok. Izgara o
+  /// kayıtlar için tam kareyi çizmeye devam ediyor — yani hiçbir şey eksik
+  /// görünmüyor, yalnızca o kadarı yavaş. Kopyalar üretildikçe akış
+  /// kendiliğinden hızlanıyor.
+  ///
+  /// En yeniden başlanıyor: kullanıcının ilk göreceği kareler onlar.
+  ///
+  /// İki fren var ve ikisi de deneyimden geldi. **Açılışta hemen
+  /// başlamıyor:** önbellek boşken görünen kareler zaten çözülüyor, üretimi
+  /// aynı ana koymak ikisini yarıştırıp açılışta kareleri geç getiriyordu.
+  /// **Kareler arasında nefes veriyor:** küçültme yerel tarafta arka plan
+  /// kuyruğunda koşsa da aynı işlemciyi paylaşıyor; ardışık bin çağrıyı
+  /// olabildiğince hızlı kuyruğa vermek kaydırmayı hissedilir biçimde
+  /// bozuyordu.
+  static const _thumbnailWarmup = Duration(seconds: 3);
+  static const _thumbnailBreath = Duration(milliseconds: 8);
+
+  Future<void> _fillThumbnails() async {
+    if (_fillingThumbnails || !widget.notes.canThumbnail) return;
+    final notes = List<Note>.unmodifiable(_notes);
+    if (_thumbnailsCovered == notes.length) return;
+
+    // Eksik yoksa beklemeye de gerek yok: tamamlanmış bir arşivde bu tarama
+    // yalnızca dosya yoklamasından ibaret kalıyor.
+    final missing = [
+      for (final note in notes)
+        if (!widget.notes.hasThumbnail(note)) note,
+    ];
+    if (missing.isEmpty) {
+      _thumbnailsCovered = notes.length;
+      return;
+    }
+
+    _fillingThumbnails = true;
+    try {
+      await Future<void>.delayed(_thumbnailWarmup);
+      for (final note in missing) {
+        if (!mounted) return;
+        await widget.notes.ensureThumbnail(note);
+        await Future<void>.delayed(_thumbnailBreath);
+      }
+      _thumbnailsCovered = notes.length;
+    } catch (error) {
+      // Bir sonraki oturumda yeniden denenir; ızgara bu arada tam kareyi
+      // çizmeye devam ettiği için kullanıcı bir eksiklik görmüyor.
+      debugPrint('Küçük kopyalar üretilemedi: $error');
+    } finally {
+      _fillingThumbnails = false;
+    }
+  }
+
   Future<void> _scanPending() async {
     if (_scanning || !_ocr.supported) return;
     _scanning = true;

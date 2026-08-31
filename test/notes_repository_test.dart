@@ -661,6 +661,7 @@ void main() {
 
       final v7 = raw.sqlite3.open(path);
       v7.execute(
+        'ALTER TABLE notes DROP COLUMN original_name; '
         'ALTER TABLE settings DROP COLUMN share_signature; '
         'ALTER TABLE notes DROP COLUMN remind_at; '
         'ALTER TABLE notes RENAME COLUMN remind_every_days '
@@ -765,5 +766,35 @@ void main() {
         before,
       );
     });
+  });
+
+  test('göç v9 kayıtları orijinalsiz olarak açılır', () async {
+    // Yayındaki 1.0.2 sürümünün şeması v9. Yükseltme hiçbir kaydı
+    // değiştirmemeli: sütun ekleniyor, mevcut satırlar "orijinali yok"
+    // durumunda kalıyor ve bu doğru hâl.
+    final path = '${sandbox.path}/v9.sqlite';
+    final seed = NotesDatabase.forExecutor(NativeDatabase(File(path)));
+    await seed.select(seed.notes).get();
+    await seed.close();
+
+    final v9 = raw.sqlite3.open(path);
+    v9.execute(
+      'ALTER TABLE notes DROP COLUMN original_name; '
+      'PRAGMA user_version = 9;',
+    );
+    v9.execute(
+      'INSERT INTO notes (image_name, body, created_at) VALUES (?, ?, ?)',
+      ['eski.jpg', 'Fatura', 1754000000],
+    );
+    v9.close();
+
+    final migrated = NotesDatabase.forExecutor(NativeDatabase(File(path)));
+    addTearDown(migrated.close);
+
+    final row = await migrated.select(migrated.notes).getSingle();
+    expect(row.imageName, 'eski.jpg');
+    expect(row.body, 'Fatura');
+    // Kaydın karesi yerinde, yalnızca orijinali yok.
+    expect(row.originalName, isNull);
   });
 }

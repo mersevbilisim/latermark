@@ -1,4 +1,5 @@
 import Flutter
+import ImageIO
 import UIKit
 
 /// Kaydedilen kareyi küçültüp yeniden kodlar.
@@ -11,6 +12,16 @@ import UIKit
 /// kılıyor ve projenin Swift Package Manager kurulumunu bozardı.
 enum ImageChannel {
   static let name = "latermark/image"
+
+  /// Küçültme **tek sıra** üzerinde koşuyor.
+  ///
+  /// Eskiden `DispatchQueue.global()` kullanılıyordu ve o kuyruk eşzamanlı:
+  /// arka arkaya gelen çağrılar paralel başlıyor ve her biri kendi karesini
+  /// belleğe alıyordu. Arşiv geçişi gibi yüzlerce kareyi peş peşe küçülten bir
+  /// iş sırasında süreç iOS'un bellek tavanını (~2 GB) aşıp öldürülüyordu.
+  /// Android tarafı en baştan tek iş parçacığı kullanıyordu; burası artık aynı
+  /// garantiyi veriyor.
+  private static let queue = DispatchQueue(label: "latermark.image", qos: .utility)
 
   static func register(messenger: FlutterBinaryMessenger) -> FlutterMethodChannel {
     let channel = FlutterMethodChannel(name: name, binaryMessenger: messenger)
@@ -29,7 +40,7 @@ enum ImageChannel {
         return
       }
 
-      DispatchQueue.global(qos: .utility).async {
+      queue.async {
         let done = compress(
           path: path,
           maxEdge: CGFloat(maxEdge),
@@ -45,38 +56,48 @@ enum ImageChannel {
   ///
   /// Sıkıştırma bir iyileştirme; kullanıcının karesini kaybetmektense
   /// büyük saklamak yeğdir.
+  /// Kare **hedef boyutunda çözülüyor**, tam boyda değil.
+  ///
+  /// Önce `UIImage(contentsOfFile:)` kullanılıyordu ve o, kareyi olduğu gibi
+  /// belleğe açıyor: 2048×1536 bir kare için 12 MB. Küçük kopya üretmek için
+  /// tam çözünürlüğü belleğe almanın hiçbir karşılığı yok. ImageIO doğrudan
+  /// istenen boyutta çözüyor, yani bellek **çıktıyla** orantılı kalıyor —
+  /// 600 piksellik bir kopya için 12 MB yerine ~1 MB.
   private static func compress(path: String, maxEdge: CGFloat, quality: CGFloat) -> Bool {
-    guard let image = UIImage(contentsOfFile: path) else { return false }
+    autoreleasepool {
+      let url = URL(fileURLWithPath: path)
+      guard
+        let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil)
+          as? [CFString: Any],
+        let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+        let height = properties[kCGImagePropertyPixelHeight] as? CGFloat
+      else { return false }
 
-    let longest = max(image.size.width, image.size.height)
-    // Zaten küçükse yeniden kodlamak yalnızca kalite kaybettirir.
-    guard longest > maxEdge else { return false }
+      // Zaten küçükse yeniden kodlamak yalnızca kalite kaybettirir.
+      guard max(width, height) > maxEdge else { return false }
 
-    let ratio = maxEdge / longest
-    let target = CGSize(
-      width: (image.size.width * ratio).rounded(),
-      height: (image.size.height * ratio).rounded()
-    )
+      let options: [CFString: Any] = [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        // EXIF yönünü kareye işliyor; eskiden `draw` bunu yapıyordu.
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceThumbnailMaxPixelSize: maxEdge,
+      ]
+      guard
+        let scaled = CGImageSourceCreateThumbnailAtIndex(
+          source,
+          0,
+          options as CFDictionary
+        ),
+        let data = UIImage(cgImage: scaled).jpegData(compressionQuality: quality)
+      else { return false }
 
-    // Ölçek 1: `UIGraphicsImageRenderer` varsayılan olarak ekran ölçeğini
-    // kullanıyor ve 3x cihazda hedefin üç katı piksel üretirdi.
-    let format = UIGraphicsImageRendererFormat.default()
-    format.scale = 1
-    format.opaque = true
-
-    let renderer = UIGraphicsImageRenderer(size: target, format: format)
-    // `draw` EXIF yönünü uyguluyor; sonuç dik ve etiketsiz oluyor.
-    let resized = renderer.image { _ in
-      image.draw(in: CGRect(origin: .zero, size: target))
-    }
-
-    guard let data = resized.jpegData(compressionQuality: quality) else { return false }
-
-    do {
-      try data.write(to: URL(fileURLWithPath: path), options: .atomic)
-      return true
-    } catch {
-      return false
+      do {
+        try data.write(to: url, options: .atomic)
+        return true
+      } catch {
+        return false
+      }
     }
   }
 }
