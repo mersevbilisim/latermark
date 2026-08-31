@@ -20,11 +20,8 @@ enum NotKeys {
     static let hasNote = "not_has_note"
     static let noteId = "not_note_id"
     static let body = "not_body"
-    static let time = "not_time"
-    static let date = "not_date"
     static let expiresAt = "not_expires_at"
     static let createdAt = "not_created_at"
-    static let count = "not_count"
     static let pro = "not_pro"
     static let accent = "not_accent"
     static let photo = "not_photo"
@@ -36,11 +33,8 @@ struct NotEntry: TimelineEntry {
     let hasNote: Bool
     let noteId: Int
     let body: String
-    let time: String
-    let day: String
     let expiresAt: Date?
     let createdAt: Date?
-    let count: Int
     let pro: Bool
     let accentARGB: String
     let image: UIImage?
@@ -50,11 +44,8 @@ struct NotEntry: TimelineEntry {
         hasNote: true,
         noteId: 0,
         body: NotText.value("widget.preview.note"),
-        time: "14:32",
-        day: NotText.value("widget.preview.day"),
         expiresAt: Date().addingTimeInterval(60 * 60 * 52),
         createdAt: Date().addingTimeInterval(-60 * 60 * 20),
-        count: 12,
         pro: true,
         accentARGB: "FFFF7A55",
         image: nil
@@ -65,11 +56,8 @@ struct NotEntry: TimelineEntry {
         hasNote: false,
         noteId: 0,
         body: "",
-        time: "",
-        day: "",
         expiresAt: nil,
         createdAt: nil,
-        count: 0,
         pro: false,
         accentARGB: "FFFF7A55",
         image: nil
@@ -103,24 +91,53 @@ struct NotEntry: TimelineEntry {
         return noteText
     }
 
-    /// Paylaşılan metin hazır olmadan ilk kare istenirse widget'ın
-    /// yalnızca not gövdesine düşmemesi için tarihleri yerel olarak
-    /// tamamlar. Normal durumda Flutter'ın gönderdiği değerler kullanılır.
     var noteText: String {
         let value = body.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? NotText.value("widget.note.untitled") : value
     }
 
+    /// Kaydın gün etiketi: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
+    ///
+    /// Metin burada üretilir, Flutter'dan hazır gelmez. Hazır gelseydi
+    /// paylaşılan alanda donardı: widget saatte bir tazelense bile aynı yazıyı
+    /// yeniden okuyacağı için, uygulama açılmadığı sürece dün kaydedilmiş bir
+    /// not ertesi gün hâlâ "BUGÜN" derdi.
+    ///
+    /// Karşılaştırma `date` üzerinden yapılıyor — kalan süre ve ömür oranı da
+    /// aynı ana bakıyor, böylece tek bir karede anlatılan her şey birbiriyle
+    /// tutarlı kalıyor.
     var displayDay: String {
-        let value = day.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard value.isEmpty else { return value }
-        return createdAt?.formatted(.dateTime.day().month(.abbreviated)) ?? ""
+        guard let createdAt else { return "" }
+
+        let calendar = Calendar.current
+        let elapsed = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: createdAt),
+            to: calendar.startOfDay(for: date)
+        ).day ?? 0
+
+        let label: String
+        if elapsed <= 0 {
+            label = NotText.value("day.today")
+        } else if elapsed == 1 {
+            label = NotText.value("day.yesterday")
+        } else if elapsed < 7 {
+            label = createdAt.formatted(.dateTime.weekday(.wide))
+        } else if calendar.component(.year, from: createdAt)
+            == calendar.component(.year, from: date) {
+            label = createdAt.formatted(.dateTime.day().month(.wide))
+        } else {
+            label = createdAt.formatted(.dateTime.day().month(.wide).year())
+        }
+
+        // Türkçede `i` → `İ`; yerel duyarlı büyütme bunu doğru yapar.
+        return label.uppercased(with: .current)
     }
 
+    /// Kaydın saati. Cihazın 12/24 saat tercihini sistem biçimlendiricisi
+    /// uygular; künyedeki her metin gibi bu da widget'ın kendi işi.
     var displayTime: String {
-        let value = time.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard value.isEmpty else { return value }
-        return createdAt?.formatted(date: .omitted, time: .shortened) ?? ""
+        createdAt?.formatted(date: .omitted, time: .shortened) ?? ""
     }
 
     /// "BUGÜN · 14:32" gibi, dil ve bölgeye uyan kayıt damgası.
@@ -172,7 +189,13 @@ struct NotEntry: TimelineEntry {
 }
 
 /// Paylaşılan kapsayıcıdan okuyup zaman çizelgesini üretir.
+///
+/// [withPhoto] kapalıyken kare diskten hiç çözülmez. Kilit ekranı aksesuarları
+/// WidgetKit'in en dar bellek bütçesiyle çalışıyor ve hiç çizmeyecekleri bir
+/// görseli çözmek, uzantının öldürülüp widget'ın boş kalmasına yol açabiliyor.
 struct NotProvider: TimelineProvider {
+    var withPhoto: Bool = true
+
     func placeholder(in context: Context) -> NotEntry { .placeholder }
 
     func getSnapshot(in context: Context, completion: @escaping (NotEntry) -> Void) {
@@ -183,7 +206,18 @@ struct NotProvider: TimelineProvider {
         // Uygulama her değişiklikte widget'ı zaten tazeliyor. Buradaki saatlik
         // yenileme yalnızca "kalan süre" rozetinin taze kalması için.
         let entry = load()
-        var refresh = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
+        let calendar = Calendar.current
+        var refresh = calendar.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
+
+        // Gün etiketi gece yarısı değişiyor. Yalnızca saatlik yenilemeye
+        // bırakılırsa "BUGÜN" bir saate kadar geç dönerdi.
+        if let midnight = calendar.nextDate(
+            after: entry.date,
+            matching: DateComponents(hour: 0, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        ), midnight < refresh {
+            refresh = midnight
+        }
 
         // Süre dolduğu anda tazele: widget kaydı kendiliğinden bıraksın,
         // bir sonraki saatlik yenilemeyi beklemesin.
@@ -211,14 +245,11 @@ struct NotProvider: TimelineProvider {
             hasNote: hasNote,
             noteId: hasNote ? store.integer(forKey: NotKeys.noteId) : 0,
             body: hasNote ? (store.string(forKey: NotKeys.body) ?? "") : "",
-            time: hasNote ? (store.string(forKey: NotKeys.time) ?? "") : "",
-            day: hasNote ? (store.string(forKey: NotKeys.date) ?? "") : "",
             expiresAt: epoch > 0 ? Date(timeIntervalSince1970: TimeInterval(epoch)) : nil,
             createdAt: born > 0 ? Date(timeIntervalSince1970: TimeInterval(born)) : nil,
-            count: pro ? store.integer(forKey: NotKeys.count) : 0,
             pro: pro,
             accentARGB: store.string(forKey: NotKeys.accent) ?? "FFFF7A55",
-            image: hasNote ? loadImage(from: store) : nil
+            image: withPhoto && hasNote ? loadImage(from: store) : nil
         )
     }
 

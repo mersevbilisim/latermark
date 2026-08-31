@@ -944,7 +944,9 @@ struct LatermarkCaptureWidget: Widget {
     let kind = "LatermarkCaptureWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: NotProvider()) { entry in
+        // Kare olmadan: bu görünüm fotoğrafı hiç çizmiyor ve kilit ekranı
+        // aksesuarlarının bellek bütçesi en dar olan.
+        StaticConfiguration(kind: kind, provider: NotProvider(withPhoto: false)) { entry in
             CaptureWidgetView(entry: entry)
         }
         .configurationDisplayName(Text(NotText.value("widget.capture.name")))

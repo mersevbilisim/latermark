@@ -38,7 +38,6 @@ class PaywallPage extends StatelessWidget {
     required this.price,
     this.latestPhoto,
     this.noteCount = 0,
-    this.freeLimit = 30,
     this.busy = false,
     this.unlocked = false,
     this.reason,
@@ -65,7 +64,6 @@ class PaywallPage extends StatelessWidget {
   final File? latestPhoto;
 
   final int noteCount;
-  final int freeLimit;
 
   /// Hangi kapıdan gelindiği. Verilirse tepede o kapıya özel açıklama çıkar.
   final PaywallReason? reason;
@@ -146,7 +144,7 @@ class PaywallPage extends StatelessWidget {
               const _LifeComparison(),
 
               const SizedBox(height: 28),
-              _Features(freeLimit: freeLimit),
+              const _Features(),
 
               if (noteCount > 0) ...[
                 const SizedBox(height: 20),
@@ -316,9 +314,7 @@ class _LifeComparison extends StatelessWidget {
 }
 
 class _Features extends StatelessWidget {
-  const _Features({required this.freeLimit});
-
-  final int freeLimit;
+  const _Features();
 
   @override
   Widget build(BuildContext context) {
@@ -333,7 +329,11 @@ class _Features extends StatelessWidget {
       ),
       (
         l10n.paywallFeatureUnlimited,
-        l10n.paywallFeatureUnlimitedDetail(freeLimit),
+        // Sayı doğrudan [ProLimits]'ten okunuyor. Burada bir zamanlar
+        // dışarıdan verilen ve kimsenin geçmediği bir varsayılan (30) vardı;
+        // aynı ekranın başlığı gerçek sınırı (5) yazarken özellik listesi
+        // otuz diyordu. Sınırın tek bir kaynağı var.
+        l10n.paywallFeatureUnlimitedDetail(ProLimits.freeNotes),
       ),
       (
         l10n.paywallFeatureCustomRetention,

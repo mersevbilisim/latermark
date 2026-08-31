@@ -15,11 +15,19 @@ import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat as AndroidDateFormat
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.Date
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -40,8 +48,6 @@ class NotWidgetProvider : HomeWidgetProvider() {
         const val HAS_NOTE = "not_has_note"
         const val NOTE_ID = "not_note_id"
         const val BODY = "not_body"
-        const val TIME = "not_time"
-        const val DATE = "not_date"
         const val EXPIRES_AT = "not_expires_at"
         const val CREATED_AT = "not_created_at"
         const val COUNT = "not_count"
@@ -191,10 +197,8 @@ class NotWidgetProvider : HomeWidgetProvider() {
         }
 
         val expiresAt = data.number(Keys.EXPIRES_AT)
-        val fraction = lifeFraction(
-            createdAt = data.number(Keys.CREATED_AT),
-            expiresAt = expiresAt,
-        )
+        val createdAt = data.number(Keys.CREATED_AT)
+        val fraction = lifeFraction(createdAt = createdAt, expiresAt = expiresAt)
         val openness = fraction?.let { 0.22f + (0.50f * it) } ?: 0.72f
         val density = context.resources.displayMetrics.density
 
@@ -224,8 +228,8 @@ class NotWidgetProvider : HomeWidgetProvider() {
             if (body.isEmpty()) Palette.INK_FAINT else Palette.INK,
         )
 
-        views.setTextViewText(R.id.widget_date, data.getString(Keys.DATE, "").orEmpty())
-        views.setTextViewText(R.id.widget_time, data.getString(Keys.TIME, "").orEmpty())
+        views.setTextViewText(R.id.widget_date, dayLabel(context, createdAt))
+        views.setTextViewText(R.id.widget_time, timeLabel(context, createdAt))
         views.setTextViewText(
             R.id.widget_folio,
             context.getString(
@@ -303,6 +307,55 @@ class NotWidgetProvider : HomeWidgetProvider() {
         getString(Keys.ACCENT, null)?.toLongOrNull(16)?.toInt()
             ?: Palette.DEFAULT_ACCENT
 
+    /**
+     * Kaydın gün etiketi: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
+     *
+     * Metin burada üretilir, Flutter'dan hazır gelmez. Hazır gelseydi
+     * paylaşılan tercihlerde donardı: widget saatte bir tazelense bile aynı
+     * yazıyı yeniden okuyacağı için, uygulama açılmadığı sürece dün
+     * kaydedilmiş bir not ertesi gün hâlâ "BUGÜN" derdi.
+     *
+     * Gün ve ay sırası dile göre değişiyor (`6 Ağustos` ama `August 6`);
+     * kalıbı elle yazmak yerine sistemden isteniyor.
+     */
+    private fun dayLabel(context: Context, createdAt: Long): String {
+        if (createdAt <= 0L) return ""
+        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+        val zone = ZoneId.systemDefault()
+        val born = Instant.ofEpochSecond(createdAt).atZone(zone).toLocalDate()
+        val today = LocalDate.now(zone)
+        val elapsed = ChronoUnit.DAYS.between(born, today)
+
+        // Biçimlendirme `SimpleDateFormat` ile: `getBestDateTimePattern`
+        // sözleşme gereği onun kalıbını döndürüyor. `java.time` ile eşleştirmek
+        // bazı dillerde tanınmayan kalıp harfine ve widget'ı bozan bir
+        // istisnaya yol açabilirdi.
+        val stamp = Date(createdAt * 1_000L)
+        val label = when {
+            elapsed <= 0L -> context.getString(R.string.widget_day_today)
+            elapsed == 1L -> context.getString(R.string.widget_day_yesterday)
+            elapsed < 7L -> SimpleDateFormat("EEEE", locale).format(stamp)
+            else -> {
+                val skeleton = if (born.year == today.year) "dMMMM" else "dMMMMy"
+                SimpleDateFormat(
+                    AndroidDateFormat.getBestDateTimePattern(locale, skeleton),
+                    locale,
+                ).format(stamp)
+            }
+        }
+        // Türkçede `i` → `İ`; yerel duyarlı büyütme bunu doğru yapar.
+        return label.uppercase(locale)
+    }
+
+    /**
+     * Kaydın saati. Kullanıcının 12/24 saat tercihini sistem biçimlendiricisi
+     * uygular; künyedeki her metin gibi bu da widget'ın kendi işi.
+     */
+    private fun timeLabel(context: Context, createdAt: Long): String {
+        if (createdAt <= 0L) return ""
+        return AndroidDateFormat.getTimeFormat(context).format(Date(createdAt * 1_000L))
+    }
+
     /** 1 = yeni, 0 = ömrünün sonu. Süresiz notlarda açık uç için `null`. */
     private fun lifeFraction(createdAt: Long, expiresAt: Long): Float? {
         if (expiresAt <= 0L) return null
@@ -346,9 +399,18 @@ class NotWidgetProvider : HomeWidgetProvider() {
         BitmapFactory.decodeFile(path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
+        // Tavan kasıtlı olarak düşük. RemoteViews'un widget başına bitmap
+        // bellek sınırı kabaca ekranın 1.5 katı; eski 1440 sınırı ARGB_8888'de
+        // 8 MB'a kadar çıkabiliyordu ve düşük çözünürlüklü cihazlarda bu sınırı
+        // aşıp widget'ı "Problem loading widget" durumuna düşürürdü.
+        //
+        // 960, köprünün yayınladığı 720 piksel genişliğindeki dikey kareyi
+        // örneklemeden geçirir (kalite aynen korunur) ama uzun ekran görüntüsü
+        // gibi aşırı yüksek kareleri güvenli boyuta indirir.
+        // Bkz. `HomeWidgetBridge._photoWidth`.
         var sample = 1
         val longestEdge = maxOf(bounds.outWidth, bounds.outHeight)
-        while (longestEdge / sample > 1_440) sample *= 2
+        while (longestEdge / sample > 960) sample *= 2
 
         return BitmapFactory.decodeFile(
             path,

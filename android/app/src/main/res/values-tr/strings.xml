@@ -14,4 +14,6 @@
     <string name="widget_remaining_hours">%1$dsa</string>
     <string name="widget_remaining_minutes">%1$ddk</string>
     <string name="widget_remaining_less_than_minute">&lt;1dk</string>
+    <string name="widget_day_today">Bugün</string>
+    <string name="widget_day_yesterday">Dün</string>
 </resources>

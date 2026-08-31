@@ -11,4 +11,6 @@
     <string name="widget_remaining_hours">%1$d시간</string>
     <string name="widget_remaining_minutes">%1$d분</string>
     <string name="widget_remaining_less_than_minute">1분 미만</string>
+    <string name="widget_day_today">오늘</string>
+    <string name="widget_day_yesterday">어제</string>
 </resources>

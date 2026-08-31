@@ -13,7 +13,6 @@
 "widget.leave_first_trace" = "첫 흔적을 남겨보세요";
 "widget.pro.required" = "Latermark Pro에서 사용할 수 있습니다";
 "widget.preview.note" = "회계팀에 보내기";
-"widget.preview.day" = "오늘";
 "remaining.now" = "지금";
 "remaining.days.short" = "%d일";
 "remaining.hours.short" = "%d시간";
@@ -32,3 +31,5 @@
 "share.reminder.custom.placeholder" = "일";
 "action.cancel" = "취소";
 "action.ok" = "확인";
+"day.today" = "오늘";
+"day.yesterday" = "어제";

@@ -646,7 +646,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           // süresi dolan not) süzme yeniden hesaplanmıyor, aynı kimlik kümesi
           // uygulanıyor — arada eklenen bir kayıt aramaya girmiyorsa da doğru
           // olan bu: kullanıcı yazdığı sorgunun sonucunu görüyor.
-          final notes = _searching && _hits.filtering
+          final filtering = _searching && _hits.filtering;
+          final notes = filtering
               ? all.where((note) => _hits.contains(note.id)).toList()
               : all;
 
@@ -693,6 +694,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               ShutterDock.dockHeight +
                               MediaQuery.paddingOf(context).bottom,
                           searching: _searching,
+                          filtering: filtering,
                           searchController: _searchController,
                           searchFocus: _searchFocus,
                           onSearchChanged: _onQueryChanged,
@@ -704,14 +706,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       },
                     ),
                   ),
+                // Şerit **arşive** bakar, ekrandaki süzülmüş listeye değil.
+                // Aramada eşleşme çıkmadığında `notes` boşalıyor ve şerit
+                // "ilk kareni çek" davetine dönüyordu: dev deklanşör başlığın
+                // üstüne biniyor, hâlâ dolu bir arşivi olan kullanıcıya boş
+                // ekran gösteriliyordu. Ücretsiz katman sayacı da aynı yerden
+                // yanlış besleniyordu — sınır tüm arşivle ilgili, o anda
+                // eşleşen kaç kare olduğuyla değil.
                 ShutterDock(
-                  docked: notes.isNotEmpty,
+                  docked: all.isNotEmpty,
                   importing: _pickingFromGallery,
-                  noteCount: notes.length,
+                  noteCount: all.length,
                   isPro: preferences.proUnlocked,
                   onCapture: _openCamera,
                   onImport: _pickFromGallery,
-                  onOpenSettings: notes.isEmpty ? _openSettings : null,
+                  onOpenSettings: all.isEmpty ? _openSettings : null,
                   selecting: selecting,
                   selectedCount: selection.length,
                   // Akış boşken silinecek bir şey yok: yuva hiç çizilmiyor.

@@ -30,12 +30,28 @@ void _log(String message) {
 /// **Doğruluk kaynağı her zaman mağazadır.** Yereldeki kopya sadece önbellek —
 /// uygulama açılışında arayüz titremesin diye. Bkz. [unlocked].
 class PurchaseService {
-  PurchaseService({@visibleForTesting InAppPurchase? store})
-    : _storeInjected = store != null,
-      _storeOverride = store;
+  PurchaseService({
+    @visibleForTesting InAppPurchase? store,
+    @visibleForTesting TargetPlatform? platform,
+  }) : _storeInjected = store != null,
+       _storeOverride = store,
+       _platformOverride = platform;
 
   final InAppPurchase? _storeOverride;
   final bool _storeInjected;
+
+  /// Mağaza dalı iki platformda farklı: iOS hakkı StoreKit'e teyit ettirir,
+  /// Android restore listesine bakar. Test bu dalı seçebilsin diye ayrıldı;
+  /// üretimde her zaman gerçek platform okunur.
+  final TargetPlatform? _platformOverride;
+
+  bool get _isIos => _platformOverride == null
+      ? Platform.isIOS
+      : _platformOverride == TargetPlatform.iOS;
+
+  bool get _isAndroid => _platformOverride == null
+      ? Platform.isAndroid
+      : _platformOverride == TargetPlatform.android;
 
   // `InAppPurchase.instance` Android'de oluşturulurken BillingClient
   // bağlantısını başlatabilir. Test/desteklenmeyen platform kapısından önce
@@ -52,9 +68,20 @@ class PurchaseService {
   static const _storeTimeout = Duration(seconds: 6);
   static const _productAttempts = 3;
   static const _retryBackoff = Duration(milliseconds: 700);
+
+  /// Satın alma sonrası StoreKit'in kendi kaydına yetişmesi için verilen pay.
+  static const _confirmAttempts = 4;
+  static const _confirmBackoff = Duration(milliseconds: 450);
   static const _entitlementChannel = MethodChannel('latermark/purchases');
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+
+  /// Kaç kez satın alma teyit edildi.
+  ///
+  /// Sıradan bir hak sorgusu sürerken bir satın alma teyit edilebiliyor. O
+  /// sorgu sonuçlandığında elindeki fotoğraf artık eski; `false` yazarsa az
+  /// önce açılan hakkı kapatır. Sayaç, cevabın hangi çağa ait olduğunu söyler.
+  int _confirmations = 0;
   Future<bool?>? _entitlementRefresh;
   Completer<bool?>? _androidRestoreResult;
   Future<bool?>? _restoreOperation;
@@ -82,7 +109,7 @@ class PurchaseService {
 
   bool get _supported =>
       (_storeInjected || !Platform.environment.containsKey('FLUTTER_TEST')) &&
-      (Platform.isIOS || Platform.isAndroid);
+      (_isIos || _isAndroid);
 
   ProductDetails? _product;
   Future<void>? _productLoad;
@@ -266,7 +293,7 @@ class PurchaseService {
     final activeRefresh = _entitlementRefresh;
     if (activeRefresh != null) return activeRefresh;
 
-    final refresh = Platform.isIOS
+    final refresh = _isIos
         ? _readIosEntitlement()
         : _readAndroidEntitlement();
     _entitlementRefresh = refresh;
@@ -277,7 +304,11 @@ class PurchaseService {
     });
   }
 
-  Future<bool?> _readIosEntitlement() async {
+  /// StoreKit'e sorar ve **hiçbir şeyi değiştirmez**.
+  ///
+  /// Yazma işi çağırana bırakılıyor: açılış ve öne gelme yollarında bir `false`
+  /// cevabı hakkı kapatmalı, satın alma doğrulamasında ise kapatmamalı.
+  Future<bool?> _queryIosEntitlement() async {
     try {
       final owned = await _entitlementChannel
           .invokeMethod<bool>('currentProEntitlement')
@@ -285,7 +316,6 @@ class PurchaseService {
       if (owned == null) {
         throw const FormatException('StoreKit hak sonucu boş döndü.');
       }
-      unlocked.value = owned;
       return owned;
     } catch (error) {
       // Kanal/StoreKit doğrulama hatası sahip değil demek değildir. Son kesin
@@ -293,6 +323,48 @@ class PurchaseService {
       _log('iOS Pro hakkı doğrulanamadı: $error');
       return null;
     }
+  }
+
+  Future<bool?> _readIosEntitlement() async {
+    final era = _confirmations;
+    final owned = await _queryIosEntitlement();
+    // Sorgu sürerken bir satın alma teyit edildiyse bu cevap ondan eski.
+    // Sonradan başlayan sorgular etkilenmez: iade gibi gerçek bir kapanışı
+    // yine bildirebilirler.
+    if (owned != null && era == _confirmations) unlocked.value = owned;
+    return owned;
+  }
+
+  /// Mağazanın onayladığı bir satın almayı StoreKit'e teyit ettirir.
+  ///
+  /// Ayrı durmasının iki sebebi var, ikisi de gerçek bir hatadan geliyor.
+  ///
+  /// **Uçuştaki sorguya ortak olmuyor.** `_refreshPlatformEntitlement` aynı anda
+  /// süren sorguyu paylaşıyor; uygulama öne gelirken başlayan sorgu işlem daha
+  /// ulaşmadan fotoğrafını çektiyse, satın alma o eski `false` cevabını
+  /// devralıyordu.
+  ///
+  /// **Tek bir `false` cevabını son söz saymıyor.** `currentEntitlements`,
+  /// özellikle uygulama dışında kullanılan bir promosyon kodundan sonra bir an
+  /// geride kalabiliyor. Mağaza "satın alındı" derken tek okumaya bakıp hakkı
+  /// kapatmak, kullanıcıyı "Satın alımları geri yükle"ye dokunmaya mecbur
+  /// bırakıyordu.
+  ///
+  /// Doğrulanamazsa [unlocked] **olduğu gibi bırakılır**. `false` yazmak,
+  /// mağazanın az önce onayladığı bir satın alımı silmek olurdu.
+  Future<bool> _confirmIosPurchase() async {
+    for (var attempt = 0; attempt < _confirmAttempts; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(_confirmBackoff * attempt);
+      }
+      if (await _queryIosEntitlement() == true) {
+        _confirmations++;
+        unlocked.value = true;
+        return true;
+      }
+    }
+    _log('[IAP] Satın alma StoreKit tarafından teyit edilemedi.');
+    return false;
   }
 
   /// Kullanıcının açık "geri yükle" eylemi için App Store ile zorunlu
@@ -386,7 +458,7 @@ class PurchaseService {
   Future<bool?> _performRestore() async {
     busy.value = true;
     try {
-      if (Platform.isIOS) {
+      if (_isIos) {
         return await _restoreIosEntitlement();
       }
       return await _refreshPlatformEntitlement();
@@ -401,7 +473,7 @@ class PurchaseService {
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     var owned = false;
     var hasError = false;
-    final androidRestore = Platform.isAndroid ? _androidRestoreResult : null;
+    final androidRestore = _isAndroid ? _androidRestoreResult : null;
 
     for (final purchase in purchases) {
       switch (purchase.status) {
@@ -434,18 +506,25 @@ class PurchaseService {
       }
     }
 
-    busy.value = false;
-
-    if (Platform.isIOS) {
+    if (_isIos) {
       // StoreKit satın alma sonucu `VerificationResult` taşır; genel Flutter
       // akışı bunun doğrulanmış olup olmadığını burada garanti etmez. Ürünü
       // ancak native currentEntitlements sorgusu doğruladıktan sonra aç.
+      //
+      // Teyit boyunca `busy` açık kalıyor: aksi hâlde ödeme biter bitmez ekran
+      // bir an "kilitli" hâline dönüyor, hak birkaç yüz milisaniye sonra
+      // geliyordu.
       if (owned) {
-        final verified = await _refreshPlatformEntitlement();
-        if (verified == true) _purchased.add(null);
+        final verified = await _confirmIosPurchase();
+        busy.value = false;
+        if (verified) _purchased.add(null);
+        return;
       }
+      busy.value = false;
       return;
     }
+
+    busy.value = false;
 
     if (androidRestore != null && !androidRestore.isCompleted) {
       if (hasError) {

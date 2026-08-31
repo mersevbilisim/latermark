@@ -13,7 +13,6 @@
 "widget.leave_first_trace" = "Leave your first trace";
 "widget.pro.required" = "Available with Latermark Pro";
 "widget.preview.note" = "Send this to Accounting";
-"widget.preview.day" = "TODAY";
 "remaining.now" = "now";
 "remaining.days.short" = "%dd";
 "remaining.hours.short" = "%dh";
@@ -32,3 +31,5 @@
 "share.reminder.custom.placeholder" = "Days";
 "action.cancel" = "Cancel";
 "action.ok" = "OK";
+"day.today" = "Today";
+"day.yesterday" = "Yesterday";

@@ -18,6 +18,7 @@ import '../../reminders/reminder_service.dart';
 import '../../../l10n/enum_labels.dart';
 import '../../../l10n/l10n_context.dart';
 import '../domain/app_locale.dart';
+import '../data/debug_archive_seed.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import 'widgets/pro_callout.dart';
@@ -428,6 +429,9 @@ class _DebugSection extends StatefulWidget {
 class _DebugSectionState extends State<_DebugSection> {
   bool _busy = false;
 
+  /// Tohumlama sürerken kaç kaydın yazıldığı. `null` ise sürmüyor.
+  ({int done, int total})? _seeding;
+
   @override
   Widget build(BuildContext context) {
     final debugProEnabled =
@@ -457,8 +461,92 @@ class _DebugSectionState extends State<_DebugSection> {
                 )
               : null,
         ),
+        // Ölçüm için arşivi doldurma. Bitince "Test kayıtlarını sil" hepsini
+        // geri toplar; kullanıcının kendi kareleri işaretsiz olduğu için
+        // dokunulmaz. Kodu kaldırmak isteyen bu satırları ve
+        // `debug_archive_seed.dart` dosyasını silsin, başka bağ yok.
+        SettingsRow(
+          title: 'Arşivi doldur',
+          description: _seeding == null
+              ? 'Ölçüm için sahte kayıt üretir; kayıtlar iki yıla yayılır. '
+                    'Her beşincisine hatırlatma kurulur — bunun için üstteki '
+                    'Pro anahtarı açık olmalı.'
+              : '${_seeding!.done} / ${_seeding!.total} yazıldı…',
+          below: Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (final count in [200, 500, 1000])
+                  TextButton(
+                    key: Key('debug-seed-$count'),
+                    onPressed: _busy ? null : () => _seed(count),
+                    child: Text('$count'),
+                  ),
+                TextButton.icon(
+                  key: const Key('debug-seed-clear'),
+                  onPressed: _busy ? null : _clearSeed,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: const Text('Test kayıtlarını sil'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _seed(int count) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _seeding = (done: 0, total: count);
+    });
+
+    final repository = AppScope.of(context);
+    try {
+      await DebugArchiveSeed.fill(
+        repository,
+        count: count,
+        onProgress: (done, total) {
+          if (!mounted) return;
+          // Her kayıtta kurulum yapmak tohumlamanın kendisini yavaşlatırdı.
+          if (done % 25 != 0 && done != total) return;
+          setState(() => _seeding = (done: done, total: total));
+        },
+      );
+      if (mounted) showToast(context, '$count kayıt eklendi.');
+    } catch (error) {
+      if (mounted) showToast(context, 'Tohumlama başarısız: $error', error: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _seeding = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _clearSeed() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    final repository = AppScope.of(context);
+    try {
+      final removed = await DebugArchiveSeed.clear(repository);
+      if (mounted) {
+        showToast(
+          context,
+          removed == 0 ? 'Silinecek test kaydı yok.' : '$removed kayıt silindi.',
+        );
+      }
+    } catch (error) {
+      if (mounted) showToast(context, 'Silme başarısız: $error', error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _sendTestNotification() async {

@@ -13,7 +13,6 @@
 "widget.leave_first_trace" = "Lascia la tua prima traccia";
 "widget.pro.required" = "Disponibile con Latermark Pro";
 "widget.preview.note" = "Da inviare in contabilità";
-"widget.preview.day" = "OGGI";
 "remaining.now" = "ora";
 "remaining.days.short" = "%d g";
 "remaining.hours.short" = "%d h";
@@ -32,3 +31,5 @@
 "share.reminder.custom.placeholder" = "Giorni";
 "action.cancel" = "Annulla";
 "action.ok" = "OK";
+"day.today" = "Oggi";
+"day.yesterday" = "Ieri";

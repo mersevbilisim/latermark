@@ -13,7 +13,6 @@
 "widget.leave_first_trace" = "İlk izini bırak";
 "widget.pro.required" = "Latermark Pro ile kullanılabilir";
 "widget.preview.note" = "Muhasebeye göndereceğim";
-"widget.preview.day" = "BUGÜN";
 "remaining.now" = "şimdi";
 "remaining.days.short" = "%dg";
 "remaining.hours.short" = "%dsa";
@@ -32,3 +31,5 @@
 "share.reminder.custom.placeholder" = "Gün";
 "action.cancel" = "Vazgeç";
 "action.ok" = "Tamam";
+"day.today" = "Bugün";
+"day.yesterday" = "Dün";

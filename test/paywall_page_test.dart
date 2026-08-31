@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/core/theme/app_theme.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 import 'package:latermark/features/paywall/presentation/paywall_page.dart';
 import 'package:latermark/l10n/app_localizations.dart';
 import 'package:latermark/shared/widgets/pressable.dart';
@@ -140,5 +141,19 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  /// Sınırın tek kaynağı [ProLimits]. Bir zamanlar özellik listesi dışarıdan
+  /// verilen ve kimsenin geçmediği bir varsayılana (30) bakıyordu; aynı ekranın
+  /// başlığı gerçek sınırı yazarken liste otuz diyordu.
+  testWidgets('paywall her yerde aynı ücretsiz sınırı yazıyor', (tester) async {
+    await pumpPaywall(tester, onRestore: () {});
+
+    expect(
+      find.textContaining('${ProLimits.freeNotes} adet değil'),
+      findsOneWidget,
+    );
+    // Sabit bir sayı ekrana sızmasın.
+    expect(find.textContaining('30 adet'), findsNothing);
   });
 }

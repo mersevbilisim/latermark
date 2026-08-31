@@ -14,4 +14,6 @@
     <string name="widget_remaining_hours">%1$dh</string>
     <string name="widget_remaining_minutes">%1$dm</string>
     <string name="widget_remaining_less_than_minute">&lt;1m</string>
+    <string name="widget_day_today">Today</string>
+    <string name="widget_day_yesterday">Yesterday</string>
 </resources>

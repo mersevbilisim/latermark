@@ -1,5 +1,6 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/utils/app_format.dart';
@@ -33,6 +34,7 @@ class NotesFeed extends StatelessWidget {
     required this.onOpenSettings,
     required this.bottomInset,
     required this.searching,
+    required this.filtering,
     required this.searchController,
     required this.searchFocus,
     required this.onSearchChanged,
@@ -58,6 +60,15 @@ class NotesFeed extends StatelessWidget {
   final double bottomInset;
 
   final bool searching;
+
+  /// Arama kutusu açık olmak yetmiyor: akış ancak elde gerçek bir sorgu
+  /// varken tek bir kümeye dönüşüyor. Kutuya dokunmak listeyi yerinden
+  /// oynatmıyor, tarih omurgası duruyor; daralma yazmaya başlayınca oluyor.
+  ///
+  /// Bunu `searching` ile birleştirmek, boş bir kutu için bütün akışı
+  /// söküp yeniden kurmak demekti — dokunuşta hissedilen takılma oradandı.
+  final bool filtering;
+
   final TextEditingController searchController;
   final FocusNode searchFocus;
   final ValueChanged<String> onSearchChanged;
@@ -102,7 +113,7 @@ class NotesFeed extends StatelessWidget {
         // Arama sonucu tek bir kümedir: burada zaman başlıkları eşleşmeleri
         // gereksiz yere parçalar. Normal akışta ise aynı tarih omurgası hem
         // büyük kartta hem ızgarada korunur.
-        if (searching)
+        if (filtering)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             sliver: _Grid(notes: notes, feed: this),
@@ -137,6 +148,8 @@ class NotesFeed extends StatelessWidget {
       reminderAt: reminderAt,
       selecting: selecting,
       selected: selectedIds.contains(note.id),
+      // Süzülmüş kümede tarih ayıraçları yok: her kart kendi zamanını söyler.
+      dated: filtering,
       // Seçim kipinde dokunmanın tek anlamı işaretlemektir: detay sayfası da,
       // basılı tutmanın tekli silme onayı da o kip boyunca kapalı.
       onTap: () => selecting ? onToggleSelection(note) : onOpen(note),
@@ -184,6 +197,13 @@ class _ColumnSection extends StatelessWidget {
   }
 }
 
+/// Telefon kamerası dikey karesi; oran okunana kadarki tahmin.
+const _assumedAspect = 3 / 4;
+
+/// Sütunların arası ve kutuların arası.
+const _gridGutter = 12.0;
+const _gridStep = 18.0;
+
 /// İki sütun, eşit yükseklikte olmayan kutular.
 ///
 /// Kutular hizalı bir ızgara yerine kendi boylarında dizilir. Yükseklik iki
@@ -192,6 +212,14 @@ class _ColumnSection extends StatelessWidget {
 ///
 /// Oranlar [PhotoAspect] ile dosya başlıklarından okunur; çözülene kadar
 /// telefon karesinin olağan oranı varsayılır, böylece ilk kare de yakın durur.
+///
+/// Sütunlar iki ayrı tembel listeden geliyor, tek bir "masonry" sliver'ından
+/// değil. Akış yaş bölümlerine ayrıldığı için ekranda aynı anda birden çok
+/// ızgara bulunuyor ve o sliver, kendisi tamamen yukarıda kaldığında elinde
+/// tek çocuk bırakıyor; sütunlardan birinin başlangıcını artık bilemediği için
+/// her karede tüm kaydırmayı kendi konumu kadar geri çekiyordu. Parmak aşağı
+/// gidiyor, liste başa dönüyor, eski kayıtlara hiç ulaşılamıyordu.
+/// [SliverList] bu duruma düşmüyor.
 class _Grid extends StatefulWidget {
   const _Grid({required this.notes, required this.feed});
 
@@ -203,9 +231,6 @@ class _Grid extends StatefulWidget {
 }
 
 class _GridState extends State<_Grid> {
-  /// Telefon kamerası dikey karesi; oran okunana kadarki tahmin.
-  static const _assumed = 3 / 4;
-
   @override
   void initState() {
     super.initState();
@@ -240,19 +265,98 @@ class _GridState extends State<_Grid> {
 
   @override
   Widget build(BuildContext context) {
-    return SliverMasonryGrid.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: 18,
-      crossAxisSpacing: 12,
-      childCount: widget.notes.length,
-      itemBuilder: (context, index) {
-        final note = widget.notes[index];
-        return widget.feed._card(
-          note,
-          CardScale.compact,
-          aspect: PhotoAspect.peek(note.imageName) ?? _assumed,
-        );
-      },
+    // Kart baskıyı bu genişlikte çözüyor; paylaştırma da aynı sayıyı kullanır.
+    // Alt sınır kasıtlı: yüzey bir an sıfır genişlikte ölçülürse (ekran
+    // döndürme, çok dar bir pencere) tahmin sonsuza gider ve paylaştırma
+    // patlar. Bir piksel, o kareyi sessizce geçirmeye yeter.
+    final width = math.max(1.0, (MediaQuery.sizeOf(context).width - 44) / 2);
+    final columns = _deal(width);
+
+    return SliverCrossAxisGroup(
+      slivers: [
+        for (var index = 0; index < columns.length; index++)
+          _GridColumn(
+            notes: columns[index],
+            feed: widget.feed,
+            padding: EdgeInsets.only(
+              left: index == 0 ? 0 : _gridGutter / 2,
+              right: index == 0 ? _gridGutter / 2 : 0,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Kareleri sütunlara paylaştırır: sıradaki kare, o an daha kısa duran
+  /// sütuna iner. Izgaranın kuralı bu; tek fark yüksekliğin ölçülmesi değil,
+  /// kestirilmesi.
+  List<List<Note>> _deal(double width) {
+    final columns = [<Note>[], <Note>[]];
+    final heights = [0.0, 0.0];
+
+    for (final note in widget.notes) {
+      final target = heights[0] <= heights[1] ? 0 : 1;
+      columns[target].add(note);
+      heights[target] += _estimate(note, width) + _gridStep;
+    }
+
+    return columns;
+  }
+
+  /// Bir kutunun kabaca kaç piksel tutacağı.
+  ///
+  /// Yalnızca sütun seçimi için. Yanılırsa sütunlardan biri diğerinden birkaç
+  /// piksel uzun biter; hiçbir kutunun çizimi değişmez, çünkü kutular kendi
+  /// gerçek boylarında diziliyor. Baskı baskın terim; künyenin yüksekliği
+  /// kartın kendi yapısından toplanıyor.
+  double _estimate(Note note, double width) {
+    var height = width / (PhotoAspect.peek(note.imageName) ?? _assumedAspect);
+
+    if (note.body.isEmpty) {
+      height += 7;
+    } else {
+      // Kart notu en çok üç satır gösteriyor; satır sayısı için ortalama harf
+      // genişliğinden kaba bir sayım yetiyor.
+      final lines = (note.body.length * 7 / width).ceil().clamp(1, 3);
+      height += 9 + lines * 16.5 + 5;
+    }
+
+    height += 12; // saat satırı
+    if (note.expiresAt != null) height += 9; // ömür izi
+    if (note.remindAt != null) height += 17; // hatırlatma çentiği
+
+    return height;
+  }
+}
+
+/// Izgaranın tek sütunu.
+class _GridColumn extends StatelessWidget {
+  const _GridColumn({
+    required this.notes,
+    required this.feed,
+    required this.padding,
+  });
+
+  final List<Note> notes;
+  final NotesFeed feed;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: padding,
+      sliver: SliverList.separated(
+        itemCount: notes.length,
+        separatorBuilder: (_, _) => const SizedBox(height: _gridStep),
+        itemBuilder: (context, index) {
+          final note = notes[index];
+          return feed._card(
+            note,
+            CardScale.compact,
+            aspect: PhotoAspect.peek(note.imageName) ?? _assumedAspect,
+          );
+        },
+      ),
     );
   }
 }
@@ -280,8 +384,19 @@ class DensityCrossfade extends StatelessWidget {
       reverseDuration: const Duration(milliseconds: 260),
       switchInCurve: Curves.easeOutQuart,
       switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (current, previous) =>
-          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      // Geçiş boyunca iki düzen bir an birlikte duruyor ve aynı kare iki kez
+      // çiziliyor. Hero etiketleri kayıt kimliğine bağlı olduğu için o
+      // pencerede bir karta dokunmak "aynı etiketten iki tane" hatasına
+      // dönüşüyordu; çekilen düzen taşımanın dışında bırakılıyor, uçuş her
+      // zaman kalan düzenden başlıyor.
+      layoutBuilder: (current, previous) => Stack(
+        fit: StackFit.expand,
+        children: [
+          for (final leaving in previous)
+            HeroMode(enabled: false, child: leaving),
+          ?current,
+        ],
+      ),
       transitionBuilder: (child, animation) {
         final entering = animation.status != AnimationStatus.reverse;
         return FadeTransition(

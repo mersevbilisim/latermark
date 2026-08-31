@@ -409,6 +409,92 @@ void main() {
       await service.dispose();
     });
 
+    /// Ayarlardaki ana şalter: kapatınca yalnız yeni kurulum durmaz, işletim
+    /// sistemine **kurulmuş** hatırlatmalar da iptal edilir. Aksi hâlde
+    /// kullanıcı anahtarı kapattıktan sonra bile bildirim almaya devam ederdi.
+    test('ana şalter kapatılınca kurulmuş hatırlatmalar iptal edilir', () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final pending = Note(
+        id: 61,
+        imageName: '61.jpg',
+        body: 'Fatura',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAt: DateTime.now().add(const Duration(days: 2)),
+        remindEveryDays: 0,
+      );
+
+      // Önce açıkken kuruluyor.
+      calls.clear();
+      await service.sync(
+        [pending],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+      expect(
+        calls.where((call) => call.method == 'zonedSchedule'),
+        isNotEmpty,
+        reason: 'açıkken kurulmalıydı',
+      );
+
+      // Şalter kapanıyor: not listesi aynı, tercih değişti.
+      calls.clear();
+      await service.sync(
+        [pending],
+        const AppSettings(reminderEnabled: false, proUnlocked: true),
+        l10n,
+      );
+
+      expect(calls.where((call) => call.method == 'cancelAll'), hasLength(1));
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+
+      // Şalter yeniden açılınca not kendi `remindAt` değerinden geri kuruluyor:
+      // kapatmak seçimi silmiyor.
+      calls.clear();
+      await service.sync(
+        [pending],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isNotEmpty);
+
+      await service.dispose();
+    });
+
+    /// Hak kapandığında da aynı iptal çalışmalı: free kullanıcıya Pro
+    /// bildirimi gitmez.
+    test('Pro hakkı kapalıyken şalter açık olsa da hiçbir şey kurulmaz',
+        () async {
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final pending = Note(
+        id: 62,
+        imageName: '62.jpg',
+        body: 'Park',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAt: DateTime.now().add(const Duration(days: 2)),
+        remindEveryDays: 0,
+      );
+
+      calls.clear();
+      await service.sync(
+        [pending],
+        const AppSettings(reminderEnabled: true, proUnlocked: false),
+        l10n,
+      );
+
+      expect(calls.where((call) => call.method == 'cancelAll'), hasLength(1));
+      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+
+      await service.dispose();
+    });
+
     test('zamanı gelmiş tek seferlik hatırlatma yeniden kurulmaz', () async {
       final service = ReminderService(supported: true);
       await service.initialize();

@@ -13,7 +13,6 @@
 "widget.leave_first_trace" = "最初の記録を残す";
 "widget.pro.required" = "Latermark Proで利用できます";
 "widget.preview.note" = "経理に送る";
-"widget.preview.day" = "今日";
 "remaining.now" = "今";
 "remaining.days.short" = "%d日";
 "remaining.hours.short" = "%d時間";
@@ -32,3 +31,5 @@
 "share.reminder.custom.placeholder" = "日数";
 "action.cancel" = "キャンセル";
 "action.ok" = "OK";
+"day.today" = "今日";
+"day.yesterday" = "昨日";

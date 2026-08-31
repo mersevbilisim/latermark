@@ -35,6 +35,31 @@ extension AppFormat on L10n {
   String stamp(DateTime at, {bool use24Hour = false}) =>
       '${calendarDate(at)} · ${time(at, use24Hour: use24Hour)}';
 
+  /// Kaydın kendi başına okunabilen zaman damgası.
+  ///
+  /// Akışta kartın üstünde bir gün ayıracı duruyor; orada saat yeter, tarihi
+  /// omurga zaten söylüyor. Arama sonucunda o omurga yok — eşleşmeler tek bir
+  /// küme olarak diziliyor — ve `14:32` üç yıl önceki bir kareyi bugünkünden
+  /// ayırmıyor. Damga o yüzden uzaklaştıkça büyüyor: bugün saat, bu hafta gün
+  /// adı, bu yıl gün ve ay, öncesi yılıyla birlikte.
+  String noteStamp(DateTime at, {DateTime? now, bool use24Hour = false}) {
+    final today = _startOfDay(now ?? DateTime.now());
+    final day = _startOfDay(at);
+    final diff = today.difference(day).inDays;
+
+    // Saat her zaman sonda: kartlar alt alta gelince damgalar aynı yerde
+    // biter ve göz tek bir sütun olarak tarar. Önüne yalnızca *gereken kadar*
+    // tarih geliyor — bu hafta gün adı yeter, geçen yıl için yıl da gerek.
+    final label = switch (diff) {
+      <= 0 => dayToday,
+      1 => dayYesterday,
+      < 7 => DateFormat.EEEE(localeName).format(at),
+      _ when at.year == today.year => DateFormat.MMMd(localeName).format(at),
+      _ => DateFormat.yMMMd(localeName).format(at),
+    };
+    return '$label ${time(at, use24Hour: use24Hour)}';
+  }
+
   /// Akıştaki gün ayıracı: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
   String dayHeader(DateTime at, {DateTime? now}) {
     final today = _startOfDay(now ?? DateTime.now());

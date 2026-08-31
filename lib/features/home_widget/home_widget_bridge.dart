@@ -6,8 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../../core/theme/app_accent.dart';
-import '../../core/utils/app_format.dart';
-import '../../l10n/app_localizations.dart';
 import '../notes/data/notes_database.dart';
 import '../notes/data/notes_repository.dart';
 import 'widget_keys.dart';
@@ -15,21 +13,18 @@ import 'widget_keys.dart';
 /// Ana ekran widget'ını besleyen köprü.
 ///
 /// Uygulama açıkken depodaki değişiklikleri dinler ve en son kaydın küçük bir
-/// özetini paylaşılan alana yazar. Widget'ın kendisi hiçbir hesap yapmaz —
-/// Türkçe tarih biçimlendirmesi, kalan süre metni ve küçültülmüş fotoğraf
-/// hazır olarak gider. Bu sayede Swift/Kotlin tarafında tarih kütüphanesi
-/// taşımak gerekmez.
+/// özetini paylaşılan alana yazar.
+///
+/// Buradan **hiçbir zamana bağlı metin geçmez**. Yalnızca ham anlar (epoch
+/// saniyesi) gider; gün etiketini, saati ve kalan süreyi widget kendi
+/// üretir. Hazır metin göndermek, widget saatte bir tazelense bile aynı
+/// donmuş yazıyı yeniden okuduğu için "dün kaydedilmiş nota bugün hâlâ
+/// BUGÜN demek" ile sonuçlanıyordu.
 class HomeWidgetBridge {
   HomeWidgetBridge(this._repository);
 
   final NotesRepository _repository;
   StreamSubscription<List<Note>>? _subscription;
-
-  /// Widget metinleri de kullanıcının diliyle yazılır.
-  ///
-  /// Köprü widget ağacının dışında çalıştığı için [L10n]'i kendi bulamıyor;
-  /// [AppScope] dil değiştikçe buraya veriyor ve widget'ı tazeliyor.
-  L10n? _l10n;
 
   /// Pro hakkı. [AppScope] değiştikçe veriyor.
   bool _pro = false;
@@ -52,14 +47,6 @@ class HomeWidgetBridge {
   set accent(AppAccent value) {
     if (_accent == value) return;
     _accent = value;
-    _invalidate();
-  }
-
-  set l10n(L10n value) {
-    if (_l10n?.localeName == value.localeName) return;
-    _l10n = value;
-    // Dil değişti: imza da değiştiği için bir sonraki yayında widget tazelenir.
-    // Elde son liste yoksa beklemek yeterli; akış zaten sürekli yayın yapıyor.
     _invalidate();
   }
 
@@ -122,10 +109,9 @@ class HomeWidgetBridge {
 
     // Fotoğraf yolu imzaya dahil: not aynı kalsa da kare değişmiş olabilir.
     final signature = latest == null
-        ? 'empty:$publishedCount:${_l10n?.localeName}:$isPro:${_accent.name}'
+        ? 'empty:$publishedCount:$isPro:${_accent.name}'
         : '${latest.id}|${latest.body}|${latest.imageName}|'
               '${latest.createdAt}|${latest.expiresAt}|$publishedCount|'
-              '${_l10n?.localeName}|'
               '$isPro|${_accent.name}';
     if (signature == _lastSignature) return;
 
@@ -150,16 +136,6 @@ class HomeWidgetBridge {
         ),
         HomeWidget.saveWidgetData<int>(WidgetKeys.noteId, latest?.id ?? 0),
         HomeWidget.saveWidgetData<String>(WidgetKeys.body, latest?.body ?? ''),
-        HomeWidget.saveWidgetData<String>(
-          WidgetKeys.time,
-          latest == null || _l10n == null ? '' : _l10n!.time(latest.createdAt),
-        ),
-        HomeWidget.saveWidgetData<String>(
-          WidgetKeys.date,
-          latest == null || _l10n == null
-              ? ''
-              : _l10n!.dayHeader(latest.createdAt),
-        ),
         HomeWidget.saveWidgetData<int>(
           WidgetKeys.expiresAt,
           (latest?.expiresAt?.millisecondsSinceEpoch ?? 0) ~/ 1000,

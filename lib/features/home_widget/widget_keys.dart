@@ -14,12 +14,6 @@ abstract final class WidgetKeys {
   /// Not metni. Boş olabilir (kullanıcı yazmadan kaydettiyse).
   static const body = 'not_body';
 
-  /// `14:32`
-  static const time = 'not_time';
-
-  /// `6 AĞUSTOS` — küçük kapitel olarak hazır gelir.
-  static const date = 'not_date';
-
   /// Silinme anının epoch saniyesi; süresiz notlarda 0.
   ///
   /// Rozetin metnini widget kendisi üretir. Hazır metin göndermek, widget
@@ -32,6 +26,13 @@ abstract final class WidgetKeys {
   /// notun *toplam* süresini bilemiyor ve kalanı sabit bir haftaya oranlamak
   /// zorunda kalıyordu — 3 günlük bir not doğduğu anda yarı tükenmiş
   /// görünüyordu.
+  ///
+  /// Künyedeki gün ve saat de bundan üretiliyor. Bir zamanlar buradan hazır
+  /// `"BUGÜN"` ve `"14:32"` metinleri gidiyordu; ikisi de paylaşılan alanda
+  /// donuyordu. Widget saatte bir tazelense de aynı donmuş metni yeniden
+  /// okuduğu için, kullanıcı uygulamayı açmadığı sürece dün kaydedilmiş bir
+  /// not ertesi gün hâlâ "BUGÜN" diyordu. Rozette çözülen sorunun aynısı:
+  /// zamana bağlı her metni widget kendisi üretmeli.
   static const createdAt = 'not_created_at';
 
   /// Toplam kayıt sayısı.

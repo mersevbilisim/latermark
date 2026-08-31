@@ -62,6 +62,7 @@ class NoteCard extends StatelessWidget {
     this.reminderAt,
     this.selecting = false,
     this.selected = false,
+    this.dated = false,
   });
 
   final Note note;
@@ -83,6 +84,10 @@ class NoteCard extends StatelessWidget {
   /// Baskının en-boy oranı. Verilmezse [CardScale.aspect] kullanılır.
   /// Izgara bunu fotoğrafın gerçek oranıyla doldurur.
   final double? aspect;
+
+  /// Kart bir gün ayıracının altında değil, tek başına duruyor: künye saati
+  /// değil kendi tarihini taşır. Arama sonucu böyle diziliyor.
+  final bool dated;
 
   /// Testlerde zamanı sabitlemek için.
   final DateTime? now;
@@ -183,6 +188,7 @@ class NoteCard extends StatelessWidget {
             scale: scale,
             reference: reference,
             reminderAt: reminderAt,
+            dated: dated,
           ),
         ],
       ),
@@ -247,12 +253,14 @@ class _Meta extends StatelessWidget {
     required this.note,
     required this.scale,
     required this.reference,
+    required this.dated,
     this.reminderAt,
   });
 
   final Note note;
   final CardScale scale;
   final DateTime reference;
+  final bool dated;
   final DateTime? reminderAt;
 
   @override
@@ -270,12 +278,17 @@ class _Meta extends StatelessWidget {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
 
+    final marked = dated
+        ? context.l10n.noteStamp(
+            note.createdAt,
+            now: reference,
+            use24Hour: context.use24Hour,
+          )
+        : context.l10n.time(note.createdAt, use24Hour: context.use24Hour);
+
     final Widget primary;
     if (expiresAt == null) {
-      primary = Text(
-        context.l10n.time(note.createdAt, use24Hour: context.use24Hour),
-        style: style,
-      );
+      primary = Text(marked, style: style);
     } else {
       final left = lifeFraction(note.createdAt, expiresAt, reference);
       // Son beşte birinde kalan süre öne çıkar; öncesinde zamanla eşit sessizlikte.
@@ -284,12 +297,7 @@ class _Meta extends StatelessWidget {
       final stamp = Text.rich(
         TextSpan(
           children: [
-            TextSpan(
-              text: context.l10n.time(
-                note.createdAt,
-                use24Hour: context.use24Hour,
-              ),
-            ),
+            TextSpan(text: marked),
             const TextSpan(text: '   ·   '),
             TextSpan(
               text: context.l10n.remainingShort(expiresAt, now: reference),

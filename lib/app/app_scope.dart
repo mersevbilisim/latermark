@@ -288,7 +288,8 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   Future<void> _syncReminders(List<Note> notes, AppSettings settings) async {
     final locale = settings.locale.locale ?? _deviceLocale();
     final l10n = await L10n.delegate.load(locale);
-    _widgets?.l10n = l10n;
+    // Widget köprüsünün dile ihtiyacı yok: zamana bağlı her metni native
+    // taraf kendi üretiyor, köprü yalnızca ham an gönderiyor.
     _spotlight?.l10n = l10n;
     // Bildirime iliştirilecek kareyi depo çözüyor; servis depoyu tanımıyor.
     _reminders.photoOf = widget.notes.imageOf;
