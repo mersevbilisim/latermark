@@ -8,6 +8,8 @@ import 'package:home_widget/home_widget.dart';
 import '../../core/theme/app_accent.dart';
 import '../notes/data/notes_database.dart';
 import '../notes/data/notes_repository.dart';
+import '../notes/domain/note_kind.dart';
+import '../notes/data/photo_store.dart';
 import 'widget_keys.dart';
 
 /// Ana ekran widget'ını besleyen köprü.
@@ -60,7 +62,11 @@ class HomeWidgetBridge {
   ///
   /// WidgetKit eklentileri dar bir bellek bütçesiyle çalışır; tam çözünürlüklü
   /// bir kare çözülmeye kalkışıldığında eklenti öldürülür.
-  static const _photoWidth = 720;
+  ///
+  /// Ölçü ızgaranın küçük kopyasıyla aynı: köprü artık o kopyayı okuyor ve
+  /// daha büyük bir hedef vermek kareyi yalnızca **büyütürdü** — ne netlik
+  /// kazandırır ne de dosyayı küçültür.
+  static const _photoWidth = PhotoStore.thumbEdge;
 
   /// Son yazılan durumu tutar; aynı veriyi tekrar tekrar yazıp widget'ı
   /// gereksiz yere tazelemeyi önler.
@@ -147,7 +153,13 @@ class HomeWidgetBridge {
       ]);
 
       if (latest != null) {
-        final thumbnail = await _thumbnail(_repository.imageOf(latest));
+        // Küçük kopya varsa ondan üretiliyor: her not değişiminde 2048'lik
+        // kareyi çözmek, widget'ın gösterdiği boyutun kat kat üstünde bir iş.
+        // Karesiz kayıtta üretilecek küçük görsel yok; native taraf zaten
+        // fotoğrafsız hâl için kendi diyaframlı kompozisyonunu çiziyor.
+        final thumbnail = latest.hasPhoto
+            ? await _thumbnail(_repository.gridImageOf(latest))
+            : null;
         if (thumbnail != null) {
           await HomeWidget.saveFile(
             WidgetKeys.photo,

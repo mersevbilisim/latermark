@@ -14,7 +14,10 @@ import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/notes/presentation/home/widgets/note_card.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
+import 'package:latermark/core/theme/app_palette.dart';
+import 'package:latermark/core/theme/app_theme.dart';
 import 'package:latermark/shared/widgets/aperture.dart';
+import 'package:latermark/shared/widgets/colophon_bar.dart';
 
 /// 1×1 saydam PNG — çözülebilir gerçek bir görsel olması yeterli.
 final _pixel = base64Decode(
@@ -109,12 +112,10 @@ void main() {
     expect(find.text('SEÇİM YOK'), findsOneWidget);
     expect(find.text('Silmek istediğin karelere dokun'), findsOneWidget);
     expect(find.byType(ApertureButton), findsNothing);
-    // Galeri yuvası boşalıyor ama yerinden sıçramıyor: sönerek çekiliyor.
+    // Giriş yuvası boşalıyor ama yerinden sıçramıyor: sönerek çekiliyor.
     expect(
       tester
-          .widget<AnimatedOpacity>(
-            find.byKey(const ValueKey('dock-gallery-slot')),
-          )
+          .widget<AnimatedOpacity>(find.byKey(const ValueKey('dock-add-slot')))
           .opacity,
       0,
     );
@@ -183,4 +184,47 @@ void main() {
 
     await disposeTree(tester);
   });
+
+  /// Şeridin tek eylemi mürekkep tonunda yazılınca gözden kaçıyordu.
+  /// Kutu çizmeden "asıl olan bu" demenin tek yolu renk.
+  testWidgets('toplu silme eylemi kor rengiyle yazılıyor', (tester) async {
+    usePhoneSurface(tester);
+    await addNote(tester, 'Fiş');
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: SettingsRepository(database)),
+    );
+    await settle(tester);
+
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await settle(tester);
+    await tester.tap(find.text('Fiş'));
+    await settle(tester);
+
+    final bar = tester.widget<ColophonBar>(
+      find.byKey(const ValueKey('selection-delete')),
+    );
+    expect(bar.actions.single.accent, isTrue);
+
+    // Ekranda gerçekten kor rengiyle çizildiğini de doğrula: bayrak doğru
+    // ama çizim yolu değişirse test yine düşsün.
+    final palette = AppTheme.dark().extension<AppPalette>()!;
+    final label = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('selection-delete')),
+        matching: find.byType(Text),
+      ),
+    );
+    final style = DefaultTextStyle.of(
+      tester.element(
+        find.descendant(
+          of: find.byKey(const ValueKey('selection-delete')),
+          matching: find.byType(Text),
+        ),
+      ),
+    ).style;
+    expect(label.style?.color ?? style.color, palette.ember);
+
+    await disposeTree(tester);
+  });
+
 }

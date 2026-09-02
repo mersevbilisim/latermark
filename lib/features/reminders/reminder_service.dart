@@ -536,10 +536,12 @@ class ReminderService {
       const id = 0;
       final art = await _attachmentPath(photoOf?.call(note), id);
 
+      final body = _body(note, l10n);
+
       Future<void> show(String? attachment) => _plugin.show(
         id: id,
         title: _title,
-        body: _body(note, l10n),
+        body: body,
         payload: 'note/${note.id}',
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
@@ -550,13 +552,7 @@ class ReminderService {
             priority: Priority.defaultPriority,
             autoCancel: true,
             sound: const RawResourceAndroidNotificationSound(_soundName),
-            styleInformation: attachment == null
-                ? null
-                : BigPictureStyleInformation(
-                    FilePathAndroidBitmap(attachment),
-                    largeIcon: FilePathAndroidBitmap(attachment),
-                    hideExpandedLargeIcon: true,
-                  ),
+            styleInformation: _androidStyle(attachment, body),
           ),
           iOS: DarwinNotificationDetails(
             sound: _iosSoundFile,
@@ -976,6 +972,7 @@ class ReminderService {
   }) async {
     final reminder = desired.reminder;
     final note = desired.note;
+    final body = _body(note, l10n);
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId,
@@ -985,15 +982,7 @@ class ReminderService {
         priority: Priority.defaultPriority,
         autoCancel: true,
         sound: const RawResourceAndroidNotificationSound(_soundName),
-        styleInformation: art == null
-            ? null
-            : BigPictureStyleInformation(
-                FilePathAndroidBitmap(art),
-                // Katlanmış hâlde de kare görünsün: küçük ikon yerine
-                // fotoğrafın kendisi duruyor.
-                largeIcon: FilePathAndroidBitmap(art),
-                hideExpandedLargeIcon: true,
-              ),
+        styleInformation: _androidStyle(art, body),
       ),
       iOS: DarwinNotificationDetails(
         sound: _iosSoundFile,
@@ -1044,7 +1033,7 @@ class ReminderService {
       id: reminder.notificationId,
       scheduledDate: tz.TZDateTime.from(reminder.at, tz.local),
       title: _title,
-      body: _body(note, l10n),
+      body: body,
       payload: desired.payload,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       notificationDetails: details,
@@ -1164,6 +1153,24 @@ class ReminderService {
 
   static String _body(Note note, L10n l10n) =>
       note.body.isEmpty ? l10n.notificationBodyNoBody : note.body;
+
+  /// Android bildiriminin genişletilmiş hâli.
+  ///
+  /// Karesi olan kayıtta kare gösteriliyor. Karesiz kayıtta eskiden biçem
+  /// **hiç verilmiyordu**: bildirim tek satıra sıkışıyor ve kullanıcı onu
+  /// genişletemiyordu — uzun bir hatırlatmanın yarısı okunmadan kalıyordu.
+  /// Metni burada kırpmıyoruz; kapalı hâlde sistem kendi kırpar, açınca
+  /// tamamı görünür. Karakter saymak, işletim sisteminin zaten gösterebileceği
+  /// yazıyı elle atmak olurdu.
+  static StyleInformation _androidStyle(String? art, String body) => art == null
+      ? BigTextStyleInformation(body)
+      : BigPictureStyleInformation(
+          FilePathAndroidBitmap(art),
+          // Katlanmış hâlde de kare görünsün: küçük ikon yerine fotoğrafın
+          // kendisi duruyor.
+          largeIcon: FilePathAndroidBitmap(art),
+          hideExpandedLargeIcon: true,
+        );
 }
 
 /// Kurulum şemasının sürümü.

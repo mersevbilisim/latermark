@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app/app.dart';
+import 'core/analytics/meta_events_service.dart';
 import 'features/notes/data/notes_database.dart';
 import 'features/notes/data/notes_repository.dart';
 import 'features/notes/data/photo_store.dart';
@@ -51,4 +52,11 @@ Future<void> main() async {
       reviewPrompts: ReviewPromptService(),
     ),
   );
+
+  // Meta teşhisi: ilk kareden sonra, açılış yolunun dışında. Release'de gövdesi
+  // eleniyor. Kurulum ve oturum olayını SDK kendi gönderiyor; burada bir init
+  // çağrısı yok.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(MetaEvents.instance.logDiagnostics());
+  });
 }

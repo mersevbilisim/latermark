@@ -42,7 +42,7 @@ class L10nJa extends L10n {
   String get openPhotoSemantic => '写真を全画面で開く';
 
   @override
-  String get actionRetry => 'もう一度試す';
+  String get actionRetry => '再試行';
 
   @override
   String get actionGoBack => '戻る';
@@ -151,6 +151,16 @@ class L10nJa extends L10n {
 
   @override
   String get toastSharedPhotoFailed => '共有された写真を追加できませんでした。後でもう一度試します。';
+
+  @override
+  String get toastQueuedNoteAdded => 'メモを追加しました。';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'メモを追加しましたが、リマインダーはメモの削除時刻より後でした。';
+
+  @override
+  String get toastQueuedNoteFailed => 'メモを追加できませんでした。後でもう一度試します。';
 
   @override
   String get toastDeleteFailed => '削除できませんでした。もう一度お試しください。';
@@ -615,7 +625,7 @@ class L10nJa extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermarkは、ノートや写真、位置情報をすべて端末内で処理します。自分で共有しない限り、データが端末の外へ出ることはありません。分析、クラッシュレポート、利用統計のために送信されることもありません。';
+      'Latermarkは、ノートや写真、位置情報をすべて端末内で処理します。自分で共有しない限り、データが端末の外へ出ることはありません。分析、クラッシュレポート、利用統計のために送信されることもありません。広告効果の測定のためにMetaへ送られるのは、アプリがインストールされたことと購入が行われたことの2点だけです。どちらにも、書いた内容や写真、位置情報は含まれません。';
 
   @override
   String get yourDataLocationQuestion => 'なぜ位置情報へのアクセスが必要ですか？';
@@ -1039,4 +1049,28 @@ class L10nJa extends L10n {
 
   @override
   String get reminderAfterExpiry => 'リマインダーはこのノートが削除される前に設定してください。';
+
+  @override
+  String get keepOriginalLabel => 'オリジナルのまま保存';
+
+  @override
+  String get keepOriginalDetail => '画質はそのまま、容量は増えます。';
+
+  @override
+  String get originalMark => 'オリジナル';
+
+  @override
+  String get composeLocationFailed => '位置情報を取得できませんでした';
+
+  @override
+  String get locationFixFailed => '現在地を特定できませんでした。場所なしで保存されます。';
+
+  @override
+  String get composeTextEntry => 'テキストを書く';
+
+  @override
+  String get addEntry => 'ノートを追加';
+
+  @override
+  String get composeTextHint => '何を思い出したいですか？';
 }

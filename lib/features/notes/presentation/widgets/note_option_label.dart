@@ -13,6 +13,7 @@ class NoteOptionLabel extends StatelessWidget {
     required this.title,
     required this.active,
     this.detail,
+    this.busy = false,
   });
 
   final IconData icon;
@@ -24,6 +25,14 @@ class NoteOptionLabel extends StatelessWidget {
   final String? detail;
 
   final bool active;
+
+  /// Satır bir iş bekliyor mu.
+  ///
+  /// Gösterge ikonun **yerine** giriyor, yanına değil: yuva zaten 21 puan ve
+  /// takas yerleşimi hiç kıpırdatmıyor. Anahtara dokunmuyor, yani bekleme
+  /// sürerken kullanıcı vazgeçebiliyor — konum sabitlemesi uzun sürebilir ve
+  /// o süre boyunca denetimi kilitlemek kullanıcıyı esir alırdı.
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +53,24 @@ class NoteOptionLabel extends StatelessWidget {
           child: SizedBox(
             width: 21,
             height: 21,
-            child: Icon(icon, size: 18, color: color),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: busy
+                  ? Center(
+                      key: const ValueKey('busy'),
+                      child: SizedBox.square(
+                        dimension: 15,
+                        // Bekleyen satır kor rengine dönüyor: iş sürerken
+                        // sönük durmak, dokunuşun karşılıksız kaldığı
+                        // izlenimini veriyordu.
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: palette.ember,
+                        ),
+                      ),
+                    )
+                  : Icon(icon, key: ValueKey(icon), size: 18, color: color),
+            ),
           ),
         ),
         const SizedBox(width: 11),

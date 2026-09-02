@@ -1,0 +1,8 @@
+"Add a note with ${applicationName}" = "${applicationName}'a not ekle";
+"Create a note in ${applicationName}" = "${applicationName}'ta not oluştur";
+"Add a reminder note with ${applicationName}" = "${applicationName}'a hatırlatmalı not ekle";
+"Create a reminder note in ${applicationName}" = "${applicationName}'ta hatırlatmalı not oluştur";
+"Save a note to ${applicationName}" = "${applicationName} ile not oluştur";
+"New note in ${applicationName}" = "${applicationName} ile not ekle";
+"Save a reminder note to ${applicationName}" = "${applicationName} ile hatırlatmalı not oluştur";
+"New reminder note in ${applicationName}" = "${applicationName} ile hatırlatmalı not ekle";

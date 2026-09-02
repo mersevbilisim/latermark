@@ -60,6 +60,9 @@
   "toastPendingPickFailed": "Yarım kalan fotoğraf seçimi açılamadı.",
   "toastSharedPhotoAdded": "Paylaşılan fotoğraf eklendi.",
   "toastSharedPhotoFailed": "Paylaşılan fotoğraf eklenemedi. Tekrar denenecek.",
+  "toastQueuedNoteAdded": "Not eklendi.",
+  "toastQueuedNoteReminderDropped": "Not eklendi ama hatırlatma, notun silinme zamanından sonraya düşüyordu.",
+  "toastQueuedNoteFailed": "Not eklenemedi. Tekrar denenecek.",
   "toastDeleteFailed": "Silinemedi. Tekrar dene.",
   "toastSaveFailed": "Kaydedilemedi. Tekrar dene.",
   "toastEditFailed": "Değişiklik kaydedilemedi.",
@@ -239,7 +242,7 @@
   "yourDataTitle": "Latermark ve Verileriniz",
   "yourDataSubtitle": "Gizliliğinizi önemsiyor ve ona saygı duyuyoruz.",
   "yourDataSafetyQuestion": "Verilerim güvende mi?",
-  "yourDataSafetyAnswer": "Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez.",
+  "yourDataSafetyAnswer": "Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez. Reklam ölçümü için Meta'ya yalnızca iki şey bildirilir: uygulamanın kurulduğu ve bir satın alma yapıldığı. İkisi de yazdığınız, çektiğiniz veya etiketlediğiniz hiçbir şeyi içermez.",
   "yourDataLocationQuestion": "Konum izni neden istenir?",
   "yourDataLocationAnswer": "Yalnızca bir kareye çekildiği yeri eklemeyi seçtiğinizde tek seferlik konum istenir. Koordinat sadece o kayda eklenir; arka planda izleme yapılmaz. Harita düğmesine dokunmadıkça başka bir uygulamaya aktarılmaz.",
   "yourDataPhotosQuestion": "Fotoğraf erişimi nasıl kullanılır?",
@@ -416,8 +419,8 @@
       }
     }
   },
-  "proBadge": "PRO",
-  "paywallHeadline": "Önemli olanı geride bırakma.",
+  "proBadge": "Pro",
+  "paywallHeadline": "Önemlileri sakla, hatırla.",
   "paywallSubtitle": "Latermark Pro, geri dönmek istediğin her şeyi doğru zamanda yeniden önüne getirir.",
   "paywallOwnedCount": "{count, plural, other{Şu an {count} karen var.}}",
   "@paywallOwnedCount": {
@@ -516,5 +519,13 @@
   "reminderTimeLabel": "Saat",
   "reminderSkip": "Şimdi değil",
   "reminderDeleteAfterLabel": "Hatırlattıktan 1 saat sonra sil",
-  "reminderAfterExpiry": "Hatırlatma, bu not silinmeden önce olmalı."
+  "reminderAfterExpiry": "Hatırlatma, bu not silinmeden önce olmalı.",
+  "keepOriginalLabel": "Orijinal haliyle kaydet",
+  "keepOriginalDetail": "Kalitesi olduğu gibi kalır, daha çok yer tutar.",
+  "originalMark": "Orijinal",
+  "composeLocationFailed": "Konum alınamadı",
+  "locationFixFailed": "Cihaz şu an konumu sabitleyemedi. Kayıt yersiz saklanacak.",
+  "composeTextEntry": "Metin yaz",
+  "addEntry": "Not ekle",
+  "composeTextHint": "Neyi hatırlamak istersin?"
 }

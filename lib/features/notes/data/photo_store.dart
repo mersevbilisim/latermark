@@ -191,6 +191,21 @@ class PhotoStore {
     return name;
   }
 
+  /// Dokunulmamış kareyi saklar ve dosya adını döner.
+  ///
+  /// [persist]'ten tek farkı küçültmemesi — orijinalin bütün anlamı olduğu
+  /// gibi kalması. Küçük kopya da üretilmiyor: orijinal ızgarada, aramada,
+  /// ana ekranda ya da widget'ta hiç çizilmiyor. Yalnızca detay ekranı ve
+  /// kullanıcının açıkça istediği paylaşım onu okuyor.
+  ///
+  /// Sıkıştırma [persist]'in kendi kopyası üzerinde çalıştığı için kaynak
+  /// dosyaya dokunulmuyor; iki kopyanın sırası önemli değil.
+  Future<String> persistOriginal(XFile capture) async {
+    final name = _uniqueName(p.extension(capture.path));
+    await capture.saveTo(p.join(_directory.path, name));
+    return name;
+  }
+
   /// Sıkıştırmayı kaydetme yolundan ayırır ve hatalarını yutar.
   ///
   /// Kullanıcı kaydettiği notu hemen silerse sıkıştırma silinmiş bir dosyayı

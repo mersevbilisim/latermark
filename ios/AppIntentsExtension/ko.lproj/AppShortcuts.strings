@@ -1,0 +1,8 @@
+"Add a note with ${applicationName}" = "${applicationName}에 메모 추가";
+"Create a note in ${applicationName}" = "${applicationName}에 메모 생성";
+"Add a reminder note with ${applicationName}" = "${applicationName}에 미리 알림 메모 추가";
+"Create a reminder note in ${applicationName}" = "${applicationName}에 미리 알림 메모 생성";
+"Save a note to ${applicationName}" = "${applicationName}에 메모 저장";
+"New note in ${applicationName}" = "${applicationName}에 새 메모";
+"Save a reminder note to ${applicationName}" = "${applicationName}에 미리 알림 메모 저장";
+"New reminder note in ${applicationName}" = "${applicationName}에 새 미리 알림 메모";

@@ -165,6 +165,17 @@ class L10nDe extends L10n {
       'Das geteilte Foto konnte nicht hinzugefügt werden. Wir versuchen es erneut.';
 
   @override
+  String get toastQueuedNoteAdded => 'Notiz hinzugefügt.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Notiz hinzugefügt, aber die Erinnerung lag nach dem Löschzeitpunkt der Notiz.';
+
+  @override
+  String get toastQueuedNoteFailed =>
+      'Die Notiz konnte nicht hinzugefügt werden. Wir versuchen es erneut.';
+
+  @override
   String get toastDeleteFailed => 'Löschen fehlgeschlagen. Versuch es erneut.';
 
   @override
@@ -673,7 +684,7 @@ class L10nDe extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – auch nicht für Analysen, Absturzberichte oder Nutzungsstatistiken.';
+      'Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – auch nicht für Analysen, Absturzberichte oder Nutzungsstatistiken. Zur Werbemessung werden an Meta nur zwei Dinge gemeldet: dass die App installiert wurde und dass ein Kauf stattgefunden hat. Beides enthält nichts von dem, was du schreibst, fotografierst oder markierst.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -1183,4 +1194,30 @@ class L10nDe extends L10n {
   @override
   String get reminderAfterExpiry =>
       'Die Erinnerung muss vor dem Löschen dieser Notiz liegen.';
+
+  @override
+  String get keepOriginalLabel => 'Original speichern';
+
+  @override
+  String get keepOriginalDetail =>
+      'Qualität bleibt unberührt, braucht mehr Platz.';
+
+  @override
+  String get originalMark => 'Original';
+
+  @override
+  String get composeLocationFailed => 'Standort nicht verfügbar';
+
+  @override
+  String get locationFixFailed =>
+      'Das Gerät konnte gerade keine Position bestimmen. Die Notiz wird ohne Ort gespeichert.';
+
+  @override
+  String get composeTextEntry => 'Text schreiben';
+
+  @override
+  String get addEntry => 'Notiz hinzufügen';
+
+  @override
+  String get composeTextHint => 'Woran möchtest du dich erinnern?';
 }

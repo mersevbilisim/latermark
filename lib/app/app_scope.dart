@@ -8,6 +8,7 @@ import '../features/home_widget/home_widget_bridge.dart';
 import '../features/backup/data/backup_service.dart';
 import '../features/notes/data/notes_database.dart';
 import '../features/notes/data/notes_repository.dart';
+import '../features/notes/domain/retention.dart';
 import '../features/notes/presentation/import/shared_import.dart';
 import '../features/notes/data/location_service.dart';
 import '../features/notes/data/ocr_service.dart';
@@ -162,7 +163,20 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       // İçerik temizliği HomeWidgetBridge'in kendi sıralı yayınında yapılır.
       _widgets?.pro = value.proUnlocked;
       _widgets?.accent = value.accent;
-      unawaited(SharedImportBridge.setProUnlocked(value.proUnlocked));
+      // Uzantılar veritabanını açamıyor; Siri konuşurken doğru şeyi
+      // söyleyebilmesi için okuyabileceği tek yer bu ayna.
+      unawaited(
+        SharedImportBridge.setShareMirror(
+          proUnlocked: value.proUnlocked,
+          reminderEnabled: value.reminderEnabled,
+          retentionMinutes:
+              RetentionChoice(
+                value.defaultRetention,
+                customMinutes: value.defaultCustomMinutes,
+              ).duration?.inMinutes ??
+              0,
+        ),
+      );
       if (value != _preferences) setState(() => _preferences = value);
       _startReminderClock();
       // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu

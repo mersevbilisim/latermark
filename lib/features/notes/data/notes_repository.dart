@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/drift.dart';
 
+import '../domain/note_kind.dart';
 import '../domain/note_reminder.dart';
 import '../domain/reminder_action.dart';
 import '../domain/retention.dart';
@@ -132,8 +133,42 @@ class NotesRepository {
   File gridImageOf(Note note) => _store.gridFileFor(note.imageName);
 
   /// Küçük kopyası olmayan kayıtlar için kopyayı üretir.
-  Future<bool> ensureThumbnail(Note note) =>
-      _store.ensureThumbnail(note.imageName);
+  Future<bool> ensureThumbnail(Note note) => note.hasPhoto
+      ? _store.ensureThumbnail(note.imageName)
+      : Future.value(false);
+
+  /// Bir notun sahip olduğu bütün dosya adları.
+  ///
+  /// Silme ve yetim toplama tek tek `imageName` sayıyordu; orijinali de
+  /// tutabilen bir kayıtta bu, dosyayı diskte sahipsiz bırakırdı. Sahiplik
+  /// sorusunun tek bir cevabı olsun diye burada toplanıyor.
+  /// Karesiz kayıtta bu liste boş döner: boş `imageName` bir dosya adı değil,
+  /// "dosya yok" demek. Süzülmezse silme ve yetim toplama klasörün kendi
+  /// yolunu dosya sanardı.
+  static Iterable<String> filesOf(Note note) => [
+    if (note.hasPhoto) note.imageName,
+    ?note.originalName,
+  ];
+
+  /// Detay ekranının ve paylaşımın kullanacağı dosya.
+  ///
+  /// Orijinali varsa o; yoksa işlenmiş kare. Ayrı bir "orijinali göster"
+  /// anahtarı yok ve olmamalı: kullanıcı o kare için orijinali saklamayı zaten
+  /// açıkça seçti, fotoğrafa baktığı tek yerde ona sakladığı şeyi göstermek
+  /// istediği şeyin ta kendisi. İkinci bir soru sormak seçimi iki kez sormak
+  /// olurdu.
+  ///
+  /// Izgara, arama, ana ekran ve widget'lar bu yolu **kullanmıyor** — orada
+  /// her zaman küçük kopya ve işlenmiş kare çiziliyor.
+  File fullImageOf(Note note) => originalOf(note) ?? imageOf(note);
+
+  /// Notun dokunulmamış karesi. Kullanıcı saklamadıysa `null`.
+  File? originalOf(Note note) {
+    final name = note.originalName;
+    if (name == null) return null;
+    final file = _store.fileFor(name);
+    return file.existsSync() ? file : null;
+  }
 
   /// Küçük kopyası hazır mı. Ölçüm ve teşhis için.
   bool hasThumbnail(Note note) => _store.thumbFor(note.imageName).existsSync();
@@ -153,79 +188,30 @@ class NotesRepository {
     DateTime? createdAt,
     NoteLocation? location,
     String? importId,
+    bool keepOriginal = false,
   }) async {
-    final normalizedImportId = importId?.trim();
-    if (normalizedImportId != null &&
-        (normalizedImportId.isEmpty || normalizedImportId.length > 128)) {
-      throw ArgumentError.value(
-        importId,
-        'importId',
-        'Geçersiz import kimliği',
-      );
-    }
-    if (normalizedImportId != null) {
-      final processed = await _processedImport(normalizedImportId);
-      if (processed?.completed == true && processed?.noteId != null) {
-        return processed!.noteId!;
-      }
-    }
+    final normalizedImportId = _normalizedImportId(importId);
+    final reused = await _reusedNoteId(normalizedImportId);
+    if (reused != null) return reused;
 
     final stamp = createdAt ?? DateTime.now();
     final imageName = await _store.persist(capture);
-    final text = body.trim();
+    // Orijinal, işlenmiş karenin **yanına** yazılıyor; yerine değil.
+    final originalName = keepOriginal
+        ? await _store.persistOriginal(capture)
+        : null;
 
     try {
-      final result = await _db.transaction(() async {
-        if (normalizedImportId != null) {
-          final claimed = await _db.customUpdate(
-            'INSERT OR IGNORE INTO processed_imports '
-            '(import_id, completed) VALUES (?, 0)',
-            variables: [Variable<String>(normalizedImportId)],
-            updates: const {},
-          );
-          if (claimed == 0) {
-            final processed = await _processedImport(normalizedImportId);
-            if (processed?.completed == true && processed?.noteId != null) {
-              return _CreateResult(processed!.noteId!, reused: true);
-            }
-            await _db.customUpdate(
-              'DELETE FROM processed_imports '
-              'WHERE import_id = ? AND completed = 0',
-              variables: [Variable<String>(normalizedImportId)],
-              updates: const {},
-            );
-            await _db.customUpdate(
-              'INSERT INTO processed_imports '
-              '(import_id, completed) VALUES (?, 0)',
-              variables: [Variable<String>(normalizedImportId)],
-              updates: const {},
-            );
-          }
-        }
-
-        final id = await _insertNote(
-          imageName: imageName,
-          text: text,
-          stamp: stamp,
-          retention: retention,
-          reminder: reminder,
-          location: location,
-        );
-        if (normalizedImportId != null) {
-          await _db.customUpdate(
-            'UPDATE processed_imports SET '
-            'note_id = ?, completed = 1, processed_at = ? '
-            'WHERE import_id = ?',
-            variables: [
-              Variable<int>(id),
-              Variable<int>(DateTime.now().millisecondsSinceEpoch),
-              Variable<String>(normalizedImportId),
-            ],
-            updates: const {},
-          );
-        }
-        return _CreateResult(id);
-      });
+      final result = await _claimAndInsert(
+        importId: normalizedImportId,
+        imageName: imageName,
+        originalName: originalName,
+        text: body.trim(),
+        stamp: stamp,
+        retention: retention,
+        reminder: reminder,
+        location: location,
+      );
 
       if (result.reused) await _store.remove(imageName);
       return result.noteId;
@@ -235,9 +221,133 @@ class NotesRepository {
     }
   }
 
+  /// Karesiz kayıt: yalnızca yazı.
+  ///
+  /// [create] ile aynı kapıdan geçiyor — aynı Pro kapısı, aynı saklama
+  /// süresi, aynı hatırlatma kuralı, aynı `importId` tekilliği. Tek farkı
+  /// diskte dosyası olmaması; `imageName` boş kalıyor (bkz. `NoteKind`).
+  ///
+  /// Dosya yazılmadığı için [create]'in temizlik dalları da yok: burada
+  /// başarısız bir işlemin geride bırakacağı bir şey yok.
+  Future<int> createText({
+    required String body,
+    required RetentionChoice retention,
+    ReminderChoice reminder = const ReminderChoice.off(),
+    DateTime? createdAt,
+    NoteLocation? location,
+    String? importId,
+  }) async {
+    final normalizedImportId = _normalizedImportId(importId);
+    final reused = await _reusedNoteId(normalizedImportId);
+    if (reused != null) return reused;
+
+    final result = await _claimAndInsert(
+      importId: normalizedImportId,
+      imageName: '',
+      originalName: null,
+      text: body.trim(),
+      stamp: createdAt ?? DateTime.now(),
+      retention: retention,
+      reminder: reminder,
+      location: location,
+    );
+    return result.noteId;
+  }
+
+  /// Dış teslim kimliğini doğrular ve boşlukları kırpar.
+  static String? _normalizedImportId(String? importId) {
+    final normalized = importId?.trim();
+    if (normalized != null && (normalized.isEmpty || normalized.length > 128)) {
+      throw ArgumentError.value(
+        importId,
+        'importId',
+        'Geçersiz import kimliği',
+      );
+    }
+    return normalized;
+  }
+
+  /// Bu teslim daha önce tamamlandıysa o kaydın kimliği.
+  ///
+  /// Aynı paylaşım/kısayol iki kez düşerse ikinci kayıt açılmamalı.
+  Future<int?> _reusedNoteId(String? importId) async {
+    if (importId == null) return null;
+    final processed = await _processedImport(importId);
+    if (processed?.completed == true && processed?.noteId != null) {
+      return processed!.noteId!;
+    }
+    return null;
+  }
+
+  /// Teslim kimliğini sahiplenip notu tek transaction içinde yazar.
+  Future<_CreateResult> _claimAndInsert({
+    required String? importId,
+    required String imageName,
+    required String? originalName,
+    required String text,
+    required DateTime stamp,
+    required RetentionChoice retention,
+    required ReminderChoice reminder,
+    required NoteLocation? location,
+  }) {
+    return _db.transaction(() async {
+      if (importId != null) {
+        final claimed = await _db.customUpdate(
+          'INSERT OR IGNORE INTO processed_imports '
+          '(import_id, completed) VALUES (?, 0)',
+          variables: [Variable<String>(importId)],
+          updates: const {},
+        );
+        if (claimed == 0) {
+          final processed = await _processedImport(importId);
+          if (processed?.completed == true && processed?.noteId != null) {
+            return _CreateResult(processed!.noteId!, reused: true);
+          }
+          await _db.customUpdate(
+            'DELETE FROM processed_imports '
+            'WHERE import_id = ? AND completed = 0',
+            variables: [Variable<String>(importId)],
+            updates: const {},
+          );
+          await _db.customUpdate(
+            'INSERT INTO processed_imports '
+            '(import_id, completed) VALUES (?, 0)',
+            variables: [Variable<String>(importId)],
+            updates: const {},
+          );
+        }
+      }
+
+      final id = await _insertNote(
+        imageName: imageName,
+        originalName: originalName,
+        text: text,
+        stamp: stamp,
+        retention: retention,
+        reminder: reminder,
+        location: location,
+      );
+      if (importId != null) {
+        await _db.customUpdate(
+          'UPDATE processed_imports SET '
+          'note_id = ?, completed = 1, processed_at = ? '
+          'WHERE import_id = ?',
+          variables: [
+            Variable<int>(id),
+            Variable<int>(DateTime.now().millisecondsSinceEpoch),
+            Variable<String>(importId),
+          ],
+          updates: const {},
+        );
+      }
+      return _CreateResult(id);
+    });
+  }
+
   /// Not ile arama satırını tek transaction içinde oluşturur.
   Future<int> _insertNote({
     required String imageName,
+    required String? originalName,
     required String text,
     required DateTime stamp,
     required RetentionChoice retention,
@@ -259,6 +369,7 @@ class NotesRepository {
         .insert(
           NotesCompanion.insert(
             imageName: imageName,
+            originalName: Value(originalName),
             body: Value(text),
             createdAt: stamp,
             retention: Value(effectiveRetention.retention),
@@ -279,6 +390,11 @@ class NotesRepository {
           NoteSearchCompanion.insert(
             noteId: Value(id),
             bodyFolded: Value(SearchText.fold(text)),
+            // Karesiz kayıtta `photoFolded` **boş string**, `null` değil.
+            // `unscanned()` kuyruğu `photoFolded IS NULL` ile besleniyor;
+            // null bırakılsaydı okunacak karesi olmayan her kayıt, deneme
+            // hakkı bitene kadar OCR sırasında dönüp dururdu.
+            photoFolded: Value(imageName.isEmpty ? '' : null),
           ),
         );
     return id;
@@ -733,7 +849,7 @@ class NotesRepository {
   /// Notu ve fotoğrafını birlikte siler.
   Future<void> delete(Note note) async {
     await (_db.delete(_db.notes)..where((t) => t.id.equals(note.id))).go();
-    await _store.remove(note.imageName);
+    await _store.removeAll(filesOf(note));
   }
 
   /// Birden çok kaydı **tek** silme deyiminde kaldırır.
@@ -747,7 +863,7 @@ class NotesRepository {
 
     final ids = [for (final note in doomed) note.id];
     await (_db.delete(_db.notes)..where((t) => t.id.isIn(ids))).go();
-    await _store.removeAll(doomed.map((note) => note.imageName));
+    await _store.removeAll(doomed.expand(filesOf));
   }
 
   /// Süresi dolmuş notları temizler. Açılışta, uygulama öne geldiğinde ve
@@ -763,14 +879,14 @@ class NotesRepository {
 
     final ids = expired.map((note) => note.id).toList();
     await (_db.delete(_db.notes)..where((t) => t.id.isIn(ids))).go();
-    await _store.removeAll(expired.map((note) => note.imageName));
+    await _store.removeAll(expired.expand(filesOf));
     return expired.length;
   }
 
   /// Kaydı olmayan fotoğrafları diskten atar. Yalnızca açılışta çağrılır.
   Future<void> sweepOrphanFiles() async {
     final rows = await _db.select(_db.notes).get();
-    await _store.pruneOrphans(rows.map((note) => note.imageName).toSet());
+    await _store.pruneOrphans(rows.expand(filesOf).toSet());
   }
 
   Future<void> close() => _db.close();

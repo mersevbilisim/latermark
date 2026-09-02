@@ -97,22 +97,41 @@ import flutter_local_notifications
         } else {
           result(false)
         }
-      case "setShareEntitlement":
+      case "setShareMirror":
         guard
           let arguments = call.arguments as? [String: Any],
-          let unlocked = arguments["unlocked"] as? Bool
+          let unlocked = arguments["unlocked"] as? Bool,
+          let reminderEnabled = arguments["reminderEnabled"] as? Bool
         else {
           result(
             FlutterError(
               code: "invalid_arguments",
-              message: "Missing Share entitlement value.",
+              message: "Missing Share mirror values.",
               details: nil
             )
           )
           return
         }
-        SharedImportStore.setProUnlocked(unlocked)
+        SharedImportStore.mirrorSettings(
+          proUnlocked: unlocked,
+          reminderEnabled: reminderEnabled,
+          // Süresiz saklama `nil` gönderiyor; anahtar silinsin ki uzantı
+          // "değer yok" ile "sıfır dakika"yı karıştırmasın.
+          retentionMinutes: arguments["retentionMinutes"] as? Int
+        )
         result(nil)
+      case "cancelQueuedReminder":
+        guard
+          let arguments = call.arguments as? [String: Any],
+          let id = arguments["id"] as? String
+        else {
+          result(false)
+          return
+        }
+        // Kayıt artık gerçekten var; alarmı bundan sonra `ReminderService`
+        // kendi kimlik şemasıyla kuruyor.
+        QueuedReminder.cancel(importId: id)
+        result(true)
       default:
         result(FlutterMethodNotImplemented)
       }

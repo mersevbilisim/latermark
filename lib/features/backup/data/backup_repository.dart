@@ -57,6 +57,7 @@ class BackupRepository {
 
   static BackupNote _toBackupNote(Note note, String? photoFolded) => BackupNote(
     imageName: note.imageName,
+    originalName: note.originalName,
     body: note.body,
     createdAt: note.createdAt,
     retention: note.retention.index,
@@ -135,6 +136,7 @@ class BackupRepository {
               .insert(
                 NotesCompanion.insert(
                   imageName: note.imageName,
+                  originalName: Value(note.originalName),
                   body: Value(note.body),
                   createdAt: note.createdAt,
                   retention: Value(effectiveRetention.choice.retention),

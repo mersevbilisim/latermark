@@ -6,6 +6,7 @@ import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../data/location_service.dart';
+import '../../../../shared/widgets/ember_switch.dart';
 import 'note_option_label.dart';
 
 /// "Bu kareye nerede çekildiğini iliştir."
@@ -85,6 +86,13 @@ class _LocationControlState extends State<LocationControl> {
   /// başlatmasın.
   bool _resolving = false;
   bool _resolved = false;
+
+  /// İzin verildi ama sabitleme gelmedi.
+  ///
+  /// İzin reddinden ayrı tutuluyor: birinde çözüm Ayarlar'da, burada ise
+  /// yeniden denemek. İki durumu tek satırda birleştirmek kullanıcıyı yanlış
+  /// yere gönderirdi.
+  bool _failed = false;
   int _resolveGeneration = 0;
 
   /// Yürürlükteki sabitlemenin sonucu. Kaydetme bunu kısa bir süre bekler.
@@ -170,6 +178,7 @@ class _LocationControlState extends State<LocationControl> {
     setState(() {
       _resolving = true;
       _resolved = false;
+      _failed = false;
     });
     try {
       final location = context.location;
@@ -184,6 +193,7 @@ class _LocationControlState extends State<LocationControl> {
       setState(() => _blocked = !allowed);
       if (!allowed) {
         _closePending(null);
+        _failed = false;
         // Ayarlardaki tercih yalnızca bir niyet olabilir; işletim sistemi izin
         // vermiyorsa ekrandaki ve kalıcı değer aynı anda kapanır. Gerçeğin tek
         // sahibi parent state'tir, kalıcılığı da onun onChanged'i yapar.
@@ -199,8 +209,16 @@ class _LocationControlState extends State<LocationControl> {
       _fix = fix;
       _closePending(fix);
       if (!mounted) return;
-      setState(() => _resolved = fix != null);
+      setState(() {
+        _resolved = fix != null;
+        _failed = fix == null;
+      });
       widget.onResolved(fix);
+
+      // İzin var ama sabitleme gelmedi: anahtarı açık bırakmak kaydın konumlu
+      // olduğunu söylemek olurdu, oysa koordinat yok. İzin reddiyle aynı
+      // kural — anahtar gerçeği gösterir, altındaki satır sebebini söyler.
+      if (fix == null) widget.onChanged(false);
     } finally {
       if (generation == _resolveGeneration) _closePending(_fix);
       if (mounted && generation == _resolveGeneration) {
@@ -211,12 +229,12 @@ class _LocationControlState extends State<LocationControl> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
     final l10n = context.l10n;
-    final detail = switch ((_blocked, _resolving, _resolved)) {
-      (true, _, _) => l10n.composeLocationPermissionRequired,
-      (_, true, _) => l10n.composeLocationResolving,
-      (_, _, true) => l10n.composeLocationReady,
+    final detail = switch ((_blocked, _resolving, _resolved, _failed)) {
+      (true, _, _, _) => l10n.composeLocationPermissionRequired,
+      (_, true, _, _) => l10n.composeLocationResolving,
+      (_, _, true, _) => l10n.composeLocationReady,
+      (_, _, _, true) => l10n.composeLocationFailed,
       _ => l10n.composeLocationDescription,
     };
 
@@ -224,23 +242,47 @@ class _LocationControlState extends State<LocationControl> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        NoteOptionRow(
-          label: NoteOptionLabel(
-            icon: Icons.location_on_outlined,
-            title: l10n.locationAddLabel,
-            detail: detail,
-            active: widget.enabled && !_blocked,
-          ),
-          trailing: Switch.adaptive(
-            key: const ValueKey('compose-location-switch'),
-            value: widget.enabled && !_blocked,
-            onChanged: (value) => unawaited(_onChanged(value)),
-            activeTrackColor: palette.ember,
+        // Hatırlatma ve orijinal satırlarıyla aynı denetim: üç seçenek yan
+        // yana dururken biri platformun kendi anahtarını, ikisi uygulamanın
+        // kendi anahtarını kullanıyordu. Satırın tamamı da hedef — 52 puanlık
+        // anahtara nişan almak telefonu tek elle tutan birinden gereksiz bir
+        // hassasiyet ister.
+        GestureDetector(
+          key: const Key('compose-location-row'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => unawaited(_onChanged(!(widget.enabled && !_blocked))),
+          child: MergeSemantics(
+            child: NoteOptionRow(
+              label: ExcludeSemantics(
+                child: NoteOptionLabel(
+                  icon: Icons.location_on_outlined,
+                  title: l10n.locationAddLabel,
+                  detail: detail,
+                  active: widget.enabled && !_blocked,
+                  // İzin istemi ve konum sabitlemesi anlık değil; metin tek
+                  // başına "çalışıyor" demiyordu.
+                  busy: _resolving,
+                ),
+              ),
+              trailing: EmberSwitch(
+                key: const ValueKey('compose-location-switch'),
+                value: widget.enabled && !_blocked,
+                onChanged: (value) => unawaited(_onChanged(value)),
+                semanticLabel: l10n.locationAddLabel,
+              ),
+            ),
           ),
         ),
         if (_blocked) ...[
           const SizedBox(height: 6),
           _BlockedNotice(key: const ValueKey('compose-location-blocked')),
+        ],
+        if (_failed) ...[
+          const SizedBox(height: 6),
+          _FailedNotice(
+            key: const ValueKey('compose-location-failed'),
+            onRetry: () => unawaited(_resolve(askPermission: false)),
+          ),
         ],
       ],
     );
@@ -270,6 +312,51 @@ class _BlockedNotice extends StatelessWidget {
               color: palette.inkFaint,
               height: 1.35,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// İzin var ama sabitleme gelmedi.
+///
+/// [_BlockedNotice]'tan ayrı duruyor çünkü çözümü farklı: orada kullanıcıyı
+/// Sistem Ayarları'na göndermek gerekiyor, burada yeniden denemek yetiyor.
+/// İkisini tek satırda birleştirmek kullanıcıyı yanlış yere gönderirdi.
+class _FailedNotice extends StatelessWidget {
+  const _FailedNotice({super.key, required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.location_searching, size: 15, color: palette.inkFaint),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            // Açıklama satırı durumu söylüyor ("Konum alınamadı"); burası
+            // sonucunu. `_BlockedNotice` ile aynı ikili: kısa hâl üstte,
+            // ne anlama geldiği altta.
+            context.l10n.locationFixFailed,
+            style: palette.caption.copyWith(
+              color: palette.inkFaint,
+              height: 1.35,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          key: const ValueKey('compose-location-retry'),
+          onTap: onRetry,
+          child: Text(
+            context.l10n.actionRetry,
+            style: palette.label.copyWith(color: palette.ember),
           ),
         ),
       ],

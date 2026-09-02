@@ -11,7 +11,7 @@
   "actionEdit": "Edit",
   "actionMore": "More",
   "openPhotoSemantic": "Open photo full screen",
-  "actionRetry": "Try Again",
+  "actionRetry": "Try again",
   "actionGoBack": "Go Back",
   "actionOpen": "Open",
   "settingsAction": "Settings",
@@ -77,6 +77,9 @@
   "toastPendingPickFailed": "The interrupted photo selection couldn’t be recovered.",
   "toastSharedPhotoAdded": "Shared photo added.",
   "toastSharedPhotoFailed": "The shared photo couldn’t be added. We’ll try again.",
+  "toastQueuedNoteAdded": "Note added.",
+  "toastQueuedNoteReminderDropped": "Note added, but its reminder fell after the note’s deletion time.",
+  "toastQueuedNoteFailed": "The note couldn’t be added. We’ll try again.",
   "toastDeleteFailed": "Couldn’t delete it. Try again.",
   "toastSaveFailed": "Couldn’t save it. Try again.",
   "toastEditFailed": "Your changes couldn’t be saved.",
@@ -335,7 +338,7 @@
   "yourDataTitle": "Latermark & Your Data",
   "yourDataSubtitle": "We care about your privacy, and treat it with respect.",
   "yourDataSafetyQuestion": "Is my data safe?",
-  "yourDataSafetyAnswer": "Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics.",
+  "yourDataSafetyAnswer": "Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.",
   "yourDataLocationQuestion": "Why does Latermark ask for location access?",
   "yourDataLocationAnswer": "Latermark asks for a one-time location only when you choose to tag where a photo was taken. The coordinates are saved only with that entry; there is no background tracking. They are passed to another app only if you choose to open the map.",
   "yourDataPhotosQuestion": "How is photo access used?",
@@ -665,5 +668,31 @@
   "reminderAfterExpiry": "The reminder must be before this note is deleted.",
   "@reminderAfterExpiry": {
     "description": "Shown when a reminder is set at or after the note's automatic deletion time."
-  }
+  },
+  "keepOriginalLabel": "Save the original",
+  "@keepOriginalLabel": {
+    "description": "Compose switch: also store the untouched photo."
+  },
+  "keepOriginalDetail": "Quality stays untouched, storage grows.",
+  "@keepOriginalDetail": {
+    "description": "Explains the storage cost of keeping the original."
+  },
+  "originalMark": "Original",
+  "@originalMark": {
+    "description": "Marks the detail photo as the untouched original."
+  },
+  "composeLocationFailed": "Location unavailable",
+  "@composeLocationFailed": {
+    "description": "Shown when a location fix could not be obtained."
+  },
+  "@actionRetry": {
+    "description": "Retries the failed attempt."
+  },
+  "locationFixFailed": "The device could not fix a position right now. The note will be saved without a place.",
+  "@locationFixFailed": {
+    "description": "Explains that no position could be obtained."
+  },
+  "composeTextEntry": "Write text",
+  "addEntry": "Add a note",
+  "composeTextHint": "What do you want to remember?"
 }

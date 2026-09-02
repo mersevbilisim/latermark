@@ -23,13 +23,14 @@ import '../../../../paywall/domain/pro_limits.dart';
 /// Yerleştiğinde şerit bir makine gövdesi gibi okunur: solda galeri, ortada
 /// deklanşör, sağda seçim. Üç denetim de başparmağın vardığı yerde ve hiçbiri
 /// diğerini bastırmıyor — ortadaki tek dolu kütle, yanlardakiler sessiz cam.
-class ShutterDock extends StatelessWidget {
+class ShutterDock extends StatefulWidget {
   const ShutterDock({
     super.key,
     required this.docked,
     required this.importing,
     required this.onCapture,
     required this.onImport,
+    required this.onComposeText,
     required this.noteCount,
     required this.isPro,
     this.onOpenSettings,
@@ -47,6 +48,9 @@ class ShutterDock extends StatelessWidget {
 
   final VoidCallback onCapture;
   final VoidCallback onImport;
+
+  /// Karesiz kayıt: composer kare olmadan açılır.
+  final VoidCallback onComposeText;
 
   /// Sınır sayacı için. Kullanıcı duvara habersiz toslamamalı: son birkaç
   /// karede deklanşörün altında kaç hakkı kaldığı görünür.
@@ -72,12 +76,43 @@ class ShutterDock extends StatelessWidget {
   static const dockHeight = 148.0;
 
   @override
+  State<ShutterDock> createState() => _ShutterDockState();
+}
+
+class _ShutterDockState extends State<ShutterDock> {
+  /// Sol yuvadaki giriş menüsü açık mı.
+  ///
+  /// Şerit üç yuvalık bir makine gövdesi: solda giriş, ortada deklanşör,
+  /// sağda eleme. İki ayrı giriş denetimi dördüncü bir kütle olurdu ve küçük
+  /// ekranda deklanşöre yapışırdı; bunun yerine sol yuva **açılıyor**.
+  bool _addOpen = false;
+
+  @override
+  void didUpdateWidget(ShutterDock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Seçim kipine girildiğinde ya da akış boşaldığında yuvanın kendisi
+    // kayboluyor; açık kalan menü ekranda asılı kalırdı.
+    if (_addOpen && (widget.selecting || !widget.docked)) _addOpen = false;
+  }
+
+  void _toggleAdd() => setState(() => _addOpen = !_addOpen);
+
+  void _closeAdd() {
+    if (_addOpen) setState(() => _addOpen = false);
+  }
+
+  void _pick(VoidCallback action) {
+    _closeAdd();
+    action();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final palette = context.palette;
 
     return TweenAnimationBuilder<double>(
-      tween: Tween<double>(end: docked ? 1 : 0),
+      tween: Tween<double>(end: widget.docked ? 1 : 0),
       duration: const Duration(milliseconds: 760),
       curve: Curves.easeOutQuart,
       builder: (context, t, _) {
@@ -88,7 +123,7 @@ class ShutterDock extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              height: dockHeight + safeBottom,
+              height: ShutterDock.dockHeight + safeBottom,
               child: IgnorePointer(
                 child: Opacity(
                   opacity: t,
@@ -113,48 +148,11 @@ class ShutterDock extends StatelessWidget {
               ),
             ),
 
-            // Akış varken galeri eylemi deklanşörün solunda sessizce
-            // belirir. Deklanşör merkezde kalır; iki eylem birbirine rakip
-            // olmaz. Seçim kipinde bu yuva boşalır: silinecek kareler
-            // seçilirken yeni kare almanın anlamı yok.
-            Positioned(
-              left: 24,
-              bottom: safeBottom + 32,
-              child: IgnorePointer(
-                ignoring: t < 0.5 || selecting,
-                child: AnimatedOpacity(
-                  key: const ValueKey('dock-gallery-slot'),
-                  duration: AppMotion.fast,
-                  opacity: selecting ? 0 : ((t - 0.35) / 0.65).clamp(0.0, 1.0),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      IconOrb(
-                        icon: Icons.photo_library_outlined,
-                        semanticLabel: importing
-                            ? context.l10n.galleryPickerOpening
-                            : context.l10n.pickFromGallerySemantic,
-                        onPressed: onImport,
-                        size: 44,
-                        iconSize: 19,
-                        tint: importing ? Colors.transparent : palette.ink,
-                        fill: palette.canvasLift,
-                      ),
-                      if (importing)
-                        const IgnorePointer(
-                          child: _GalleryActivityGlyph(size: 19),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
             // Galerinin aynadaki eşi. Şerit böylece bir makine gövdesi gibi
             // okunuyor: solda geçmiş kareler, ortada çekim, sağda eleme.
             // Aynı denetim kipi hem açıyor hem kapatıyor — girdiğin kapıdan
             // çıkıyorsun, üstlükte ikinci bir çarpı aramıyorsun.
-            if (onToggleSelecting != null)
+            if (widget.onToggleSelecting != null)
               Positioned(
                 right: 24,
                 bottom: safeBottom + 32,
@@ -163,13 +161,13 @@ class ShutterDock extends StatelessWidget {
                   child: Opacity(
                     opacity: ((t - 0.35) / 0.65).clamp(0.0, 1.0),
                     child: IconOrb(
-                      icon: selecting
+                      icon: widget.selecting
                           ? Icons.close_rounded
                           : Icons.delete_outline_rounded,
-                      semanticLabel: selecting
+                      semanticLabel: widget.selecting
                           ? context.l10n.selectionExit
                           : context.l10n.selectionStart,
-                      onPressed: onToggleSelecting,
+                      onPressed: widget.onToggleSelecting,
                       size: 44,
                       iconSize: 19,
                       tint: palette.ink,
@@ -189,19 +187,19 @@ class ShutterDock extends StatelessWidget {
                 padding: EdgeInsets.only(
                   bottom: lerpDouble(0, 20 + safeBottom, t)!,
                 ),
-                child: selecting
+                child: widget.selecting
                     ? _SelectionWord(
-                        count: selectedCount,
-                        onDelete: onDeleteSelection,
+                        count: widget.selectedCount,
+                        onDelete: widget.onDeleteSelection,
                       )
                     : Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (ProLimits.showsCounter(
-                            noteCount,
-                            isPro: isPro,
+                            widget.noteCount,
+                            isPro: widget.isPro,
                           )) ...[
-                            _LimitCounter(count: noteCount),
+                            _LimitCounter(count: widget.noteCount),
                             const SizedBox(height: 10),
                           ],
                           DecoratedBox(
@@ -231,14 +229,14 @@ class ShutterDock extends StatelessWidget {
                             ),
                             child: ApertureButton(
                               size: lerpDouble(112, 68, t)!,
-                              breathing: !docked,
+                              breathing: !widget.docked,
                               bladeBase: palette.isDark
                                   ? palette.canvas
                                   : OnPhoto.canvasDeep,
                               edgeTint: palette.isDark
                                   ? palette.ink
                                   : OnPhoto.ink,
-                              onPressed: onCapture,
+                              onPressed: widget.onCapture,
                             ),
                           ),
                           ClipRect(
@@ -247,15 +245,55 @@ class ShutterDock extends StatelessWidget {
                               child: Opacity(
                                 opacity: (1 - t * 2).clamp(0.0, 1.0),
                                 child: _Invitation(
-                                  importing: importing,
-                                  onImport: onImport,
-                                  onOpenSettings: onOpenSettings,
+                                  importing: widget.importing,
+                                  onImport: widget.onImport,
+                                  onComposeText: widget.onComposeText,
+                                  onOpenSettings: widget.onOpenSettings,
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
+              ),
+            ),
+
+            // Menü açıkken ekranın geri kalanına yapılan ilk dokunuş menüyü
+            // kapatır ve **altına geçmez**: açık bir menünün üstünden
+            // deklanşöre basmak kimsenin niyeti değil.
+            if (_addOpen)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _closeAdd,
+                ),
+              ),
+
+            // Sol yuva: giriş ailesi.
+            //
+            // Kapalıyken tek bir artı. Dokununca galeri ve metin, başparmağın
+            // vardığı yerde, artının üstünde açılır. Sık kullanılan galeri
+            // alta — yani artıya en yakın yere — geliyor; yeni olan metin
+            // onun üstünde duruyor.
+            Positioned(
+              left: 24,
+              bottom: safeBottom + 32,
+              child: IgnorePointer(
+                ignoring: t < 0.5 || widget.selecting,
+                child: AnimatedOpacity(
+                  key: const ValueKey('dock-add-slot'),
+                  duration: AppMotion.fast,
+                  opacity: widget.selecting
+                      ? 0
+                      : ((t - 0.35) / 0.65).clamp(0.0, 1.0),
+                  child: _AddSlot(
+                    open: _addOpen,
+                    importing: widget.importing,
+                    onToggle: _toggleAdd,
+                    onImport: () => _pick(widget.onImport),
+                    onComposeText: () => _pick(widget.onComposeText),
+                  ),
+                ),
               ),
             ),
           ],
@@ -265,15 +303,163 @@ class ShutterDock extends StatelessWidget {
   }
 }
 
+/// Artı ve üstünde açılan iki giriş.
+///
+/// Kendi kolonunda büyüyor: kapalıyken yalnız artının yüksekliği kadar yer
+/// kaplıyor, açılınca haplar onun üstüne diziliyor. Böylece şeridin taban
+/// çizgisi hiç kaymıyor — artı her iki hâlde de aynı noktada duruyor.
+class _AddSlot extends StatelessWidget {
+  const _AddSlot({
+    required this.open,
+    required this.importing,
+    required this.onToggle,
+    required this.onImport,
+    required this.onComposeText,
+  });
+
+  final bool open;
+  final bool importing;
+  final VoidCallback onToggle;
+  final VoidCallback onImport;
+  final VoidCallback onComposeText;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final l10n = context.l10n;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: open ? 1 : 0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, _) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Kapalıyken haplar yer kaplamıyor: kolon artının boyuna iniyor.
+            //
+            // Kapalıyken **hiç kurulmuyorlar** da. Sadece kırpmak yetmiyordu:
+            // görünmeyen haplar ağaçta durunca ekran okuyucu onları yine
+            // buluyor ve boş ekrandaki davetle aynı eylem iki kez okunuyordu.
+            if (t > 0)
+              ClipRect(
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  heightFactor: t.clamp(0.0, 1.0),
+                  child: ExcludeSemantics(
+                    excluding: !open,
+                    child: IgnorePointer(
+                      ignoring: !open,
+                      // İki hap aynı genişlikte: farklı uzunluktaki iki
+                      // etiket sol kenara dayalı durunca sağ kenar tırtıklı
+                      // kalıyor ve menü tek bir denetim gibi okunmuyordu.
+                      // Genişliği uzun olan belirliyor.
+                      child: IntrinsicWidth(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Üstteki hap biraz gecikmeli çıkıyor; ikisi birden
+                            // belirdiğinde menü tek bir blok gibi zıplıyordu.
+                            _MenuEntry(
+                              progress: _stagger(t, from: 0.15),
+                              child: _ActionPill(
+                                icon: Icons.text_fields_rounded,
+                                label: l10n.composeTextEntry,
+                                semanticLabel: l10n.composeTextEntry,
+                                onPressed: onComposeText,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _MenuEntry(
+                              progress: _stagger(t, to: 0.85),
+                              child: _ActionPill(
+                                icon: Icons.photo_library_outlined,
+                                label: l10n.pickFromGallery,
+                                semanticLabel: importing
+                                    ? l10n.galleryPickerOpening
+                                    : l10n.pickFromGallerySemantic,
+                                busy: importing,
+                                onPressed: onImport,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Artı, kapanırken çarpıya dönüyor: aynı denetim hem açıyor
+                // hem kapatıyor, ikinci bir çıkış aranmıyor.
+                AnimatedRotation(
+                  turns: open ? 0.125 : 0,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: IconOrb(
+                    icon: Icons.add_rounded,
+                    semanticLabel: open ? l10n.actionCancel : l10n.addEntry,
+                    onPressed: onToggle,
+                    size: 44,
+                    iconSize: 21,
+                    tint: importing && !open ? Colors.transparent : palette.ink,
+                    fill: palette.canvasLift,
+                  ),
+                ),
+                if (importing && !open)
+                  const IgnorePointer(child: _GalleryActivityGlyph(size: 19)),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Tek bir ilerlemeden kaydırılmış bir aralık çıkarır.
+  static double _stagger(double t, {double from = 0, double to = 1}) =>
+      ((t - from) / (to - from)).clamp(0.0, 1.0);
+}
+
+/// Menüdeki tek bir hap: aşağıdan, artının olduğu köşeden büyüyor.
+class _MenuEntry extends StatelessWidget {
+  const _MenuEntry({required this.progress, required this.child});
+
+  final double progress;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: progress,
+      child: Transform.translate(
+        offset: Offset(0, (1 - progress) * 10),
+        child: Transform.scale(
+          scale: 0.92 + 0.08 * progress,
+          alignment: AlignmentDirectional.bottomStart,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 class _Invitation extends StatelessWidget {
   const _Invitation({
     required this.importing,
     required this.onImport,
+    required this.onComposeText,
     this.onOpenSettings,
   });
 
   final bool importing;
   final VoidCallback onImport;
+  final VoidCallback onComposeText;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -298,76 +484,32 @@ class _Invitation extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          // Boş ekranda iki giriş de **adıyla** duruyor: burada yer var ve
+          // yeni gelen kullanıcının ikisini de görmesi gerekiyor. Şerit
+          // yerleştiğinde aynı iki eylem sol yuvadaki artının altına
+          // toplanıyor. Uzun çevirilerde satır kendiliğinden kırılır.
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Pressable(
-                onPressed: onImport,
+              _ActionPill(
+                icon: Icons.photo_library_outlined,
+                label: context.l10n.pickFromGallery,
                 semanticLabel: importing
                     ? context.l10n.galleryPickerOpening
                     : context.l10n.pickFromGallerySemantic,
-                scale: 0.985,
-                child: DecoratedBox(
-                  // Bu alan kapanırken ClipRect içinde kalıyor. Dış gölge
-                  // keskin bir alt çizgiye dönüşeceği için ayrımı yalnızca
-                  // yüzey tonu ve yarım piksellik süperelips kenar kurar.
-                  decoration: ShapeDecoration(
-                    color: palette.canvasLift,
-                    shape: AppShape.border(
-                      AppShape.control,
-                      side: BorderSide(
-                        color: palette.hairlineBright,
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 17, 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox.square(
-                          dimension: 17,
-                          child: AnimatedSwitcher(
-                            duration: AppMotion.fast,
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            transitionBuilder: (child, animation) =>
-                                FadeTransition(
-                                  opacity: animation,
-                                  child: ScaleTransition(
-                                    scale: Tween<double>(
-                                      begin: 0.78,
-                                      end: 1,
-                                    ).animate(animation),
-                                    child: child,
-                                  ),
-                                ),
-                            child: importing
-                                ? const _GalleryActivityGlyph(
-                                    key: ValueKey('gallery-loading'),
-                                    size: 17,
-                                  )
-                                : Icon(
-                                    Icons.photo_library_outlined,
-                                    key: const ValueKey('gallery-idle'),
-                                    size: 17,
-                                    color: palette.ember,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          context.l10n.pickFromGallery,
-                          style: palette.label,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                busy: importing,
+                onPressed: onImport,
               ),
-              if (onOpenSettings != null) ...[
-                const SizedBox(width: 12),
+              _ActionPill(
+                icon: Icons.text_fields_rounded,
+                label: context.l10n.composeTextEntry,
+                semanticLabel: context.l10n.composeTextEntry,
+                onPressed: onComposeText,
+              ),
+              if (onOpenSettings != null)
                 IconOrb(
                   icon: Icons.tune_rounded,
                   semanticLabel: context.l10n.settingsAction,
@@ -377,7 +519,6 @@ class _Invitation extends StatelessWidget {
                   tint: palette.inkSoft,
                   fill: palette.canvasLift,
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 32),
@@ -447,6 +588,15 @@ class _SelectionWord extends StatelessWidget {
                     key: const ValueKey('selection-delete-action'),
                     label: context.l10n.actionDelete,
                     semanticLabel: context.l10n.actionDelete,
+                    // Şeridin **tek** eylemi ve mürekkep tonunda yazılınca
+                    // fark edilmiyordu: ekranın en görünür noktasında,
+                    // deklanşörün yerinde duruyor ama sıradan bir yazı gibi
+                    // okunuyordu. Kor rengi, kutu çizmeden "asıl olan bu"
+                    // demenin bu uygulamadaki karşılığı.
+                    //
+                    // Basılıyken kırmızıya geçiyor: renk önce önemi, sonra
+                    // yıkıcılığı söylüyor.
+                    accent: true,
                     pressColor: palette.danger,
                     onPressed: onDelete,
                   ),
@@ -626,6 +776,89 @@ class _LimitCounter extends StatelessWidget {
         color: full ? palette.ember : palette.inkFaint,
         fontWeight: full ? FontWeight.w600 : FontWeight.w500,
         fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
+}
+
+/// Adıyla duran ikincil eylem.
+///
+/// Boş ekrandaki davet ile şeritteki giriş menüsü aynı hapı kullanıyor: iki
+/// yerde iki ayrı görünüm olsaydı aynı eylem iki farklı şey gibi okunurdu.
+/// Yüzey tonu ve yarım piksellik süperelips kenar dışında hiçbir ayrım yok —
+/// gölge yok, çünkü davet kapanırken `ClipRect` içinde kalıyor ve dış gölge
+/// orada keskin bir alt çizgiye dönüşüyor.
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.semanticLabel,
+    required this.onPressed,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String semanticLabel;
+  final VoidCallback onPressed;
+
+  /// Eylem sürüyor: simge yerine çalışma imi döner.
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Pressable(
+      onPressed: onPressed,
+      semanticLabel: semanticLabel,
+      scale: 0.985,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: palette.canvasLift,
+          shape: AppShape.border(
+            AppShape.control,
+            side: BorderSide(color: palette.hairlineBright, width: 0.5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 17, 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox.square(
+                dimension: 17,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.fast,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.78,
+                        end: 1,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: busy
+                      ? const _GalleryActivityGlyph(
+                          key: ValueKey('pill-busy'),
+                          size: 17,
+                        )
+                      : Icon(
+                          icon,
+                          key: const ValueKey('pill-idle'),
+                          size: 17,
+                          color: palette.ember,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(label, style: palette.label),
+            ],
+          ),
+        ),
       ),
     );
   }

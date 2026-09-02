@@ -178,10 +178,10 @@ abstract class L10n {
   /// **'Open photo full screen'**
   String get openPhotoSemantic;
 
-  /// No description provided for @actionRetry.
+  /// Retries the failed attempt.
   ///
   /// In en, this message translates to:
-  /// **'Try Again'**
+  /// **'Try again'**
   String get actionRetry;
 
   /// No description provided for @actionGoBack.
@@ -381,6 +381,24 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'The shared photo couldn’t be added. We’ll try again.'**
   String get toastSharedPhotoFailed;
+
+  /// No description provided for @toastQueuedNoteAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Note added.'**
+  String get toastQueuedNoteAdded;
+
+  /// No description provided for @toastQueuedNoteReminderDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Note added, but its reminder fell after the note’s deletion time.'**
+  String get toastQueuedNoteReminderDropped;
+
+  /// No description provided for @toastQueuedNoteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The note couldn’t be added. We’ll try again.'**
+  String get toastQueuedNoteFailed;
 
   /// No description provided for @toastDeleteFailed.
   ///
@@ -1207,7 +1225,7 @@ abstract class L10n {
   /// No description provided for @yourDataSafetyAnswer.
   ///
   /// In en, this message translates to:
-  /// **'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics.'**
+  /// **'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.'**
   String get yourDataSafetyAnswer;
 
   /// No description provided for @yourDataLocationQuestion.
@@ -1965,6 +1983,54 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'The reminder must be before this note is deleted.'**
   String get reminderAfterExpiry;
+
+  /// Compose switch: also store the untouched photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the original'**
+  String get keepOriginalLabel;
+
+  /// Explains the storage cost of keeping the original.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality stays untouched, storage grows.'**
+  String get keepOriginalDetail;
+
+  /// Marks the detail photo as the untouched original.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get originalMark;
+
+  /// Shown when a location fix could not be obtained.
+  ///
+  /// In en, this message translates to:
+  /// **'Location unavailable'**
+  String get composeLocationFailed;
+
+  /// Explains that no position could be obtained.
+  ///
+  /// In en, this message translates to:
+  /// **'The device could not fix a position right now. The note will be saved without a place.'**
+  String get locationFixFailed;
+
+  /// No description provided for @composeTextEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Write text'**
+  String get composeTextEntry;
+
+  /// No description provided for @addEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get addEntry;
+
+  /// No description provided for @composeTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What do you want to remember?'**
+  String get composeTextHint;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

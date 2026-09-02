@@ -245,4 +245,79 @@ void main() {
     expect(photos.fileFor('old.jpg').readAsBytesSync(), [1, 2, 3]);
     expect(photos.fileFor('new.jpg').existsSync(), isFalse);
   });
+
+  /// Orijinal **türetilemez**: küçük kopya gibi yeniden üretilemiyor. Yedeğe
+  /// girmezse kullanıcı geri yüklediğinde sakladığı kareyi kalıcı kaybeder.
+  test('orijinal yedekten aynen geri geliyor', () async {
+    final notes = NotesRepository(database: database, photos: photos);
+    final source = File('${sandbox.path}/ham.jpg')
+      ..writeAsBytesSync(List<int>.filled(900000, 4));
+    await notes.create(
+      capture: XFile(source.path),
+      body: 'Anı',
+      retention: const RetentionChoice(Retention.off),
+      keepOriginal: true,
+    );
+
+    final before = (await notes.watchNotes().first).single;
+    expect(before.originalName, isNotNull);
+
+    // Dışa aktarım: orijinal adı manifestte taşınıyor.
+    final exported = await repository.exportNotes();
+    expect(exported.single.originalName, before.originalName);
+    // Ve JSON'a da giriyor; eski sürümlerde bu anahtar hiç yoktu.
+    expect(exported.single.toJson()['original'], before.originalName);
+
+    // Geri yükleme: dosyalar hazırlanıp klasör değiştiriliyor.
+    final staging = Directory('${sandbox.path}/staging')..createSync();
+    File('${staging.path}/${before.imageName}')
+        .writeAsBytesSync(List<int>.filled(500, 1));
+    File('${staging.path}/${before.originalName}')
+        .writeAsBytesSync(List<int>.filled(900000, 4));
+
+    await repository.replaceAll(
+      notes: [exported.single],
+      settings: settings,
+      stagedPhotos: staging,
+    );
+
+    final after = (await notes.watchNotes().first).single;
+    expect(after.originalName, before.originalName);
+    expect(notes.originalOf(after)!.existsSync(), isTrue);
+    expect(notes.originalOf(after)!.lengthSync(), 900000);
+    // Detay ve paylaşım yine orijinali okuyor.
+    expect(notes.fullImageOf(after).path, notes.originalOf(after)!.path);
+  });
+
+  /// Yayındaki 1.0.2 sürümünün ürettiği yedek dosyasında bu anahtar yok.
+  /// Okunamaması, kullanıcının bütün arşivini geri yükleyememesi demekti.
+  test('orijinal anahtarı olmayan eski yedek aynen açılıyor', () async {
+    final legacy = BackupNote.fromJson({
+      'image': 'eski.jpg',
+      'body': 'Fatura',
+      'created': DateTime(2026, 1, 1).toUtc().millisecondsSinceEpoch,
+      'retention': 0,
+    });
+
+    expect(legacy.imageName, 'eski.jpg');
+    expect(legacy.originalName, isNull);
+    // Yazarken de anahtar hiç üretilmiyor: dosya biçimi aynen kalıyor.
+    expect(legacy.toJson().containsKey('original'), isFalse);
+
+    final staging = Directory('${sandbox.path}/eski')..createSync();
+    File('${staging.path}/eski.jpg').writeAsBytesSync(List<int>.filled(500, 1));
+
+    await repository.replaceAll(
+      notes: [legacy],
+      settings: settings,
+      stagedPhotos: staging,
+    );
+
+    final notes = NotesRepository(database: database, photos: photos);
+    final restored = (await notes.watchNotes().first).single;
+    expect(restored.imageName, 'eski.jpg');
+    expect(restored.originalName, isNull);
+    // Orijinali olmayan kayıtta her yüzey işlenmiş kareyi okuyor.
+    expect(notes.fullImageOf(restored).path, notes.imageOf(restored).path);
+  });
 }

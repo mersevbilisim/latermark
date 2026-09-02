@@ -422,6 +422,43 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  /// Orijinal boyutu okuma `build` sırasında çalışıyor; orada `setState`
+  /// çağırmak "setState() called during build" ile patlıyordu.
+  testWidgets('orijinali olan kayıt detayda hatasız açılıyor', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.runAsync(() async {
+      final image = File('${sandbox.path}/orijinalli.png');
+      await image.writeAsBytes(_pixel);
+      await repository.create(
+        capture: XFile(image.path),
+        body: 'Anı karesi',
+        retention: const RetentionChoice.off(),
+        keepOriginal: true,
+      );
+    });
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await _settle(tester);
+    await tester.tap(find.byType(NoteCard));
+    await _settle(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NoteDetailPage), findsOneWidget);
+
+    // Künyenin altındaki dipnot orijinali ve boyutunu söylüyor.
+    expect(find.textContaining('ORİJİNAL'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
 }
 
 Future<void> _settle(WidgetTester tester) async {

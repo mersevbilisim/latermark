@@ -33,6 +33,8 @@ class LocationChannel(private val activity: Activity) {
 
         /** Cihaz sabitleyemezse Flutter tarafı sonsuza kadar beklemesin. */
         private const val TIMEOUT_MS = 8_000L
+        /// Son sabitlemenin taze sayıldığı süre; iOS ile aynı.
+        private const val CACHE_WINDOW_MS = 120_000L
     }
 
     private var pendingPermission: MethodChannel.Result? = null
@@ -130,6 +132,18 @@ class LocationChannel(private val activity: Activity) {
         Handler(Looper.getMainLooper()).postDelayed({ settle(null) }, TIMEOUT_MS)
 
         try {
+            // Sistem son sabitlemeyi zaten tutuyor. Yeterince tazeyse yeni bir
+            // istek açmanın karşılığı yok: kullanıcı kaydın konumunu soruyor,
+            // metre metre takip değil. iOS tarafı da aynı kuralı uyguluyor.
+            @Suppress("DEPRECATION")
+            val cached = manager.getLastKnownLocation(provider)
+            if (cached != null &&
+                System.currentTimeMillis() - cached.time <= CACHE_WINDOW_MS
+            ) {
+                settle(cached)
+                return
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 manager.getCurrentLocation(
                     provider,

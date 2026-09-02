@@ -160,6 +160,16 @@ class L10nTr extends L10n {
       'Paylaşılan fotoğraf eklenemedi. Tekrar denenecek.';
 
   @override
+  String get toastQueuedNoteAdded => 'Not eklendi.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Not eklendi ama hatırlatma, notun silinme zamanından sonraya düşüyordu.';
+
+  @override
+  String get toastQueuedNoteFailed => 'Not eklenemedi. Tekrar denenecek.';
+
+  @override
   String get toastDeleteFailed => 'Silinemedi. Tekrar dene.';
 
   @override
@@ -655,7 +665,7 @@ class L10nTr extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez.';
+      'Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez. Reklam ölçümü için Meta\'ya yalnızca iki şey bildirilir: uygulamanın kurulduğu ve bir satın alma yapıldığı. İkisi de yazdığınız, çektiğiniz veya etiketlediğiniz hiçbir şeyi içermez.';
 
   @override
   String get yourDataLocationQuestion => 'Konum izni neden istenir?';
@@ -950,10 +960,10 @@ class L10nTr extends L10n {
   }
 
   @override
-  String get proBadge => 'PRO';
+  String get proBadge => 'Pro';
 
   @override
-  String get paywallHeadline => 'Önemli olanı geride bırakma.';
+  String get paywallHeadline => 'Önemlileri sakla, hatırla.';
 
   @override
   String get paywallSubtitle =>
@@ -1151,4 +1161,30 @@ class L10nTr extends L10n {
   @override
   String get reminderAfterExpiry =>
       'Hatırlatma, bu not silinmeden önce olmalı.';
+
+  @override
+  String get keepOriginalLabel => 'Orijinal haliyle kaydet';
+
+  @override
+  String get keepOriginalDetail =>
+      'Kalitesi olduğu gibi kalır, daha çok yer tutar.';
+
+  @override
+  String get originalMark => 'Orijinal';
+
+  @override
+  String get composeLocationFailed => 'Konum alınamadı';
+
+  @override
+  String get locationFixFailed =>
+      'Cihaz şu an konumu sabitleyemedi. Kayıt yersiz saklanacak.';
+
+  @override
+  String get composeTextEntry => 'Metin yaz';
+
+  @override
+  String get addEntry => 'Not ekle';
+
+  @override
+  String get composeTextHint => 'Neyi hatırlamak istersin?';
 }

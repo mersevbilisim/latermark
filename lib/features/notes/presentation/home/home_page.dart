@@ -16,6 +16,7 @@ import '../../../reminders/reminder_service.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
+import '../../domain/note_kind.dart';
 import '../../domain/note_reminder.dart';
 import '../../domain/retention.dart';
 import '../compose/compose_page.dart';
@@ -250,6 +251,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  /// Karesiz kayıt: composer kare olmadan açılır, gerisi aynı ekran.
+  void _composeText() {
+    Navigator.of(
+      context,
+    ).push(AppRoutes.lift(const ComposePage(source: ComposeSource.text)));
+  }
+
   void _openImportedImage(XFile image) {
     Navigator.of(context).push(
       AppRoutes.lift(
@@ -269,6 +277,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       while (mounted) {
         final shared = await SharedImportBridge.takePending();
         if (shared == null || !mounted) break;
+
+        // Karesiz teslim yalnız Siri/Kestirmeler'den geliyor ve kendi
+        // kuralları var: mutlak hatırlatma anı, açılacak Compose ekranı yok.
+        final image = shared.image;
+        if (image == null) {
+          if (!await _saveQueuedNote(shared)) break;
+          continue;
+        }
 
         if (shared.saveImmediately) {
           try {
@@ -292,7 +308,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               // sync bildirimi kurar.
             }
             await _repository!.create(
-              capture: shared.image,
+              capture: image,
               body: shared.initialText,
               retention: RetentionChoice(
                 settings.defaultRetention,
@@ -334,7 +350,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await Navigator.of(context).push(
           AppRoutes.lift(
             ComposePage(
-              capture: shared.image,
+              capture: image,
               source: ComposeSource.shared,
               initialText: shared.initialText,
               capturedAt: shared.createdAt,
@@ -350,6 +366,93 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } finally {
       _drainingSharedImports = false;
       _drainExternalRoutes();
+    }
+  }
+
+  /// Siri veya bir kısayolun bıraktığı karesiz teslimi kaydeder.
+  ///
+  /// Hatırlatmanın **alarmı** zaten kurulu: uzantı, kullanıcı konuşurken
+  /// bildirimi kendisi planladı — yoksa uygulama hiç açılmazsa hatırlatma hiç
+  /// çalmazdı. Burada yapılan iş kaydı gerçekten oluşturup alarmı geçici
+  /// istekten `ReminderService`'in programına devretmek.
+  ///
+  /// Dönen değer kuyruğa devam edilip edilmeyeceği: `false`, sıradaki
+  /// teslimin de aynı engele takılacağı anlamına gelir (paywall, izin, hata).
+  Future<bool> _saveQueuedNote(SharedImport shared) async {
+    final reviewPrompts = context.reviewPrompts;
+    final settingsRepository = AppScope.settingsOf(context);
+    final reminders = context.reminders;
+
+    try {
+      final processed = await _repository!.hasProcessedImport(shared.id);
+      if (!processed && !await _allowNewNote()) return false;
+
+      var settings = await settingsRepository.read();
+      var remindAt = shared.remindAt;
+
+      if (remindAt != null && !settings.proUnlocked) {
+        if (!mounted) return false;
+        // Uzantı son bilinen hakkı görüyor; mağaza bu arada hakkı düşürdüyse
+        // seçimi sessizce yok saymak yerine payload bekler.
+        await showPaywall(context, reason: PaywallReason.reminder);
+        settings = await settingsRepository.read();
+        if (!settings.proUnlocked) return false;
+      }
+
+      if (remindAt != null) {
+        await settingsRepository.setReminderEnabled(true);
+        var allowed = await reminders.hasPermission();
+        if (!allowed) allowed = await reminders.requestPermission();
+        // İzin reddedilse de DB'deki seçim korunur; kullanıcı Ayarlar'dan
+        // izin verdiği anda sonraki sync bildirimi kurar.
+      }
+
+      final retention = RetentionChoice(
+        settings.defaultRetention,
+        customMinutes: settings.defaultCustomMinutes,
+      );
+
+      // Ayna bayat olabilir: kullanıcı konuştuktan sonra saklama süresini
+      // kısaltmış olabilir. O hâlde `createText` kaydı **hiç** oluşturmaz.
+      // Notu tümden kaybetmektense hatırlatmayı düşürmek daha az zarar veriyor
+      // — ama sessizce değil, kullanıcı ne olduğunu görüyor.
+      final expiry = retention.expiryFrom(shared.createdAt);
+      final droppedReminder =
+          remindAt != null && expiry != null && !remindAt.isBefore(expiry);
+      if (droppedReminder) remindAt = null;
+
+      await _repository!.createText(
+        body: shared.initialText,
+        retention: retention,
+        createdAt: shared.createdAt,
+        reminder: remindAt == null
+            ? const ReminderChoice.off()
+            : ReminderChoice(at: remindAt),
+        importId: shared.id,
+      );
+
+      if (reviewPrompts != null) {
+        unawaited(reviewPrompts.recordSuccessfulSave());
+      }
+      await SharedImportBridge.complete(shared.id);
+      // Kayıt oluştuktan **sonra**: arada bir hata olsaydı kullanıcı hem
+      // kaydı hem alarmı kaybederdi.
+      await SharedImportBridge.cancelQueuedReminder(shared.id);
+      if (mounted) {
+        showToast(
+          context,
+          droppedReminder
+              ? context.l10n.toastQueuedNoteReminderDropped
+              : context.l10n.toastQueuedNoteAdded,
+          error: droppedReminder,
+        );
+      }
+      return true;
+    } catch (_) {
+      if (mounted) {
+        showToast(context, context.l10n.toastQueuedNoteFailed, error: true);
+      }
+      return false;
     }
   }
 
@@ -571,7 +674,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _confirmDelete(Note note) async {
     final confirmed = await showShutterConfirm(
       context,
-      photo: _repository!.imageOf(note),
+      photo: note.hasPhoto ? _repository!.imageOf(note) : null,
       title: note.body.isEmpty ? context.l10n.deleteConfirmTitle : note.body,
       caption: context.l10n.deleteConfirmCaption,
     );
@@ -596,7 +699,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     final confirmed = await showShutterConfirm(
       context,
-      photo: _repository!.imageOf(targets.first),
+      // Örtücünün altına seçilenlerin **karesi olan** ilki konur; hepsi
+      // karesizse diyafram koyu alanın üstünde kapanır.
+      photo: targets
+          .where((note) => note.hasPhoto)
+          .map((note) => _repository!.imageOf(note))
+          .firstOrNull,
       title: context.l10n.deleteManyConfirmTitle(targets.length),
       caption: context.l10n.deleteManyConfirmCaption,
     );
@@ -662,7 +770,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           // düşürülüyor.
           if (_selecting && !selecting) _dropStaleSelection();
           final selection = selecting
-              ? [for (final note in notes) if (_selected.contains(note.id)) note]
+              ? [
+                  for (final note in notes)
+                    if (_selected.contains(note.id)) note,
+                ]
               : const <Note>[];
 
           return _Canvas(
@@ -720,6 +831,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   isPro: preferences.proUnlocked,
                   onCapture: _openCamera,
                   onImport: _pickFromGallery,
+                  onComposeText: _composeText,
                   onOpenSettings: all.isEmpty ? _openSettings : null,
                   selecting: selecting,
                   selectedCount: selection.length,

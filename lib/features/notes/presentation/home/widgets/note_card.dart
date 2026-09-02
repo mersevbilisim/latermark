@@ -8,6 +8,7 @@ import '../../../../../shared/widgets/life_rule.dart';
 import '../../../../../shared/widgets/pressable.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
+import '../../../domain/note_kind.dart';
 import '../../../domain/note_reminder.dart';
 import 'note_photo.dart';
 import '../../../../../l10n/enum_labels.dart';
@@ -100,6 +101,9 @@ class NoteCard extends StatelessWidget {
     final palette = context.palette;
     final l10n = context.l10n;
     final hasBody = note.body.isNotEmpty;
+    // Karesiz kayıtta yazı baskının **kendisi**; altına ikinci kez yazmak
+    // aynı cümleyi iki kere okutmak olurdu.
+    final showsCaption = hasBody && note.hasPhoto;
     final reference = now ?? DateTime.now();
     final semanticLabel = [
       hasBody ? note.body : l10n.noteWithoutBody,
@@ -118,21 +122,26 @@ class NoteCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          AspectRatio(
-            aspectRatio: aspect ?? scale.aspect,
+          // Karesi olan kayıt oranıyla, karesiz kayıt **yazısıyla**
+          // boylanıyor. Sabit bir oran verilseydi üç kelimelik bir not koca
+          // bir boş kâğıt olurdu; kâğıdın boyu yazının kendisi kadar.
+          _Print(
+            aspect: note.hasPhoto ? (aspect ?? scale.aspect) : null,
             child: Stack(
-              fit: StackFit.expand,
+              fit: note.hasPhoto ? StackFit.expand : StackFit.loose,
               children: [
                 // Seçilen baskı yuvasından **çekilir**: çerçeve yerinde
                 // kalır, kare içeri çekilip etrafında ince bir kor hattı
                 // bırakır. Kontakt baskıdan bir kareyi ayırmak gibi; işaret
                 // fotoğrafın üstüne basılmaz, kenarında durur.
                 if (selecting && selected)
-                  DecoratedBox(
-                    decoration: ShapeDecoration(
-                      shape: AppShape.border(
-                        AppShape.print + 4,
-                        side: BorderSide(color: palette.ember, width: 1.5),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: ShapeDecoration(
+                        shape: AppShape.border(
+                          AppShape.print + 4,
+                          side: BorderSide(color: palette.ember, width: 1.5),
+                        ),
                       ),
                     ),
                   ),
@@ -145,15 +154,17 @@ class NoteCard extends StatelessWidget {
                     borderRadius: AppShape.all(AppShape.print),
                     child: Hero(
                       tag: 'note-photo-${note.id}',
-                      child: NotePhoto(
-                        // Izgarada küçük kopya; tek sütun ve detay tam kareyi
-                        // okumaya devam ediyor. Kopya yoksa ikisi de aynı
-                        // dosyayı gösteriyor.
-                        file: scale.isCompact
-                            ? repository.gridImageOf(note)
-                            : repository.imageOf(note),
-                        decodeWidth: _printWidth(context),
-                      ),
+                      child: note.hasPhoto
+                          ? NotePhoto(
+                              // Izgarada küçük kopya; tek sütun ve detay tam
+                              // kareyi okumaya devam ediyor. Kopya yoksa
+                              // ikisi de aynı dosyayı gösteriyor.
+                              file: scale.isCompact
+                                  ? repository.gridImageOf(note)
+                                  : repository.imageOf(note),
+                              decodeWidth: _printWidth(context),
+                            )
+                          : _TextPrint(note: note, scale: scale),
                     ),
                   ),
                 ),
@@ -163,9 +174,13 @@ class NoteCard extends StatelessWidget {
             ),
           ),
 
-          SizedBox(height: hasBody ? (scale.isCompact ? 9 : 13) : 7),
+          SizedBox(
+            height: showsCaption
+                ? (scale.isCompact ? 9 : 13)
+                : (note.hasPhoto ? 7 : (scale.isCompact ? 10 : 14)),
+          ),
 
-          if (hasBody) ...[
+          if (showsCaption) ...[
             Text(
               note.body,
               style: TextStyle(
@@ -226,8 +241,7 @@ class _SelectMark extends StatelessWidget {
         tween: Tween<double>(begin: 0, end: 1),
         duration: AppMotion.fast,
         curve: AppMotion.spring,
-        builder: (context, t, child) =>
-            Transform.scale(scale: t, child: child),
+        builder: (context, t, child) => Transform.scale(scale: t, child: child),
         child: Container(
           width: _size,
           height: _size,
@@ -460,4 +474,113 @@ class _ReminderNotchPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ReminderNotchPainter old) =>
       old.track != track || old.mark != mark;
+}
+
+/// Karesiz kaydın ızgaradaki hâli.
+///
+/// **Kutu yok.** Fotoğraf baskılarının arasına ikinci bir kart tipi koymak,
+/// ızgarayı iki ayrı dile böler; üstelik yazıyı kutuya almak onu bir arayüz
+/// öğesi gibi gösteriyor, oysa yazı burada içeriğin kendisi. Kaydın hiyerarşisi
+/// yüzeyle değil **dizgiyle** kuruluyor.
+///
+/// Tek işaret üstteki künye çizgisi: uygulamanın gün ayıracında ve künye
+/// çubuğunda zaten kullandığı saç teli, başında kısa bir kor parçasıyla. O
+/// parça bu kaydın çekilmediğini, yazıldığını söyleyen tek şey — bir rozete
+/// ya da simgeye gerek kalmıyor.
+///
+/// Yazı kartın altında ikinci kez tekrar edilmiyor; künye satırı (saat ve ömür
+/// izi) olduğu gibi altta duruyor ve bloğu kapatıyor.
+class _TextPrint extends StatelessWidget {
+  const _TextPrint({required this.note, required this.scale});
+
+  final Note note;
+  final CardScale scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final hasBody = note.body.isNotEmpty;
+    final compact = scale.isCompact;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 1,
+          // `stretch` şart: çocuksuz bir `ColoredBox` sıfır yükseklikte
+          // kalıyor ve çizgi hiç çizilmiyor.
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: compact ? 16 : 22,
+                child: ColoredBox(color: palette.ember),
+              ),
+              Expanded(child: ColoredBox(color: palette.hairline)),
+            ],
+          ),
+        ),
+        SizedBox(height: compact ? 13 : 18),
+        Text(
+          hasBody ? note.body : context.l10n.noteWithoutBody,
+          style: TextStyle(
+            fontFamily: AppType.fontFamily,
+            // Yazı burada künye değil manşet: bloğun ağırlığını tek başına
+            // taşıdığı için kartın altındaki puntodan belirgin büyük.
+            fontSize: scale.noteSize * 1.15,
+            height: 1.24,
+            fontWeight: FontWeight.w600,
+            letterSpacing: switch (scale) {
+              CardScale.hero => -0.9,
+              CardScale.full => -0.5,
+              CardScale.compact => -0.3,
+            },
+            color: hasBody ? palette.ink : palette.inkFaint,
+          ),
+          maxLines: scale.isCompact ? 6 : 9,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+/// Kâğıdın en az yüksekliği.
+///
+/// Üç kelimelik not bile bir kart olmalı, ince bir şerit değil. Akışın sütun
+/// paylaştırması da aynı sayıyı kullanıyor.
+double textPrintMinHeight(CardScale scale) => scale.isCompact ? 34 : 44;
+
+/// Karesiz kaydın kaplayacağı kaba yükseklik.
+///
+/// Yalnız sütun paylaştırması için; yanılırsa sütunlardan biri birkaç piksel
+/// uzun biter, hiçbir kartın çizimi değişmez — kartlar kendi gerçek
+/// boylarında diziliyor.
+double textPrintHeight(String body, double width, {required CardScale scale}) {
+  // Kutu olmadığı için pay yalnız çizgi ve altındaki boşluk.
+  final padding = 1.0 + (scale.isCompact ? 13.0 : 18.0);
+  final fontSize = scale.noteSize * 1.15;
+  final perLine = ((width - padding) / (fontSize * 0.52)).floor().clamp(8, 400);
+  final lines = (body.length / perLine).ceil().clamp(
+    1,
+    scale.isCompact ? 6 : 9,
+  );
+  final height = padding + lines * fontSize * 1.24;
+  final floor = textPrintMinHeight(scale);
+  return height < floor ? floor : height;
+}
+
+/// Baskının dış kutusu.
+///
+/// [aspect] verilirse oranıyla, verilmezse çocuğunun kendi boyuyla.
+class _Print extends StatelessWidget {
+  const _Print({required this.aspect, required this.child});
+
+  final double? aspect;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      aspect == null ? child : AspectRatio(aspectRatio: aspect!, child: child);
 }

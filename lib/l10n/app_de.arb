@@ -59,6 +59,9 @@
   "toastPendingPickFailed": "Die unterbrochene Fotoauswahl konnte nicht fortgesetzt werden.",
   "toastSharedPhotoAdded": "Geteiltes Foto hinzugefügt.",
   "toastSharedPhotoFailed": "Das geteilte Foto konnte nicht hinzugefügt werden. Wir versuchen es erneut.",
+  "toastQueuedNoteAdded": "Notiz hinzugefügt.",
+  "toastQueuedNoteReminderDropped": "Notiz hinzugefügt, aber die Erinnerung lag nach dem Löschzeitpunkt der Notiz.",
+  "toastQueuedNoteFailed": "Die Notiz konnte nicht hinzugefügt werden. Wir versuchen es erneut.",
   "toastDeleteFailed": "Löschen fehlgeschlagen. Versuch es erneut.",
   "toastSaveFailed": "Sichern fehlgeschlagen. Versuch es erneut.",
   "toastEditFailed": "Die Änderungen konnten nicht gesichert werden.",
@@ -238,7 +241,7 @@
   "yourDataTitle": "Latermark & deine Daten",
   "yourDataSubtitle": "Deine Privatsphäre ist uns wichtig. Wir behandeln sie mit Respekt.",
   "yourDataSafetyQuestion": "Sind meine Daten sicher?",
-  "yourDataSafetyAnswer": "Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – auch nicht für Analysen, Absturzberichte oder Nutzungsstatistiken.",
+  "yourDataSafetyAnswer": "Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – auch nicht für Analysen, Absturzberichte oder Nutzungsstatistiken. Zur Werbemessung werden an Meta nur zwei Dinge gemeldet: dass die App installiert wurde und dass ein Kauf stattgefunden hat. Beides enthält nichts von dem, was du schreibst, fotografierst oder markierst.",
   "yourDataLocationQuestion": "Warum benötigt Latermark meinen Standort?",
   "yourDataLocationAnswer": "Nur wenn du einer Aufnahme einen Ort hinzufügen möchtest, wird dein Standort einmalig ermittelt. Er wird ausschließlich in dieser Aufnahme gespeichert; eine Ortung im Hintergrund findet nicht statt. Erst wenn du die Karte öffnest, wird die Koordinate an deine Karten-App übergeben.",
   "yourDataPhotosQuestion": "Wofür wird der Fotozugriff verwendet?",
@@ -516,5 +519,13 @@
   "reminderTimeLabel": "Uhrzeit",
   "reminderSkip": "Jetzt nicht",
   "reminderDeleteAfterLabel": "1 Stunde nach der Erinnerung löschen",
-  "reminderAfterExpiry": "Die Erinnerung muss vor dem Löschen dieser Notiz liegen."
+  "reminderAfterExpiry": "Die Erinnerung muss vor dem Löschen dieser Notiz liegen.",
+  "keepOriginalLabel": "Original speichern",
+  "keepOriginalDetail": "Qualität bleibt unberührt, braucht mehr Platz.",
+  "originalMark": "Original",
+  "composeLocationFailed": "Standort nicht verfügbar",
+  "locationFixFailed": "Das Gerät konnte gerade keine Position bestimmen. Die Notiz wird ohne Ort gespeichert.",
+  "composeTextEntry": "Text schreiben",
+  "addEntry": "Notiz hinzufügen",
+  "composeTextHint": "Woran möchtest du dich erinnern?"
 }

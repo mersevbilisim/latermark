@@ -35,6 +35,30 @@ extension AppFormat on L10n {
   String stamp(DateTime at, {bool use24Hour = false}) =>
       '${calendarDate(at)} · ${time(at, use24Hour: use24Hour)}';
 
+  /// Dosya boyutu: `820 KB`, `4,2 MB`.
+  ///
+  /// Ondalık ayracı yerelden geliyor: Türkçede `4,2`, İngilizcede `4.2`.
+  /// Birim kısaltmaları çevrilmiyor — `MB` her dilde `MB`.
+  String fileSize(int bytes) {
+    const unit = 1024;
+    if (bytes < unit) return '$bytes B';
+
+    final inKb = bytes / unit;
+    if (inKb < unit) {
+      final value = NumberFormat.decimalPatternDigits(
+        locale: localeName,
+        decimalDigits: 0,
+      ).format(inKb);
+      return '$value KB';
+    }
+
+    final value = NumberFormat.decimalPatternDigits(
+      locale: localeName,
+      decimalDigits: 1,
+    ).format(inKb / unit);
+    return '$value MB';
+  }
+
   /// Kaydın kendi başına okunabilen zaman damgası.
   ///
   /// Akışta kartın üstünde bir gün ayıracı duruyor; orada saat yeter, tarihi

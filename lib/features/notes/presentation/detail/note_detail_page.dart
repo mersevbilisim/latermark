@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,7 @@ import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/shutter_confirm.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
+import '../../domain/note_kind.dart';
 import '../../data/photo_aspect.dart';
 import '../../data/photo_tone.dart';
 import '../../domain/note_reminder.dart';
@@ -145,7 +147,8 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     FocusManager.instance.primaryFocus?.unfocus();
     await showPhotoViewer(
       context,
-      photo: _repository!.imageOf(note),
+      // Yakınlaştırmanın asıl yapıldığı yer burası: orijinali varsa onu aç.
+      photo: _repository!.fullImageOf(note),
       heroTag: 'note-photo-${note.id}',
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
@@ -191,7 +194,7 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   Future<void> _delete(Note note) async {
     final confirmed = await showShutterConfirm(
       context,
-      photo: _repository!.imageOf(note),
+      photo: note.hasPhoto ? _repository!.imageOf(note) : null,
       title: note.body.isEmpty ? context.l10n.deleteConfirmTitle : note.body,
       caption: context.l10n.deleteConfirmCaption,
     );
@@ -230,7 +233,9 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     try {
       await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(_repository!.imageOf(note).path)],
+          // Orijinali saklanmış bir kare orijinal olarak paylaşılıyor:
+          // kullanıcı o kareyi tam boyuyla tutmayı özellikle seçti.
+          files: [XFile(_repository!.fullImageOf(note).path)],
           text: shareMessage(body: note.body, signature: signature),
         ),
       );
@@ -312,7 +317,44 @@ class _NoteDetailPageState extends State<NoteDetailPage>
 
   /// Karenin oranını ve tonunu tek seferde okur: ilki sahnenin ölçüsünü,
   /// ikincisi sayfanın ışığını belirler.
+  /// Ekranda gösterilen orijinalin dosya boyutu. Yoksa `null`.
+  ///
+  /// Bir kez çözülüp saklanıyor: sayfa kapatma jesti sırasında her karede
+  /// yeniden kuruluyor ve orada senkron bir dosya yoklaması yapmak, tam da
+  /// parmağın altında akıcı kalması gereken yerde iş çıkarırdı.
+  int? _originalBytes;
+  String? _sizedOriginal;
+
+  /// Bu **build sırasında** çağrılıyor: `_warmPhoto` akışın kurduğu kareden
+  /// geçiyor. O yüzden burada doğrudan `setState` çağrılamaz — değeri sessizce
+  /// yerleştirip yeniden çizimi bir sonraki kareye bırakıyoruz.
+  ///
+  /// Aynı kayıt için bir kez okunuyor: sayfa kapatma jesti her karede yeniden
+  /// kuruluyor ve orada dosya yoklamak, tam da parmağın altında akıcı kalması
+  /// gereken yerde iş çıkarırdı.
+  void _readOriginalSize(Note note) {
+    final name = note.originalName;
+    if (_sizedOriginal == name) return;
+    _sizedOriginal = name;
+
+    int? bytes;
+    if (name != null) {
+      try {
+        bytes = _repository?.originalOf(note)?.lengthSync();
+      } on FileSystemException {
+        bytes = null;
+      }
+    }
+    if (bytes == _originalBytes) return;
+
+    _originalBytes = bytes;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   void _warmPhoto(Note note) {
+    _readOriginalSize(note);
     if (!_warmingPhotos.add(note.imageName)) return;
     final file = _repository!.imageOf(note);
     unawaited(
@@ -377,7 +419,10 @@ class _NoteDetailPageState extends State<NoteDetailPage>
     // baskı ne kırpılır ne de boşluk taşır.
     final knownAspect = PhotoAspect.peek(note.imageName);
     final tone = PhotoTone.peek(note.imageName);
-    if (knownAspect == null || tone == null) _warmPhoto(note);
+    // Karesiz kayıtta okunacak başlık yok; ısıtma çağrısı boş bir yola gider.
+    if (note.hasPhoto && (knownAspect == null || tone == null)) {
+      _warmPhoto(note);
+    }
     final aspect = knownAspect ?? (3 / 4);
 
     final restingStage = _fitPrint(
@@ -451,61 +496,69 @@ class _NoteDetailPageState extends State<NoteDetailPage>
                         ),
                       ),
 
-                      SliverToBoxAdapter(
-                        child: Center(
-                          child: AnimatedContainer(
-                            key: const ValueKey('note-photo-stage'),
-                            duration: _morphDuration,
-                            curve: Curves.easeOutQuart,
-                            width: stage.width,
-                            height: stage.height,
-                            child: PhotoDismissSurface(
-                              cornerRadius: AppShape.print,
-                              // Açık temada beyaz bir kare, sıcak kâğıt zemine
-                              // kenarsız akıyordu. Bu çizgi görülmez, yokluğu
-                              // görülür.
-                              borderColor: palette.hairline,
-                              semanticLabel: l10n.openPhotoSemantic,
-                              onTap: () => _openPhoto(note),
-                              onDismissRequested: _preparePhotoDismiss,
-                              onProgressChanged: (progress) {
-                                if (progress == _dismissProgress || !mounted) {
-                                  return;
-                                }
-                                setState(() => _dismissProgress = progress);
-                              },
-                              onDismissed: () {
-                                if (mounted) Navigator.of(context).pop();
-                              },
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Opacity(
-                                    opacity: 1 - _dismissProgress,
-                                    child: ColoredBox(
-                                      color: palette.canvasSunk,
-                                    ),
-                                  ),
-                                  HeroMode(
-                                    // İnteraktif kapatmada baskı zaten parmağın
-                                    // altında çıkar; ikinci bir Hero uçuşu yok.
-                                    enabled: _dismissProgress <= .001,
-                                    child: Hero(
-                                      tag: 'note-photo-${note.id}',
-                                      child: NotePhoto(
-                                        file: _repository!.imageOf(note),
-                                        fit: knownAspect == null
-                                            ? BoxFit.contain
-                                            : BoxFit.cover,
+                      // Karesiz kayıtta baskı sahnesi hiç kurulmuyor:
+                      // yazı zaten aşağıdaki künyede, orada ikinci kez
+                      // göstermek aynı cümleyi iki kere okutmak olurdu.
+                      if (note.hasPhoto)
+                        SliverToBoxAdapter(
+                          child: Center(
+                            child: AnimatedContainer(
+                              key: const ValueKey('note-photo-stage'),
+                              duration: _morphDuration,
+                              curve: Curves.easeOutQuart,
+                              width: stage.width,
+                              height: stage.height,
+                              child: PhotoDismissSurface(
+                                cornerRadius: AppShape.print,
+                                // Açık temada beyaz bir kare, sıcak kâğıt zemine
+                                // kenarsız akıyordu. Bu çizgi görülmez, yokluğu
+                                // görülür.
+                                borderColor: palette.hairline,
+                                semanticLabel: l10n.openPhotoSemantic,
+                                onTap: () => _openPhoto(note),
+                                onDismissRequested: _preparePhotoDismiss,
+                                onProgressChanged: (progress) {
+                                  if (progress == _dismissProgress ||
+                                      !mounted) {
+                                    return;
+                                  }
+                                  setState(() => _dismissProgress = progress);
+                                },
+                                onDismissed: () {
+                                  if (mounted) Navigator.of(context).pop();
+                                },
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Opacity(
+                                      opacity: 1 - _dismissProgress,
+                                      child: ColoredBox(
+                                        color: palette.canvasSunk,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    HeroMode(
+                                      // İnteraktif kapatmada baskı zaten parmağın
+                                      // altında çıkar; ikinci bir Hero uçuşu yok.
+                                      enabled: _dismissProgress <= .001,
+                                      child: Hero(
+                                        tag: 'note-photo-${note.id}',
+                                        child: NotePhoto(
+                                          // Orijinali varsa o gösteriliyor;
+                                          // saklamanın anlamı burada ortaya
+                                          // çıkıyor.
+                                          file: _repository!.fullImageOf(note),
+                                          fit: knownAspect == null
+                                              ? BoxFit.contain
+                                              : BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
 
                       if (_editing)
                         SliverFillRemaining(
@@ -641,6 +694,7 @@ class _NoteDetailPageState extends State<NoteDetailPage>
                       scrollOffset: _scrollOffset,
                       topPadding: media.padding.top,
                       createdAt: note.createdAt,
+                      originalBytes: _originalBytes,
                       onBack: () => Navigator.of(context).maybePop(),
                     ),
                   ),
@@ -777,6 +831,7 @@ class _DetailChrome extends StatelessWidget {
     required this.scrollOffset,
     required this.topPadding,
     required this.createdAt,
+    required this.originalBytes,
     required this.onBack,
   });
 
@@ -787,6 +842,10 @@ class _DetailChrome extends StatelessWidget {
   final double topPadding;
 
   final DateTime createdAt;
+
+  /// Ekrandaki kare dokunulmamış orijinalse boyutu; değilse `null`.
+  final int? originalBytes;
+
   final VoidCallback onBack;
 
   @override
@@ -831,7 +890,10 @@ class _DetailChrome extends StatelessWidget {
             child: Center(
               child: FadeTransition(
                 opacity: reveal,
-                child: _FrameStamp(createdAt: createdAt),
+                child: _FrameStamp(
+                  createdAt: createdAt,
+                  originalBytes: originalBytes,
+                ),
               ),
             ),
           ),
@@ -871,9 +933,12 @@ class _DetailChrome extends StatelessWidget {
 /// önce günün *anını* ararsın — tarih ise altında, harfleri açılmış küçük
 /// kapitellerle. İkisini bir kor rengi tik ayırır; nokta değil, çizgi.
 class _FrameStamp extends StatelessWidget {
-  const _FrameStamp({required this.createdAt});
+  const _FrameStamp({required this.createdAt, this.originalBytes});
 
   final DateTime createdAt;
+
+  /// Dolduğunda künyenin altına sessiz bir satır daha giriyor.
+  final int? originalBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -920,6 +985,29 @@ class _FrameStamp extends StatelessWidget {
             ColophonTick(color: palette.ember),
           ],
         ),
+        // Kare dokunulmamışsa künyenin altında bunu söyleyen sessiz bir satır.
+        //
+        // Karenin **üstüne** hiçbir şey basılmıyor: kartın kendi kuralı burada
+        // da geçerli. Zaten basılsaydı paylaşılan ve dışa aktarılan dosyaya da
+        // işlenmiş olurdu; bu satır yalnızca ekranda yaşıyor.
+        //
+        // Tarih satırının tiklerini tekrarlamıyor ve ondan da soluk: burası
+        // künyenin ana bilgisi değil, bir dipnot.
+        if (originalBytes case final bytes?) ...[
+          const SizedBox(height: 7),
+          Text(
+            '${l10n.upper(l10n.originalMark)}  ·  ${l10n.fileSize(bytes)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: palette.overline.copyWith(
+              color: palette.inkGhost,
+              fontSize: 9,
+              height: 1,
+              letterSpacing: 1.4,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ],
     );
   }

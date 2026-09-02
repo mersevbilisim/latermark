@@ -391,8 +391,20 @@ abstract final class BackupArchive {
       }
       final imageNames = <String>{};
       for (final note in notes) {
-        if (!_isSafeFileName(note.imageName) ||
-            !imageNames.add(note.imageName) ||
+        // Karesiz kayıtta `image` boş string. Dosya adı denetimi ve teklik
+        // denetimi ona uygulanamaz: boş ad geçerli bir dosya adı değil (ve
+        // olmamalı), üstelik birden çok karesiz kayıt aynı boş adı taşır.
+        // İkisi de yalnız gerçek dosya adlarına sorulur.
+        // Saklanan orijinal de arşivde kendi girişi olarak duruyor ve o da
+        // kayıtlı sayılmalı — yoksa aşağıdaki döngü onu "kayıtsız fotoğraf"
+        // sanıp bütün dosyayı reddediyor. Kullanıcı açısından bu, sağlam bir
+        // yedeğin "bozuk" görünmesi demek.
+        final named = note.imageName.isNotEmpty;
+        final original = note.originalName;
+        if ((named && !_isSafeFileName(note.imageName)) ||
+            (named && !imageNames.add(note.imageName)) ||
+            (original != null &&
+                (!_isSafeFileName(original) || !imageNames.add(original))) ||
             note.customMinutes < 0 ||
             note.remindEveryDays < 0 ||
             note.remindEveryDays > 36500 ||

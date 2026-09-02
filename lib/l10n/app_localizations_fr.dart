@@ -165,6 +165,17 @@ class L10nFr extends L10n {
       'Impossible d’ajouter la photo partagée. Nous réessaierons.';
 
   @override
+  String get toastQueuedNoteAdded => 'Note ajoutée.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Note ajoutée, mais le rappel tombait après la date de suppression de la note.';
+
+  @override
+  String get toastQueuedNoteFailed =>
+      'Impossible d’ajouter la note. Nous réessaierons.';
+
+  @override
   String get toastDeleteFailed => 'Suppression impossible. Réessayez.';
 
   @override
@@ -671,7 +682,7 @@ class L10nFr extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark fonctionne entièrement sur votre appareil. Vos notes et souvenirs ne sont transmis à aucun service d’analyse, de rapport d’erreurs ou de statistiques. Ils ne quittent l’appareil que lorsque vous choisissez de les partager.';
+      'Latermark fonctionne entièrement sur votre appareil. Vos notes et souvenirs ne sont transmis à aucun service d’analyse, de rapport d’erreurs ou de statistiques. Ils ne quittent l’appareil que lorsque vous choisissez de les partager. Pour la mesure publicitaire, seules deux informations sont transmises à Meta : l’installation de l’application et la réalisation d’un achat. Ni l’une ni l’autre ne contient ce que vous écrivez, photographiez ou localisez.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -1184,4 +1195,29 @@ class L10nFr extends L10n {
   @override
   String get reminderAfterExpiry =>
       'Le rappel doit précéder la suppression de cette note.';
+
+  @override
+  String get keepOriginalLabel => 'Enregistrer l’original';
+
+  @override
+  String get keepOriginalDetail => 'Qualité intacte, occupe plus d’espace.';
+
+  @override
+  String get originalMark => 'Original';
+
+  @override
+  String get composeLocationFailed => 'Position indisponible';
+
+  @override
+  String get locationFixFailed =>
+      'L’appareil n’a pas pu déterminer la position. La note sera enregistrée sans lieu.';
+
+  @override
+  String get composeTextEntry => 'Écrire un texte';
+
+  @override
+  String get addEntry => 'Ajouter une note';
+
+  @override
+  String get composeTextHint => 'De quoi voulez-vous vous souvenir ?';
 }

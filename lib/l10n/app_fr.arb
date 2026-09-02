@@ -59,6 +59,9 @@
   "toastPendingPickFailed": "La sélection interrompue n’a pas pu être récupérée.",
   "toastSharedPhotoAdded": "Photo partagée ajoutée.",
   "toastSharedPhotoFailed": "Impossible d’ajouter la photo partagée. Nous réessaierons.",
+  "toastQueuedNoteAdded": "Note ajoutée.",
+  "toastQueuedNoteReminderDropped": "Note ajoutée, mais le rappel tombait après la date de suppression de la note.",
+  "toastQueuedNoteFailed": "Impossible d’ajouter la note. Nous réessaierons.",
   "toastDeleteFailed": "Suppression impossible. Réessayez.",
   "toastSaveFailed": "Enregistrement impossible. Réessayez.",
   "toastEditFailed": "Impossible d’enregistrer les modifications.",
@@ -238,7 +241,7 @@
   "yourDataTitle": "Latermark et vos données",
   "yourDataSubtitle": "Votre vie privée compte. Nous la traitons avec tout le respect qu’elle mérite.",
   "yourDataSafetyQuestion": "Mes données sont-elles en sécurité ?",
-  "yourDataSafetyAnswer": "Latermark fonctionne entièrement sur votre appareil. Vos notes et souvenirs ne sont transmis à aucun service d’analyse, de rapport d’erreurs ou de statistiques. Ils ne quittent l’appareil que lorsque vous choisissez de les partager.",
+  "yourDataSafetyAnswer": "Latermark fonctionne entièrement sur votre appareil. Vos notes et souvenirs ne sont transmis à aucun service d’analyse, de rapport d’erreurs ou de statistiques. Ils ne quittent l’appareil que lorsque vous choisissez de les partager. Pour la mesure publicitaire, seules deux informations sont transmises à Meta : l’installation de l’application et la réalisation d’un achat. Ni l’une ni l’autre ne contient ce que vous écrivez, photographiez ou localisez.",
   "yourDataLocationQuestion": "Pourquoi Latermark demande-t-il l’accès à ma position ?",
   "yourDataLocationAnswer": "Cette autorisation n’est demandée que si vous choisissez d’ajouter un lieu à une note ou à un souvenir. La position reste associée à cette seule entrée, sans suivi en arrière-plan. Elle n’est transmise à votre app de cartes que si vous ouvrez la carte.",
   "yourDataPhotosQuestion": "À quoi sert l’accès à mes photos ?",
@@ -516,5 +519,13 @@
   "reminderTimeLabel": "Heure",
   "reminderSkip": "Pas maintenant",
   "reminderDeleteAfterLabel": "Supprimer 1 heure après le rappel",
-  "reminderAfterExpiry": "Le rappel doit précéder la suppression de cette note."
+  "reminderAfterExpiry": "Le rappel doit précéder la suppression de cette note.",
+  "keepOriginalLabel": "Enregistrer l’original",
+  "keepOriginalDetail": "Qualité intacte, occupe plus d’espace.",
+  "originalMark": "Original",
+  "composeLocationFailed": "Position indisponible",
+  "locationFixFailed": "L’appareil n’a pas pu déterminer la position. La note sera enregistrée sans lieu.",
+  "composeTextEntry": "Écrire un texte",
+  "addEntry": "Ajouter une note",
+  "composeTextHint": "De quoi voulez-vous vous souvenir ?"
 }

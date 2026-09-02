@@ -45,6 +45,9 @@
   "toastPendingPickFailed": "Impossibile recuperare la selezione interrotta.",
   "toastSharedPhotoAdded": "Foto condivisa aggiunta.",
   "toastSharedPhotoFailed": "Impossibile aggiungere la foto condivisa. Riproveremo.",
+  "toastQueuedNoteAdded": "Nota aggiunta.",
+  "toastQueuedNoteReminderDropped": "Nota aggiunta, ma il promemoria cadeva dopo la data di eliminazione della nota.",
+  "toastQueuedNoteFailed": "Impossibile aggiungere la nota. Riproveremo.",
   "toastDeleteFailed": "Impossibile eliminarlo. Riprova.",
   "toastSaveFailed": "Impossibile salvare. Riprova.",
   "toastEditFailed": "Impossibile salvare le modifiche.",
@@ -196,7 +199,7 @@
   "yourDataTitle": "Latermark e i tuoi dati",
   "yourDataSubtitle": "La tua privacy conta. E la trattiamo con il rispetto che merita.",
   "yourDataSafetyQuestion": "I miei dati sono al sicuro?",
-  "yourDataSafetyAnswer": "Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli.",
+  "yourDataSafetyAnswer": "Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli. Per la misurazione pubblicitaria a Meta vengono comunicate solo due cose: che l’app è stata installata e che è stato effettuato un acquisto. Nessuna delle due include ciò che scrivi, fotografi o contrassegni.",
   "yourDataLocationQuestion": "Perché Latermark richiede l’accesso alla posizione?",
   "yourDataLocationAnswer": "L’autorizzazione viene richiesta solo se scegli di aggiungere un luogo a una nota o a un ricordo. La posizione resta associata solo a quell’elemento, senza tracciamento in background. Passa all’app Mappe solo se decidi di aprire la mappa.",
   "yourDataPhotosQuestion": "Come viene usato l’accesso alle foto?",
@@ -322,5 +325,13 @@
   "reminderTimeLabel": "Ora",
   "reminderSkip": "Non ora",
   "reminderDeleteAfterLabel": "Elimina 1 ora dopo il promemoria",
-  "reminderAfterExpiry": "Il promemoria deve precedere l’eliminazione di questa nota."
+  "reminderAfterExpiry": "Il promemoria deve precedere l’eliminazione di questa nota.",
+  "keepOriginalLabel": "Salva l’originale",
+  "keepOriginalDetail": "Qualità intatta, occupa più spazio.",
+  "originalMark": "Originale",
+  "composeLocationFailed": "Posizione non disponibile",
+  "locationFixFailed": "Il dispositivo non è riuscito a determinare la posizione. La nota verrà salvata senza luogo.",
+  "composeTextEntry": "Scrivi un testo",
+  "addEntry": "Aggiungi una nota",
+  "composeTextHint": "Che cosa vuoi ricordare?"
 }

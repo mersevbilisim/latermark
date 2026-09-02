@@ -59,6 +59,9 @@
   "toastPendingPickFailed": "Não foi possível recuperar a seleção interrompida.",
   "toastSharedPhotoAdded": "Fotografia partilhada adicionada.",
   "toastSharedPhotoFailed": "Não foi possível adicionar a fotografia partilhada. Voltaremos a tentar.",
+  "toastQueuedNoteAdded": "Nota adicionada.",
+  "toastQueuedNoteReminderDropped": "Nota adicionada, mas o lembrete ficava depois da hora de eliminação da nota.",
+  "toastQueuedNoteFailed": "Não foi possível adicionar a nota. Voltaremos a tentar.",
   "toastDeleteFailed": "Não foi possível eliminar. Tente novamente.",
   "toastSaveFailed": "Não foi possível guardar. Tente novamente.",
   "toastEditFailed": "Não foi possível guardar as alterações.",
@@ -238,7 +241,7 @@
   "yourDataTitle": "Latermark e os seus dados",
   "yourDataSubtitle": "A sua privacidade importa-nos — e tratamo-la com o respeito que merece.",
   "yourDataSafetyQuestion": "Os meus dados estão seguros?",
-  "yourDataSafetyAnswer": "O Latermark funciona inteiramente no seu dispositivo. As suas notas e memórias não são enviadas para análise, relatórios de erros ou estatísticas. Só saem do dispositivo quando decide partilhá-las.",
+  "yourDataSafetyAnswer": "O Latermark funciona inteiramente no seu dispositivo. As suas notas e memórias não são enviadas para análise, relatórios de erros ou estatísticas. Só saem do dispositivo quando decide partilhá-las. Para medição publicitária, são comunicadas à Meta apenas duas coisas: que a aplicação foi instalada e que foi feita uma compra. Nenhuma delas inclui o que escreve, fotografa ou etiqueta.",
   "yourDataLocationQuestion": "Porque é pedido acesso à minha localização?",
   "yourDataLocationAnswer": "Esta permissão só é pedida se decidir adicionar uma localização a uma nota ou memória. A localização fica associada apenas a esse registo, sem seguimento em segundo plano. Só é enviada para a app de mapas se decidir abrir o mapa.",
   "yourDataPhotosQuestion": "Para que serve o acesso às minhas fotografias?",
@@ -516,5 +519,13 @@
   "reminderTimeLabel": "Hora",
   "reminderSkip": "Agora não",
   "reminderDeleteAfterLabel": "Apagar 1 hora depois de lembrar",
-  "reminderAfterExpiry": "O lembrete deve ser anterior à eliminação desta nota."
+  "reminderAfterExpiry": "O lembrete deve ser anterior à eliminação desta nota.",
+  "keepOriginalLabel": "Guardar o original",
+  "keepOriginalDetail": "Mantém toda a qualidade, ocupa mais espaço.",
+  "originalMark": "Original",
+  "composeLocationFailed": "Não foi possível obter a localização",
+  "locationFixFailed": "O dispositivo não conseguiu obter a posição agora. A nota será guardada sem lugar.",
+  "composeTextEntry": "Escrever texto",
+  "addEntry": "Adicionar uma nota",
+  "composeTextHint": "Do que quer lembrar-se?"
 }

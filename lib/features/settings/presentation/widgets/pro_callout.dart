@@ -192,8 +192,10 @@ class _ContactSheet extends StatelessWidget {
                 // Küçültülmüş çözüm isteniyor: bu gözler ~30 punto, tam
                 // çözünürlükte çözmek onlarca megabaytı boşuna belleğe alırdı.
                 decodeWidth: pixels,
+                // Bu gözler ~30 punto; küçük kopya fazlasıyla yetiyor ve
+                // ızgarayla aynı dosyayı okuduğu için çoğu zaten önbellekte.
                 file: index < frames.length
-                    ? repository.imageOf(frames[index])
+                    ? repository.gridImageOf(frames[index])
                     : null,
               ),
             ],

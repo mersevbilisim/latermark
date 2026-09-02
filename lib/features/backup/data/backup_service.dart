@@ -42,10 +42,21 @@ class BackupService {
     final notes = await _repository.exportNotes();
     final settings = await _repository.exportSettings();
 
+    // Küçük kopyalar bilerek dışarıda: türetilebilir oldukları için geri
+    // yüklemeden sonra yeniden üretiliyorlar ve yedeği boşuna şişirirlerdi.
+    // Orijinal ise türetilemez — girmezse kullanıcı onu kalıcı kaybeder.
     final photos = <String, String>{};
+    var photoCount = 0;
     for (final note in notes) {
       final file = await _repository.photoFile(note.imageName);
-      if (file.existsSync()) photos[note.imageName] = file.path;
+      if (file.existsSync()) {
+        photos[note.imageName] = file.path;
+        photoCount++;
+      }
+      final original = note.originalName;
+      if (original == null) continue;
+      final originalFile = await _repository.photoFile(original);
+      if (originalFile.existsSync()) photos[original] = originalFile.path;
     }
 
     final directory = await getTemporaryDirectory();
@@ -76,7 +87,9 @@ class BackupService {
     return CreatedBackup(
       file: destination,
       noteCount: notes.length,
-      photoCount: photos.length,
+      // Sayaç kullanıcıya kaç **kare** yedeklendiğini söylüyor; orijinal
+      // ayrı bir kare değil, aynı karenin ikinci kopyası.
+      photoCount: photoCount,
     );
   }
 

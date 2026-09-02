@@ -135,15 +135,39 @@ class _CapturePageState extends State<CapturePage>
     _controller = null;
     await previous?.dispose();
 
-    final controller = CameraController(
-      lens,
-      ResolutionPreset.veryHigh,
-      enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.jpeg,
-    );
+    // Çekim çözünürlüğü, kaydın **üst sınırını** belirliyor.
+    //
+    // Eskiden `veryHigh` (1920×1080) kullanılıyordu ve bunun iki sonucu vardı.
+    // Kare zaten 2048'in altında kaldığı için saklama sıkıştırması hiç
+    // çalışmıyordu; dahası "orijinal haliyle kaydet" seçeneği aynı karenin
+    // ikinci kopyasını üretiyor, yer iki katına çıkıyor ama kalite hiç
+    // artmıyordu. `ultraHigh` (2160p) sıkıştırmanın da orijinalin de anlam
+    // kazandığı ilk basamak.
+    //
+    // Cihaz desteklemiyorsa eskisine düşülüyor: yüksek çözünürlük bir
+    // iyileştirme, kamerayı hiç açamamaktansa 1080p yeğdir.
+    var controller = _controllerFor(lens, ResolutionPreset.ultraHigh);
 
     try {
       await controller.initialize();
+    } on CameraException catch (error) {
+      await controller.dispose();
+      if (_isUnsupportedPreset(error)) {
+        controller = _controllerFor(lens, ResolutionPreset.veryHigh);
+        try {
+          await controller.initialize();
+        } on CameraException catch (fallbackError) {
+          await controller.dispose();
+          _reportFailure(fallbackError);
+          return;
+        }
+      } else {
+        _reportFailure(error);
+        return;
+      }
+    }
+
+    try {
       await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
       await controller.setFlashMode(_flashMode);
     } on CameraException catch (error) {
@@ -163,6 +187,25 @@ class _CapturePageState extends State<CapturePage>
       _capturing = false;
     });
   }
+
+  CameraController _controllerFor(
+    CameraDescription lens,
+    ResolutionPreset preset,
+  ) => CameraController(
+    lens,
+    preset,
+    enableAudio: false,
+    imageFormatGroup: ImageFormatGroup.jpeg,
+  );
+
+  /// Cihaz istenen çözünürlüğü veremiyor mu.
+  ///
+  /// İzin ve donanım hatalarından ayrılması şart: onlarda daha düşük bir
+  /// çözünürlükle yeniden denemek yalnızca aynı hatayı iki kez almak olur.
+  static bool _isUnsupportedPreset(CameraException error) =>
+      error.code == 'noAvailableCamera' ||
+      error.code.toLowerCase().contains('resolution') ||
+      (error.description?.toLowerCase().contains('resolution') ?? false);
 
   void _reportFailure(CameraException error) {
     if (!mounted) return;

@@ -23,7 +23,7 @@ import '../../l10n/l10n_context.dart';
 /// Onaylanırsa `true`, aksi hâlde `null` döner.
 Future<bool?> showShutterConfirm(
   BuildContext context, {
-  required File photo,
+  required File? photo,
   required String title,
   String? caption,
 }) {
@@ -62,7 +62,7 @@ class _ShutterConfirm extends StatefulWidget {
     this.caption,
   });
 
-  final File photo;
+  final File? photo;
   final String title;
   final String? caption;
 
@@ -195,7 +195,7 @@ class _HoldTarget extends StatelessWidget {
   });
 
   final AnimationController controller;
-  final File photo;
+  final File? photo;
   final bool enabled;
 
   static const _size = 236.0;
@@ -243,14 +243,20 @@ class _HoldTarget extends StatelessWidget {
                         // içeri çekiliyormuş gibi.
                         Transform.scale(
                           scale: 1 + 0.06 * eased,
-                          child: Image.file(
-                            photo,
-                            fit: BoxFit.cover,
-                            cacheWidth: decodeWidth,
-                            filterQuality: FilterQuality.low,
-                            errorBuilder: (context, _, _) =>
-                                const ColoredBox(color: OnPhoto.canvasDeep),
-                          ),
+                          // Karesiz kayıtta kapanacak bir kare yok; diyafram
+                          // koyu bir alanın üstünde kapanıyor. Hareket aynı
+                          // kalıyor, çünkü onaylanan şey kaydın kendisi.
+                          child: switch (photo) {
+                            null => const ColoredBox(color: OnPhoto.canvasDeep),
+                            final file => Image.file(
+                              file,
+                              fit: BoxFit.cover,
+                              cacheWidth: decodeWidth,
+                              filterQuality: FilterQuality.low,
+                              errorBuilder: (context, _, _) =>
+                                  const ColoredBox(color: OnPhoto.canvasDeep),
+                            ),
+                          },
                         ),
                         ColoredBox(
                           color: OnPhoto.canvasDeep.withValues(

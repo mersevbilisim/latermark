@@ -9,6 +9,7 @@ import '../../../../settings/domain/app_settings.dart';
 import '../../../../reminders/reminder_service.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
+import '../../../domain/note_kind.dart';
 import '../../../data/photo_aspect.dart';
 import '../../../domain/note_age_group.dart';
 import 'home_header.dart';
@@ -200,6 +201,11 @@ class _ColumnSection extends StatelessWidget {
 /// Telefon kamerası dikey karesi; oran okunana kadarki tahmin.
 const _assumedAspect = 3 / 4;
 
+/// Karenin oranı. Yalnız fotoğrafı olan kayıtlar için — karesiz kayıt
+/// oranıyla değil, yazısıyla boylanıyor.
+double _aspectOf(Note note) =>
+    PhotoAspect.peek(note.imageName) ?? _assumedAspect;
+
 /// Sütunların arası ve kutuların arası.
 const _gridGutter = 12.0;
 const _gridStep = 18.0;
@@ -255,9 +261,11 @@ class _GridState extends State<_Grid> {
   }
 
   Future<void> _warm() async {
+    // Karesiz kayıtların okunacak başlığı yok; hepsi aynı boş anahtara
+    // yazılıp önbelleği kirletirdi.
     final files = {
       for (final note in widget.notes)
-        note.imageName: widget.feed.repository.imageOf(note),
+        if (note.hasPhoto) note.imageName: widget.feed.repository.imageOf(note),
     };
     await PhotoAspect.warm(files);
     if (mounted) setState(() {});
@@ -310,9 +318,14 @@ class _GridState extends State<_Grid> {
   /// gerçek boylarında diziliyor. Baskı baskın terim; künyenin yüksekliği
   /// kartın kendi yapısından toplanıyor.
   double _estimate(Note note, double width) {
-    var height = width / (PhotoAspect.peek(note.imageName) ?? _assumedAspect);
+    // Karesiz kayıtta kâğıt yazısı kadar; oran diye bir şey yok.
+    var height = note.hasPhoto
+        ? width / _aspectOf(note)
+        : textPrintHeight(note.body, width, scale: CardScale.compact);
 
-    if (note.body.isEmpty) {
+    // Karesiz kayıtta yazı baskının içinde; künyenin altında ikinci bir satır
+    // yok, dolayısıyla eklenecek yükseklik de yok.
+    if (note.isTextOnly || note.body.isEmpty) {
       height += 7;
     } else {
       // Kart notu en çok üç satır gösteriyor; satır sayısı için ortalama harf
@@ -353,7 +366,7 @@ class _GridColumn extends StatelessWidget {
           return feed._card(
             note,
             CardScale.compact,
-            aspect: PhotoAspect.peek(note.imageName) ?? _assumedAspect,
+            aspect: note.hasPhoto ? _aspectOf(note) : null,
           );
         },
       ),

@@ -47,6 +47,7 @@ final class BackupEntry {
 final class BackupNote {
   const BackupNote({
     required this.imageName,
+    this.originalName,
     required this.body,
     required this.createdAt,
     required this.retention,
@@ -64,6 +65,7 @@ final class BackupNote {
 
   factory BackupNote.fromJson(Map<String, Object?> json) => BackupNote(
     imageName: json['image']! as String,
+    originalName: json['original'] as String?,
     body: (json['body'] as String?) ?? '',
     createdAt: _time(json['created'])!,
     retention: (json['retention'] as num?)?.toInt() ?? 0,
@@ -82,6 +84,18 @@ final class BackupNote {
   );
 
   final String imageName;
+
+  /// Kullanıcının saklamayı seçtiği dokunulmamış karenin adı.
+  ///
+  /// Küçük kopyalar yedeğe girmiyor çünkü **türetilebilir** — geri yüklemeden
+  /// sonra yeniden üretiliyorlar. Orijinal türetilemez: yedeğe girmezse
+  /// kullanıcı geri yüklediğinde onu kalıcı olarak kaybeder.
+  ///
+  /// Eski arşivlerde bu anahtar hiç yok ve `null` okunuyor; [toJson] da
+  /// yalnızca doluysa yazıyor. Yani 1.0.2'den kalan bir yedek dosyası aynen
+  /// açılmaya devam ediyor.
+  final String? originalName;
+
   final String body;
   final DateTime createdAt;
   final int retention;
@@ -123,6 +137,7 @@ final class BackupNote {
 
   Map<String, Object?> toJson() => {
     'image': imageName,
+    if (originalName != null) 'original': originalName,
     if (body.isNotEmpty) 'body': body,
     'created': createdAt.toUtc().millisecondsSinceEpoch,
     'retention': retention,

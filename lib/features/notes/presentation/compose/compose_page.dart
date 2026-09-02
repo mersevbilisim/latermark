@@ -8,6 +8,7 @@ import '../../../../app/app_routes.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../shared/widgets/app_toast.dart';
+import '../../../../shared/widgets/icon_orb.dart';
 import '../capture/capture_page.dart';
 import '../import/gallery_import.dart';
 import '../import/shared_import.dart';
@@ -15,6 +16,7 @@ import '../reminder/reminder_schedule_page.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
+import '../widgets/keep_original_control.dart';
 import '../widgets/location_control.dart';
 import '../widgets/reminder_control.dart';
 import '../../data/location_service.dart';
@@ -24,7 +26,11 @@ import '../../domain/note_reminder.dart';
 import '../../domain/retention.dart';
 
 /// Çekilen kareye not düşme ekranı.
-enum ComposeSource { camera, gallery, shared }
+///
+/// [ComposeSource.text] karesiz kayıt: ekranın geri kalanı **aynı** — aynı
+/// yazı alanı, aynı künye, aynı saklama ve hatırlatma denetimleri. Yalnızca
+/// kare önizlemesi ve kareye bağlı seçenekler (orijinali sakla, konum) yok.
+enum ComposeSource { camera, gallery, shared, text }
 
 /// Kaydetmenin hâli.
 ///
@@ -41,17 +47,23 @@ enum ComposeSavePhase { idle, locating, saving, sealed }
 class ComposePage extends StatefulWidget {
   const ComposePage({
     super.key,
-    required this.capture,
+    this.capture,
     this.source = ComposeSource.camera,
     this.initialText = '',
     this.capturedAt,
     this.sharedImportId,
     this.onFlowClosed,
-  });
+  }) : assert(
+         (capture == null) == (source == ComposeSource.text),
+         'Kare ile kaynak birbirini tutmuyor: metin kaydının karesi olmaz, '
+         'kareli kaynak da dosyasız açılamaz',
+       );
 
   /// Düzenlenecek kare. Kamera ve paylaşım kaynakları Latermark'ın yönettiği
   /// geçici kopyalardır; galeri kaynağının sahipliği sistemde kalır.
-  final XFile capture;
+  ///
+  /// [ComposeSource.text] için `null`.
+  final XFile? capture;
   final ComposeSource source;
   final String initialText;
   final DateTime? capturedAt;
@@ -77,6 +89,9 @@ class _ComposePageState extends State<ComposePage> {
   /// Hatırlatma isteniyor mu. Gün ve saat burada sorulmuyor: kaydetmenin
   /// ardından açılan planlama ekranının işi.
   bool _remindMe = false;
+
+  /// Her zaman kapalı başlar; tercih hatırlanmıyor.
+  bool _keepOriginal = false;
 
   /// Konum anahtarı. Varsayılanı ayarlardaki son tercih besler; yalnızca
   /// kamerayla çekilen karede anlamlı.
@@ -104,11 +119,29 @@ class _ComposePageState extends State<ComposePage> {
 
   bool get _saving => _savePhase != ComposeSavePhase.idle;
 
+  /// Yazı alanı boş mu.
+  ///
+  /// Yalnız karesiz kayıtta işe yarıyor: orada gövde boşsa geriye hiçbir şeyi
+  /// olmayan bir kayıt kalırdı. Kareli akışta boş gövde olağan — kareyi
+  /// kaydetmek tek başına anlamlı.
+  ///
+  /// Her tuş vuruşunda değil, yalnız boş/dolu **eşiği geçildiğinde** yeniden
+  /// çiziliyor.
+  bool _bodyEmpty = true;
+
   @override
   void initState() {
     super.initState();
     _text = TextEditingController(text: widget.initialText);
+    _bodyEmpty = widget.initialText.trim().isEmpty;
+    _text.addListener(_onTextChanged);
     _capturedAt = widget.capturedAt ?? DateTime.now();
+  }
+
+  void _onTextChanged() {
+    final empty = _text.text.trim().isEmpty;
+    if (empty == _bodyEmpty || !mounted) return;
+    setState(() => _bodyEmpty = empty);
   }
 
   @override
@@ -126,6 +159,7 @@ class _ComposePageState extends State<ComposePage> {
 
   @override
   void dispose() {
+    _text.removeListener(_onTextChanged);
     _text.dispose();
     if (!_flowHandedOff) _closeFlow();
     super.dispose();
@@ -153,7 +187,11 @@ class _ComposePageState extends State<ComposePage> {
       return;
     }
 
-    final file = File(widget.capture.path);
+    // Metin kaydının geçici dosyası yok; silinecek bir şey de yok.
+    final capture = widget.capture;
+    if (capture == null) return;
+
+    final file = File(capture.path);
     if (!file.existsSync()) return;
     try {
       await file.delete();
@@ -200,20 +238,31 @@ class _ComposePageState extends State<ComposePage> {
       }
       if (!mounted) return;
 
-      noteId = await repository.create(
-        capture: widget.capture,
-        body: body,
-        retention: RetentionChoice(
-          settings.defaultRetention,
-          customMinutes: settings.defaultCustomMinutes,
-        ),
-        // Hatırlatma anı bu ekranda hiç sorulmadı; kayıt önce yazılıyor,
-        // planlama ekranı onu bir sonraki karede kendisi yazıyor.
-        reminder: const ReminderChoice.off(),
-        createdAt: _capturedAt,
-        location: location,
-        importId: widget.sharedImportId,
+      final retention = RetentionChoice(
+        settings.defaultRetention,
+        customMinutes: settings.defaultCustomMinutes,
       );
+      // Hatırlatma anı bu ekranda hiç sorulmadı; kayıt önce yazılıyor,
+      // planlama ekranı onu bir sonraki karede kendisi yazıyor.
+      final capture = widget.capture;
+      noteId = capture == null
+          ? await repository.createText(
+              body: body,
+              retention: retention,
+              reminder: const ReminderChoice.off(),
+              createdAt: _capturedAt,
+              importId: widget.sharedImportId,
+            )
+          : await repository.create(
+              capture: capture,
+              body: body,
+              retention: retention,
+              reminder: const ReminderChoice.off(),
+              createdAt: _capturedAt,
+              location: location,
+              importId: widget.sharedImportId,
+              keepOriginal: _keepOriginal,
+            );
       if (reviewPrompts != null) {
         unawaited(reviewPrompts.recordSuccessfulSave());
       }
@@ -303,6 +352,7 @@ class _ComposePageState extends State<ComposePage> {
     final photoHeight = (media.size.height - _composerReserve - bottomSafe)
         .clamp(150.0, media.size.height * 0.46)
         .toDouble();
+    final capture = widget.capture;
 
     return Scaffold(
       backgroundColor: context.palette.canvas,
@@ -324,24 +374,50 @@ class _ComposePageState extends State<ComposePage> {
           ignoring: _saving,
           child: Column(
             children: [
-              CapturePreview(
-                file: File(widget.capture.path),
-                height: photoHeight,
-                onDiscard: _discard,
-                onRetake: _retake,
-                replacementIcon: widget.source != ComposeSource.camera
-                    ? Icons.photo_library_outlined
-                    : Icons.refresh_rounded,
-                replacementLabel: widget.source != ComposeSource.camera
-                    ? context.l10n.composeAnotherPhoto
-                    : context.l10n.composeRetake,
-              ),
+              if (capture == null)
+                // Karesiz kayıtta baskı yuvası hiç çizilmiyor; yazı alanı
+                // ekranın tamamını alıyor. Kapatma denetimi kareli akıştaki
+                // yeriyle aynı köşede kalıyor — kas hafızası bozulmasın.
+                Padding(
+                  padding: EdgeInsets.only(top: media.padding.top + 8),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 20),
+                      child: IconOrb(
+                        icon: Icons.close_rounded,
+                        semanticLabel: context.l10n.actionCancel,
+                        onPressed: _discard,
+                        tint: context.palette.ink,
+                        fill: context.palette.canvasLift,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                CapturePreview(
+                  file: File(capture.path),
+                  height: photoHeight,
+                  onDiscard: _discard,
+                  onRetake: _retake,
+                  replacementIcon: widget.source != ComposeSource.camera
+                      ? Icons.photo_library_outlined
+                      : Icons.refresh_rounded,
+                  replacementLabel: widget.source != ComposeSource.camera
+                      ? context.l10n.composeAnotherPhoto
+                      : context.l10n.composeRetake,
+                ),
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(22, 22, 22, bottomSafe + 18),
                   child: NoteComposer(
                     controller: _text,
                     autofocus: true,
+                    // "Bunu neden çektin?" karesiz kayıtta anlamsız: ortada
+                    // çekilmiş bir şey yok.
+                    hintText: capture == null
+                        ? context.l10n.composeTextHint
+                        : null,
                     extra: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
@@ -351,6 +427,32 @@ class _ComposePageState extends State<ComposePage> {
                           onChanged: (value) =>
                               setState(() => _remindMe = value),
                         ),
+                        // Saklanacak orijinal ancak bir kare varsa var.
+                        // Ayırıcı da onunla birlikte gider: karesiz kayıtta
+                        // altında satır kalmıyor, tek başına asılı bir çizgi
+                        // olurdu.
+                        if (capture != null) ...[
+                          // Konum denetiminden önceki ayırıcının aynısı: iki
+                          // anahtar arasında ince bir çizgi olmadan satırlar
+                          // birbirine yapışık okunuyordu.
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              32,
+                              18,
+                              0,
+                              18,
+                            ),
+                            child: ColoredBox(
+                              color: context.palette.hairline,
+                              child: const SizedBox(height: 0.6),
+                            ),
+                          ),
+                          KeepOriginalControl(
+                            value: _keepOriginal,
+                            onChanged: (value) =>
+                                setState(() => _keepOriginal = value),
+                          ),
+                        ],
                         if (_wantsLocation) ...[
                           Padding(
                             padding: const EdgeInsetsDirectional.fromSTEB(
@@ -396,7 +498,9 @@ class _ComposePageState extends State<ComposePage> {
                           icon: Icons.ios_share_rounded,
                           label: context.l10n.sourceShared,
                         ),
-                        ComposeSource.camera => null,
+                        // Metin kaydında rozet yok: kaynağı zaten ekranın
+                        // kendisi söylüyor, kare yerine yazı alanı duruyor.
+                        ComposeSource.camera || ComposeSource.text => null,
                       },
                     ),
                     // Alt eylem, not detayıyla aynı künye dilinde: kutu yok,
@@ -421,7 +525,11 @@ class _ComposePageState extends State<ComposePage> {
                           busyLabel: _savePhase == ComposeSavePhase.locating
                               ? context.l10n.composeWaitingForLocation
                               : context.l10n.composeSaving,
-                          onPressed: _save,
+                          // Karesiz kayıtta boş gövde kaydedilemez: ortada
+                          // ne kare ne yazı olurdu.
+                          onPressed: capture == null && _bodyEmpty
+                              ? null
+                              : _save,
                         ),
                       ],
                     ),

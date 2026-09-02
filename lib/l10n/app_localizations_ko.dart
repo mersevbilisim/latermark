@@ -153,6 +153,16 @@ class L10nKo extends L10n {
   String get toastSharedPhotoFailed => '공유한 사진을 추가하지 못했습니다. 다시 시도할게요.';
 
   @override
+  String get toastQueuedNoteAdded => '메모를 추가했습니다.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      '메모를 추가했지만 알림 시각이 메모 삭제 시각보다 늦었습니다.';
+
+  @override
+  String get toastQueuedNoteFailed => '메모를 추가하지 못했습니다. 다시 시도할게요.';
+
+  @override
   String get toastDeleteFailed => '삭제하지 못했습니다. 다시 시도해 주세요.';
 
   @override
@@ -615,7 +625,7 @@ class L10nKo extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark는 노트, 사진, 위치 정보를 모두 기기 안에서 처리합니다. 직접 공유하지 않는 한 데이터는 기기 밖으로 나가지 않으며, 분석·오류 보고·이용 통계를 위해 전송되는 일도 없습니다.';
+      'Latermark는 노트, 사진, 위치 정보를 모두 기기 안에서 처리합니다. 직접 공유하지 않는 한 데이터는 기기 밖으로 나가지 않으며, 분석·오류 보고·이용 통계를 위해 전송되는 일도 없습니다. 광고 성과 측정을 위해 Meta로 전달되는 것은 앱이 설치되었다는 사실과 구매가 이루어졌다는 사실 두 가지뿐입니다. 어느 쪽에도 작성한 내용이나 사진, 위치 정보는 포함되지 않습니다.';
 
   @override
   String get yourDataLocationQuestion => '위치 권한은 왜 필요한가요?';
@@ -1042,4 +1052,28 @@ class L10nKo extends L10n {
 
   @override
   String get reminderAfterExpiry => '미리 알림은 이 노트가 삭제되기 전이어야 합니다.';
+
+  @override
+  String get keepOriginalLabel => '원본 그대로 저장';
+
+  @override
+  String get keepOriginalDetail => '화질 그대로, 용량은 늘어납니다.';
+
+  @override
+  String get originalMark => '원본';
+
+  @override
+  String get composeLocationFailed => '위치를 가져오지 못했습니다';
+
+  @override
+  String get locationFixFailed => '지금은 위치를 확인하지 못했습니다. 장소 없이 저장됩니다.';
+
+  @override
+  String get composeTextEntry => '텍스트 쓰기';
+
+  @override
+  String get addEntry => '노트 추가';
+
+  @override
+  String get composeTextHint => '무엇을 기억하고 싶나요?';
 }

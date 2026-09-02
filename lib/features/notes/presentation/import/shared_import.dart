@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/services.dart';
 
-/// Fotoğraflar/Galeri uygulamasından "Paylaş → Latermark" ile gelen bir kare.
+/// Uygulamanın dışından gelen bir teslim.
 ///
-/// Native taraf, geçici URI erişimi kaybolmadan önce görseli Latermark'ın
-/// yönettiği bir gelen kutusuna kopyalar. Flutter kayıt tamamlanana ya da
-/// kullanıcı vazgeçene kadar bu kopyayı kuyrukta bırakır.
+/// İki kaynağı var ve ikisi de aynı gelen kutusundan geçiyor:
+/// Fotoğraflar/Galeri uygulamasından "Paylaş → Latermark" ile gelen bir kare,
+/// ve Siri/Kestirmeler'den gelen karesiz bir metin notu. Native taraf, geçici
+/// erişim kaybolmadan önce payload'ı Latermark'ın yönettiği bir gelen kutusuna
+/// yazıyor; Flutter kayıt tamamlanana ya da kullanıcı vazgeçene kadar
+/// kuyrukta bırakıyor.
 class SharedImport {
   const SharedImport({
     required this.id,
@@ -16,10 +19,14 @@ class SharedImport {
     required this.initialText,
     required this.saveImmediately,
     required this.remindAfterDays,
+    this.remindAt,
   });
 
   final String id;
-  final XFile image;
+
+  /// Karesiz teslimde `null` — kayıt yalnızca yazıdan oluşur (bkz. `NoteKind`).
+  final XFile? image;
+
   final DateTime createdAt;
   final String initialText;
 
@@ -31,9 +38,19 @@ class SharedImport {
   /// Share Extension içinde seçilen tek-atışlı hatırlatma. Değer ana
   /// uygulamada entitlement ve bildirim izni kurallarından tekrar geçer.
   final int remindAfterDays;
+
+  /// Siri'nin bildiği **mutlak** hatırlatma anı.
+  ///
+  /// Gün sayısına çevrilmiyor: "yarın 9'da" diyen birinin saati kaybolurdu.
+  /// Uzantı bu anı beklerken bildirimi de kendisi kurdu; ana uygulama kaydı
+  /// oluşturduğunda o geçici alarmı kaldırıp kendi programına alıyor.
+  final DateTime? remindAt;
+
+  bool get isText => image == null;
 }
 
-/// iOS Share Extension ile Android ACTION_SEND'i tek Dart akışında birleştirir.
+/// iOS Share Extension, iOS App Intents ve Android ACTION_SEND'i tek Dart
+/// akışında birleştirir.
 abstract final class SharedImportBridge {
   static const _channel = MethodChannel('latermark/shared_import');
   static final _available = StreamController<void>.broadcast();
@@ -63,15 +80,18 @@ abstract final class SharedImportBridge {
       if (raw == null) return null;
 
       final id = raw['id'];
+      if (id is! String || id.isEmpty) return null;
+
+      // `kind` alanı olmayan teslimler bu sürümden öncesine ait ve her zaman
+      // fotoğraftır; sözleşme geriye uyumlu.
+      final isText = raw['kind'] == 'text';
       final path = raw['path'];
-      if (id is! String || id.isEmpty || path is! String || path.isEmpty) {
-        return null;
-      }
+      if (!isText && (path is! String || path.isEmpty)) return null;
 
       final createdAtMilliseconds = raw['createdAtMilliseconds'];
       return SharedImport(
         id: id,
-        image: XFile(path),
+        image: isText ? null : XFile(path! as String),
         createdAt: createdAtMilliseconds is num
             ? DateTime.fromMillisecondsSinceEpoch(createdAtMilliseconds.toInt())
             : DateTime.now(),
@@ -82,6 +102,12 @@ abstract final class SharedImportBridge {
         remindAfterDays: switch (raw['remindAfterDays']) {
           final num days => days.toInt().clamp(0, 365),
           _ => 0,
+        },
+        remindAt: switch (raw['remindAtMilliseconds']) {
+          final num milliseconds => DateTime.fromMillisecondsSinceEpoch(
+            milliseconds.toInt(),
+          ),
+          _ => null,
         },
       );
     } on MissingPluginException {
@@ -110,19 +136,47 @@ abstract final class SharedImportBridge {
     }
   }
 
-  /// Share Extension'ın Pro-only seçenekleri göstermesi için son bilinen
-  /// entitlement'ı App Group'a aynalar. Doğruluk kaynağı yine Drift/mağazadır;
-  /// ana uygulama payload'ı işlerken hakkı yeniden kontrol eder.
-  static Future<void> setProUnlocked(bool unlocked) async {
+  /// Uzantının Siri konuşurken kurduğu geçici alarmı kaldırır.
+  ///
+  /// Kayıt artık veritabanında olduğu için hatırlatmayı `ReminderService`
+  /// devralıyor. Çağrı kaydın oluşmasından **sonra** yapılmalı: aksi hâlde
+  /// arada bir hata olursa kullanıcı hem kaydı hem alarmı kaybeder.
+  static Future<void> cancelQueuedReminder(String id) async {
     _ensureInitialized();
     try {
-      await _channel.invokeMethod<void>('setShareEntitlement', {
-        'unlocked': unlocked,
+      await _channel.invokeMethod<bool>('cancelQueuedReminder', {'id': id});
+    } on MissingPluginException {
+      // Android ve widget testlerinde uzantı alarmı yoktur.
+    } on PlatformException {
+      // En kötü ihtimalle geçici alarm da çalar; dokunmak notu açar.
+    }
+  }
+
+  /// Uzantıların okuduğu ayarları App Group'a aynalar.
+  ///
+  /// Doğruluk kaynağı yine Drift/mağazadır; ana uygulama payload'ı işlerken
+  /// hakkı ve süreyi yeniden kontrol eder. Ayna yalnızca uzantının
+  /// **konuşma sırasında** doğru şeyi söyleyebilmesi için var: Pro değilken
+  /// hatırlatma sözü vermemek, saklama süresinden sonrasına alarm kurmamak.
+  ///
+  /// [retentionMinutes] sıfır ise saklama kapalıdır: kayıt kendiliğinden
+  /// silinmez ve uzantı hatırlatmayı hiçbir tarihe göre reddetmez.
+  static Future<void> setShareMirror({
+    required bool proUnlocked,
+    required bool reminderEnabled,
+    required int retentionMinutes,
+  }) async {
+    _ensureInitialized();
+    try {
+      await _channel.invokeMethod<void>('setShareMirror', {
+        'unlocked': proUnlocked,
+        'reminderEnabled': reminderEnabled,
+        'retentionMinutes': retentionMinutes,
       });
     } on MissingPluginException {
       // Android ve widget testlerinde iOS App Group'u yoktur.
     } on PlatformException {
-      // Extension en kötü ihtimalle reminder seçeneğini gizler.
+      // Extension en kötü ihtimalle hatırlatma seçeneğini reddeder.
     }
   }
 }

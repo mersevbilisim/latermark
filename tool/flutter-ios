@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Flutter'ın ürettiği SPM bildirgesindeki dağıtım hedefini derleme boyunca
-# düzelten sarmalayıcı.
+# düzelten sarmalayıcı; ayrıca iOS hedefini seçmeyi kısaltır.
 #
 # Neden gerekiyor: Flutter, `FlutterGeneratedPluginSwiftPackage/Package.swift`
 # dosyasını her derlemede kendi sabit kodlu minimumuyla (13.0) üretiyor
@@ -13,8 +13,31 @@
 # Sarmalayıcı, dosya 13.0 olarak her yazıldığında anında projenin hedefine
 # çeviriyor — yani elle yetişmeye çalışmanın otomatik hâli.
 #
-# Kullanım:  tool/flutter-ios build ios --release
-#            tool/flutter-ios run --profile
+# Kullanım
+# --------
+# Her şey `flutter`a olduğu gibi geçer:
+#
+#   tool/flutter-ios build ios --release
+#   tool/flutter-ios run --profile
+#
+# `phone` ve `sim` ön komutları cihaz kimliğini kendisi çözer:
+#
+#   tool/flutter-ios phone                 # bağlı iPhone'a kur ve çalıştır
+#   tool/flutter-ios phone --release
+#   tool/flutter-ios phone install --debug # kur ve bağlanma — DİKKAT: veriyi siler
+#   tool/flutter-ios sim                   # simülatöre kur ve çalıştır
+#   tool/flutter-ios phone build           # `build ios`, cihaz derlemesi
+#   tool/flutter-ios sim build             # `build ios --simulator`
+#
+# Alt komut verilmezse `run` varsayılır. `flutter build ios` ürünü diskte
+# bırakır, telefona **kurmaz**; kuran komut `run` ya da `install`.
+#
+# `install` cihazdaki uygulamayı önce siliyor — veritabanı ve fotoğraflar dahil
+# her şey gider. Onay soruyor; sormadan geçmek için LATERMARK_ALLOW_UNINSTALL=1.
+# Veriyi koruyan yol `run`.
+#
+# Birden çok aday varsa kimlik elle geçilebilir:
+#   LATERMARK_IOS_DEVICE=00008140-… tool/flutter-ios phone
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,10 +45,11 @@ manifest="$root/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackag
 
 # Hedef: Runner'ın kendi dağıtım hedefi.
 #
-# Bu paketi **yalnızca Runner** bağlıyor; uzantıların (NotWidget, ShareExtension)
-# hedefleri farklı olabilir ve onları hesaba katmak yanlış sonuç verir. Projedeki
-# en küçüğü almak 15.0'a, en büyüğü almak 17.0'a düşüyordu; ikisi de Runner'ın
-# gerçek değeri değil. Flutter'ın `-showBuildSettings` ile okuduğu değer 15.6.
+# Bu paketi **yalnızca Runner** bağlıyor; uzantıların (NotWidget, ShareExtension,
+# AppIntentsExtension) hedefleri farklı olabilir ve onları hesaba katmak yanlış
+# sonuç verir. Projedeki en küçüğü almak 15.0'a, en büyüğü almak 17.0'a
+# düşüyordu; ikisi de Runner'ın gerçek değeri değil. Flutter'ın
+# `-showBuildSettings` ile okuduğu değer 15.6.
 #
 # Gerekirse ortam değişkeniyle geçilebilir:  LATERMARK_IOS_TARGET=16.0 tool/flutter-ios ...
 target="${LATERMARK_IOS_TARGET:-15.6}"
@@ -34,6 +58,167 @@ target="${LATERMARK_IOS_TARGET:-15.6}"
 if [[ "$(printf '%s\n14.0\n' "$target" | sort -V | head -1)" != "14.0" ]]; then
   echo "flutter-ios: hedef ($target) 14.0'ın altında; home_widget derlenmez" >&2
   exit 1
+fi
+
+# Aday iOS cihazları: "<kimlik>\t<ad>" satırları.
+#
+# Ayrımı `flutter devices` yapıyor: simülatör `emulator: true`, telefon
+# `emulator: false` geliyor. `xcrun simctl` ile karışık kaynak kullanmak,
+# Flutter'ın göremediği bir cihazı aday göstermek olurdu.
+ios_devices() {
+  flutter devices --machine 2>/dev/null | python3 -c '
+import json, sys
+
+want_simulator = sys.argv[1] == "simulator"
+try:
+    devices = json.load(sys.stdin)
+except Exception:
+    devices = []
+
+for device in devices:
+    if not str(device.get("targetPlatform", "")).startswith("ios"):
+        continue
+    if bool(device.get("emulator")) is not want_simulator:
+        continue
+    print("%s\t%s" % (device.get("id", ""), device.get("name", "")))
+' "$1"
+}
+
+# Simülatör listesi boşsa Simulator.app'i açıp önyüklemeyi bekler.
+#
+# `flutter devices` yalnız **açık** simülatörleri listeliyor; kapalıyken
+# "cihaz yok" demek, kullanıcıyı elle simülatör açmaya göndermek olurdu.
+boot_simulator() {
+  echo "flutter-ios: açık simülatör yok, Simulator açılıyor…" >&2
+  open -a Simulator >/dev/null 2>&1 || {
+    echo "flutter-ios: Simulator açılamadı" >&2
+    return 1
+  }
+  for _ in $(seq 1 60); do
+    if xcrun simctl list devices booted 2>/dev/null | grep -q "(Booted)"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "flutter-ios: simülatör bir dakikada açılmadı" >&2
+  return 1
+}
+
+resolve_device() {
+  local want="$1" listing count
+
+  if [[ -n "${LATERMARK_IOS_DEVICE:-}" ]]; then
+    printf '%s' "$LATERMARK_IOS_DEVICE"
+    return 0
+  fi
+
+  listing="$(ios_devices "$want")"
+  if [[ -z "$listing" && "$want" == "simulator" ]]; then
+    boot_simulator || return 1
+    # Simülatör önyüklendikten sonra Flutter'ın onu görmesi bir an alabiliyor.
+    for _ in 1 2 3 4 5; do
+      listing="$(ios_devices "$want")"
+      [[ -n "$listing" ]] && break
+      sleep 2
+    done
+  fi
+
+  if [[ -z "$listing" ]]; then
+    if [[ "$want" == "simulator" ]]; then
+      echo "flutter-ios: çalışan simülatör bulunamadı" >&2
+    else
+      echo "flutter-ios: bağlı iPhone bulunamadı." >&2
+      echo "  Kabloyu tak, telefonu aç, 'Bu bilgisayara güven' de ve" >&2
+      echo "  Ayarlar > Gizlilik ve Güvenlik > Geliştirici Modu'nu aç." >&2
+    fi
+    return 1
+  fi
+
+  count="$(printf '%s\n' "$listing" | wc -l | tr -d ' ')"
+  if [[ "$count" != "1" ]]; then
+    echo "flutter-ios: birden çok aday var, kimliği kendin seç:" >&2
+    printf '%s\n' "$listing" | sed 's/^/  /' >&2
+    echo "  LATERMARK_IOS_DEVICE=<kimlik> tool/flutter-ios $want …" >&2
+    return 1
+  fi
+
+  printf '%s' "${listing%%$'\t'*}"
+}
+
+# --- Ön komut çözümü ---------------------------------------------------------
+kind=""
+mode=""
+pre_cmd=()
+case "${1:-}" in
+  phone|device|iphone) kind="physical"; shift ;;
+  sim|simulator) kind="simulator"; shift ;;
+esac
+
+if [[ -n "$kind" ]]; then
+  args=("$@")
+  sub="run"
+  case "${args[0]:-}" in
+    run|install|build|attach|logs|screenshot)
+      sub="${args[0]}"
+      args=("${args[@]:1}")
+      ;;
+  esac
+
+  if [[ "$sub" == "build" ]]; then
+    # `flutter build` cihaz almıyor: hedefi bayrak belirliyor. Simülatör
+    # derlemesi ayrıca kurulamaz — ürün yalnız diskte kalır.
+    if [[ "$kind" == "simulator" ]]; then
+      set -- build ios --simulator ${args[@]+"${args[@]}"}
+    else
+      set -- build ios ${args[@]+"${args[@]}"}
+    fi
+  else
+    device="$(resolve_device "$kind")"
+    name="$(ios_devices "$kind" | grep "^$device" | cut -f2- || true)"
+    echo "flutter-ios: hedef cihaz ${name:-$device} ($device)" >&2
+
+    if [[ "$sub" == "install" ]]; then
+      # `flutter install` iOS'ta kurmadan **önce uygulamayı siliyor**
+      # ("Uninstalling old version…"), silinen uygulamayla birlikte kabı da
+      # gidiyor: veritabanı, fotoğraf deposu, ayarlar. Yani bu komut
+      # cihazdaki bütün Latermark verisini siler.
+      #
+      # `run` böyle davranmıyor, kurulumu yerinde tazeliyor. Günlük iterasyon
+      # için doğru komut o; `install` yalnız "kur ve bağlanma" gerektiğinde.
+      if [[ -z "${LATERMARK_ALLOW_UNINSTALL:-}" ]]; then
+        echo >&2
+        echo "flutter-ios: UYARI — 'install' cihazdaki uygulamayı önce siler." >&2
+        echo "  Latermark'taki bütün kayıtlar, fotoğraflar ve ayarlar gider." >&2
+        echo "  Veriyi korumak için bunun yerine: tool/flutter-ios phone --release" >&2
+        echo >&2
+        if [[ -t 0 || -e /dev/tty ]]; then
+          read -r -p "Yine de silip kurulsun mu? (evet yaz) " answer < /dev/tty || answer=""
+          if [[ "$answer" != "evet" ]]; then
+            echo "flutter-ios: vazgeçildi." >&2
+            exit 1
+          fi
+        else
+          echo "flutter-ios: onay alınamıyor; LATERMARK_ALLOW_UNINSTALL=1 ile çalıştır." >&2
+          exit 1
+        fi
+      fi
+
+      # `flutter install` ayrıca **derlemiyor**: `build/ios/iphoneos/` altında
+      # ne varsa onu kuruyor. Orada eski bir `--no-codesign` ürünü duruyorsa
+      # kurulum "Install failed" deyip çıkıyor — üstelik çıkış kodu 0.
+      # Bu yüzden derleme adımı burada, imzalı olarak, önce koşuyor.
+      for arg in ${args[@]+"${args[@]}"}; do
+        case "$arg" in
+          --debug|--profile|--release) mode="$arg" ;;
+        esac
+      done
+      # Kip dışındaki bayraklar yalnız `install`a gidiyor; hepsini derlemeye de
+      # geçirmek, iki komutun ortak olmayan seçeneklerinde patlardı.
+      pre_cmd=(build ios ${mode:+"$mode"})
+    fi
+
+    set -- "$sub" -d "$device" ${args[@]+"${args[@]}"}
+  fi
 fi
 
 echo "flutter-ios: SPM hedefi $target olarak sabitlenecek"
@@ -48,5 +233,10 @@ echo "flutter-ios: SPM hedefi $target olarak sabitlenecek"
 ) &
 watcher=$!
 trap 'kill "$watcher" 2>/dev/null || true' EXIT INT TERM
+
+if [[ ${#pre_cmd[@]} -gt 0 ]]; then
+  echo "flutter-ios: önce derleniyor — flutter ${pre_cmd[*]}" >&2
+  flutter "${pre_cmd[@]}"
+fi
 
 flutter "$@"

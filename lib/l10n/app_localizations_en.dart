@@ -42,7 +42,7 @@ class L10nEn extends L10n {
   String get openPhotoSemantic => 'Open photo full screen';
 
   @override
-  String get actionRetry => 'Try Again';
+  String get actionRetry => 'Try again';
 
   @override
   String get actionGoBack => 'Go Back';
@@ -163,6 +163,17 @@ class L10nEn extends L10n {
   @override
   String get toastSharedPhotoFailed =>
       'The shared photo couldn’t be added. We’ll try again.';
+
+  @override
+  String get toastQueuedNoteAdded => 'Note added.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Note added, but its reminder fell after the note’s deletion time.';
+
+  @override
+  String get toastQueuedNoteFailed =>
+      'The note couldn’t be added. We’ll try again.';
 
   @override
   String get toastDeleteFailed => 'Couldn’t delete it. Try again.';
@@ -668,7 +679,7 @@ class L10nEn extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics.';
+      'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -1176,4 +1187,29 @@ class L10nEn extends L10n {
   @override
   String get reminderAfterExpiry =>
       'The reminder must be before this note is deleted.';
+
+  @override
+  String get keepOriginalLabel => 'Save the original';
+
+  @override
+  String get keepOriginalDetail => 'Quality stays untouched, storage grows.';
+
+  @override
+  String get originalMark => 'Original';
+
+  @override
+  String get composeLocationFailed => 'Location unavailable';
+
+  @override
+  String get locationFixFailed =>
+      'The device could not fix a position right now. The note will be saved without a place.';
+
+  @override
+  String get composeTextEntry => 'Write text';
+
+  @override
+  String get addEntry => 'Add a note';
+
+  @override
+  String get composeTextHint => 'What do you want to remember?';
 }

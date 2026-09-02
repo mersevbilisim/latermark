@@ -1,0 +1,8 @@
+"Add a note with ${applicationName}" = "Add a note with ${applicationName}";
+"Create a note in ${applicationName}" = "Create a note in ${applicationName}";
+"Add a reminder note with ${applicationName}" = "Add a reminder note with ${applicationName}";
+"Create a reminder note in ${applicationName}" = "Create a reminder note in ${applicationName}";
+"Save a note to ${applicationName}" = "Save a note to ${applicationName}";
+"New note in ${applicationName}" = "New note in ${applicationName}";
+"Save a reminder note to ${applicationName}" = "Save a reminder note to ${applicationName}";
+"New reminder note in ${applicationName}" = "New reminder note in ${applicationName}";

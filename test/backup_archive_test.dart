@@ -240,6 +240,60 @@ void main() {
     expect(restored.notes, hasLength(1));
   });
 
+  test('karesiz kayıtlar arşivde yan yana durabiliyor', () async {
+    // Karesiz kayıtta `image` boş string. Dosya adı denetimi ve teklik
+    // denetimi buna uygulanırsa arşiv "bozuk" diye geri çevrilir: boş ad
+    // geçerli bir dosya adı değil ve birden çok karesiz kayıt aynı boş adı
+    // taşıyor.
+    final file = await writeArchive(
+      notes: [
+        note('', body: 'Akşamki iş'),
+        note('', body: 'Sabahki iş'),
+        note('kare.jpg', body: 'Kareli'),
+      ],
+      photos: {'kare.jpg': await photo('kare.jpg', 64)},
+    );
+    final restored = await readArchive(file);
+
+    expect(restored.notes, hasLength(3));
+    expect(
+      restored.notes.where((note) => note.imageName.isEmpty),
+      hasLength(2),
+    );
+    // Karesiz kayıtlar için fotoğraf girişi yazılmıyor.
+    expect(restored.manifest.photoCount, 1);
+  });
+
+  test('saklanan orijinal yedekten geri geliyor', () async {
+    // `originalName` manifeste eklenmişti ama doğrulamaya eklenmemişti:
+    // orijinal kare arşivde kendi girişi olarak duruyor, kayıtlı adlar
+    // kümesine girmediği için "kayıtsız fotoğraf" sayılıyor ve **bütün
+    // dosya** reddediliyordu. Kullanıcı tarafında bu, sağlam bir yedeğin
+    // "bozuk ya da eksik" görünmesi demekti.
+    final file = await writeArchive(
+      notes: [
+        BackupNote(
+          imageName: 'kare.jpg',
+          originalName: 'kare-orijinal.jpg',
+          body: 'Orijinali saklanan kayıt',
+          createdAt: DateTime(2026, 8, 13, 14, 30),
+          retention: 0,
+          customMinutes: 0,
+        ),
+      ],
+      photos: {
+        'kare.jpg': await photo('kare.jpg', 64),
+        'kare-orijinal.jpg': await photo('kare-orijinal.jpg', 512),
+      },
+    );
+    final restored = await readArchive(file);
+
+    expect(restored.notes, hasLength(1));
+    expect(restored.notes.single.originalName, 'kare-orijinal.jpg');
+    // İşlenmiş kare ve orijinali ayrı girişler olarak duruyor.
+    expect(restored.manifest.photoCount, 2);
+  });
+
   test('hiç kaydı olmayan arşiv de geçerli', () async {
     final file = await writeArchive(notes: const [], photos: const {});
     final restored = await readArchive(file);

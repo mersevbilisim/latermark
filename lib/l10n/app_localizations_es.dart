@@ -42,7 +42,7 @@ class L10nEs extends L10n {
   String get openPhotoSemantic => 'Abrir la foto en pantalla completa';
 
   @override
-  String get actionRetry => 'Volver a intentar';
+  String get actionRetry => 'Reintentar';
 
   @override
   String get actionGoBack => 'Volver';
@@ -163,6 +163,17 @@ class L10nEs extends L10n {
   @override
   String get toastSharedPhotoFailed =>
       'No se pudo añadir la foto compartida. Lo intentaremos de nuevo.';
+
+  @override
+  String get toastQueuedNoteAdded => 'Nota añadida.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Nota añadida, pero el recordatorio caía después de la fecha de borrado de la nota.';
+
+  @override
+  String get toastQueuedNoteFailed =>
+      'No se pudo añadir la nota. Lo intentaremos de nuevo.';
 
   @override
   String get toastDeleteFailed => 'No se pudo eliminar. Inténtalo de nuevo.';
@@ -670,7 +681,7 @@ class L10nEs extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark funciona íntegramente en tu dispositivo. Tus notas y recuerdos no se envían para análisis, informes de fallos ni estadísticas. Solo salen del dispositivo cuando tú decides compartirlos.';
+      'Latermark funciona íntegramente en tu dispositivo. Tus notas y recuerdos no se envían para análisis, informes de fallos ni estadísticas. Solo salen del dispositivo cuando tú decides compartirlos. Para la medición publicitaria solo se informa a Meta de dos cosas: que la app se ha instalado y que se ha realizado una compra. Ninguna de las dos incluye lo que escribes, fotografías o etiquetas.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -1182,4 +1193,30 @@ class L10nEs extends L10n {
   @override
   String get reminderAfterExpiry =>
       'El recordatorio debe ser anterior a la eliminación de esta nota.';
+
+  @override
+  String get keepOriginalLabel => 'Guardar el original';
+
+  @override
+  String get keepOriginalDetail =>
+      'Conserva toda la calidad, ocupa más espacio.';
+
+  @override
+  String get originalMark => 'Original';
+
+  @override
+  String get composeLocationFailed => 'No se pudo obtener la ubicación';
+
+  @override
+  String get locationFixFailed =>
+      'El dispositivo no pudo fijar una posición ahora. La nota se guardará sin lugar.';
+
+  @override
+  String get composeTextEntry => 'Escribir texto';
+
+  @override
+  String get addEntry => 'Añadir una nota';
+
+  @override
+  String get composeTextHint => '¿Qué quieres recordar?';
 }

@@ -165,6 +165,17 @@ class L10nIt extends L10n {
       'Impossibile aggiungere la foto condivisa. Riproveremo.';
 
   @override
+  String get toastQueuedNoteAdded => 'Nota aggiunta.';
+
+  @override
+  String get toastQueuedNoteReminderDropped =>
+      'Nota aggiunta, ma il promemoria cadeva dopo la data di eliminazione della nota.';
+
+  @override
+  String get toastQueuedNoteFailed =>
+      'Impossibile aggiungere la nota. Riproveremo.';
+
+  @override
   String get toastDeleteFailed => 'Impossibile eliminarlo. Riprova.';
 
   @override
@@ -670,7 +681,7 @@ class L10nIt extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli.';
+      'Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli. Per la misurazione pubblicitaria a Meta vengono comunicate solo due cose: che l’app è stata installata e che è stato effettuato un acquisto. Nessuna delle due include ciò che scrivi, fotografi o contrassegni.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -1182,4 +1193,29 @@ class L10nIt extends L10n {
   @override
   String get reminderAfterExpiry =>
       'Il promemoria deve precedere l’eliminazione di questa nota.';
+
+  @override
+  String get keepOriginalLabel => 'Salva l’originale';
+
+  @override
+  String get keepOriginalDetail => 'Qualità intatta, occupa più spazio.';
+
+  @override
+  String get originalMark => 'Originale';
+
+  @override
+  String get composeLocationFailed => 'Posizione non disponibile';
+
+  @override
+  String get locationFixFailed =>
+      'Il dispositivo non è riuscito a determinare la posizione. La nota verrà salvata senza luogo.';
+
+  @override
+  String get composeTextEntry => 'Scrivi un testo';
+
+  @override
+  String get addEntry => 'Aggiungi una nota';
+
+  @override
+  String get composeTextHint => 'Che cosa vuoi ricordare?';
 }

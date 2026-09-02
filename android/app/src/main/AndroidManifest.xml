@@ -27,6 +27,17 @@
          bu izni ekler; burada ürün gereksinimi olarak açıkça tutulur. -->
     <uses-permission android:name="com.android.vending.BILLING"/>
 
+    <!-- Meta ölçümü. Uygulamanın geri kalanı ağa çıkmıyor; bu izin yalnızca
+         kurulum/oturum ve satın alma olaylarının Meta'ya gönderilmesi için.
+         Meta SDK zaten birleşmiş manifeste ekliyor, burada niyeti görünür
+         kılmak için açıkça tutuluyor.
+
+         `facebook-core` ayrıca dört ACCESS_ADSERVICES_* iznini birleştiriyor;
+         Android 13+ Privacy Sandbox attribution API'leri için gerekli,
+         geçmelerine izin veriliyor. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
     <!-- Android 13+ bildirim izni; hatırlatıcı açıldığında istenir. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Cihaz yeniden başlatıldığında planlanmış hatırlatmalar korunsun. -->
@@ -94,6 +105,26 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/not_widget_info" />
         </receiver>
+
+        <!-- Meta SDK. App ID ve Client Token string kaynağı olarak okunur
+             (bkz. res/values/facebook.xml).
+
+             Reklam kimliği toplama Android'de **açık**: burada ATT gibi bir
+             izleme istemi yok, yani kullanıcıya maliyeti sıfır, karşılığında
+             tam attribution geliyor. iOS'ta aynı bayrak bilerek kapalı —
+             oradaki bedeli ATT istemi. -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token" />
+        <meta-data
+            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+            android:value="true" />
+        <meta-data
+            android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
+            android:value="true" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

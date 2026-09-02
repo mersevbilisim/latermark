@@ -170,6 +170,69 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  /// Yeni bir seçenek satırı eklemek, klavye açıkken alttakini erişilmez hâle
+  /// getirebiliyor: yazı alanı tabanını koruyor ve seçenekler kendi içinde
+  /// kayıyor — o kayma gerçekten çalışmalı.
+  testWidgets('klavye açıkken orijinal anahtarı da erişilebilir', (
+    tester,
+  ) async {
+    const height = 852.0;
+    const keyboard = 336.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, height);
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      AppScope(
+        notes: repository,
+        settings: settings,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          locale: const Locale('tr'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: ComposePage(
+            capture: XFile(photo.path),
+            source: ComposeSource.gallery,
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: keyboard);
+    tester.view.padding = const FakeViewPadding(top: 47);
+    await _settle(tester);
+
+    await tester.ensureVisible(find.byKey(const Key('keep-original-row')));
+    await _settle(tester);
+
+    final row = tester.getRect(find.byKey(const Key('keep-original-row')));
+    final bar = tester.getRect(
+      find.byKey(const ValueKey('compose-action-bar')),
+    );
+    final rem = tester.getRect(find.byKey(const Key('reminder-switch-row')));
+    debugPrint('SERIT ust=${bar.top.toStringAsFixed(0)} '
+        'alt=${bar.bottom.toStringAsFixed(0)}');
+    debugPrint('HATIRLATMA ust=${rem.top.toStringAsFixed(0)} '
+        'alt=${rem.bottom.toStringAsFixed(0)}');
+    expect(row.bottom, lessThanOrEqualTo(height - keyboard));
+
+    await tester.tap(find.byKey(const Key('keep-original-row')));
+    await _settle(tester);
+    expect(
+      tester
+          .widget<EmberSwitch>(find.byKey(const Key('keep-original-switch')))
+          .value,
+      isTrue,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
 }
 
 Future<void> _settle(WidgetTester tester) async {

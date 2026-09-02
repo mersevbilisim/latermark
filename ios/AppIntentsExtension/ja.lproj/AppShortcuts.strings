@@ -1,0 +1,8 @@
+"Add a note with ${applicationName}" = "${applicationName}でメモを追加";
+"Create a note in ${applicationName}" = "${applicationName}でメモを作成";
+"Add a reminder note with ${applicationName}" = "${applicationName}でリマインダー付きメモを追加";
+"Create a reminder note in ${applicationName}" = "${applicationName}でリマインダー付きメモを作成";
+"Save a note to ${applicationName}" = "${applicationName}にメモを保存";
+"New note in ${applicationName}" = "${applicationName}で新規メモ";
+"Save a reminder note to ${applicationName}" = "${applicationName}にリマインダー付きメモを保存";
+"New reminder note in ${applicationName}" = "${applicationName}で新規リマインダーメモ";

@@ -99,7 +99,7 @@ void main() {
       await pumpCallout(tester);
 
       // Teklif okunuyor ve eylemin ne olduğu yazıyor — chevron değil.
-      expect(find.text('Önemli olanı geride bırakma.'), findsOneWidget);
+      expect(find.text('Önemlileri sakla, hatırla.'), findsOneWidget);
       expect(find.text("Pro'ya geç"), findsOneWidget);
       // Kaç kare varsa o kadar göz dolu; gerisi boş kalıyor ve sınır
       // sayılabiliyor.
@@ -158,7 +158,7 @@ void main() {
       AppPalette.dark.ember,
     );
     expect(find.text("Pro'ya geç"), findsNothing);
-    expect(find.text('Önemli olanı geride bırakma.'), findsNothing);
+    expect(find.text('Önemlileri sakla, hatırla.'), findsNothing);
     expect(find.byType(Image), findsNothing);
 
     await disposeTree(tester);
