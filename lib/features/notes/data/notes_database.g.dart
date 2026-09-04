@@ -1460,6 +1460,47 @@ class $SettingsTableTable extends SettingsTable
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _freeReminderArmedMeta = const VerificationMeta(
+    'freeReminderArmed',
+  );
+  @override
+  late final GeneratedColumn<String> freeReminderArmed =
+      GeneratedColumn<String>(
+        'free_reminder_armed',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _alwaysHighContrastMeta =
+      const VerificationMeta('alwaysHighContrast');
+  @override
+  late final GeneratedColumn<bool> alwaysHighContrast = GeneratedColumn<bool>(
+    'always_high_contrast',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("always_high_contrast" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _alwaysReduceMotionMeta =
+      const VerificationMeta('alwaysReduceMotion');
+  @override
+  late final GeneratedColumn<bool> alwaysReduceMotion = GeneratedColumn<bool>(
+    'always_reduce_motion',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("always_reduce_motion" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1476,6 +1517,9 @@ class $SettingsTableTable extends SettingsTable
     proUnlocked,
     collapsedGroups,
     freeReminderNotes,
+    freeReminderArmed,
+    alwaysHighContrast,
+    alwaysReduceMotion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1561,6 +1605,33 @@ class $SettingsTableTable extends SettingsTable
         ),
       );
     }
+    if (data.containsKey('free_reminder_armed')) {
+      context.handle(
+        _freeReminderArmedMeta,
+        freeReminderArmed.isAcceptableOrUnknown(
+          data['free_reminder_armed']!,
+          _freeReminderArmedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('always_high_contrast')) {
+      context.handle(
+        _alwaysHighContrastMeta,
+        alwaysHighContrast.isAcceptableOrUnknown(
+          data['always_high_contrast']!,
+          _alwaysHighContrastMeta,
+        ),
+      );
+    }
+    if (data.containsKey('always_reduce_motion')) {
+      context.handle(
+        _alwaysReduceMotionMeta,
+        alwaysReduceMotion.isAcceptableOrUnknown(
+          data['always_reduce_motion']!,
+          _alwaysReduceMotionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1635,6 +1706,18 @@ class $SettingsTableTable extends SettingsTable
       freeReminderNotes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}free_reminder_notes'],
+      )!,
+      freeReminderArmed: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}free_reminder_armed'],
+      )!,
+      alwaysHighContrast: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}always_high_contrast'],
+      )!,
+      alwaysReduceMotion: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}always_reduce_motion'],
       )!,
     );
   }
@@ -1739,6 +1822,38 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Yedekten dönüşte bu sütuna dokunulmuyor (bkz. `BackupRepository`): aksi
   /// hâlde eski bir yedeği geri yüklemek hakkı sıfırlamanın yolu olurdu.
   final String freeReminderNotes;
+
+  /// İşletim sistemine **kurulmuş** ama henüz çalmamış ücretsiz
+  /// hatırlatmaların kayıt kimlikleri.
+  ///
+  /// Ayrı bir liste olmasının sebebi kanıtın dayanıklılığı. Teslimatı tepsiden
+  /// (`getActiveNotifications`) okumak yanlıştı: tepsi anlık bir fotoğraf ve
+  /// kullanıcı bildirimi kaydırıp sildiğinde geriye hiç iz kalmıyor — ölçüldü,
+  /// çalan bildirim silinince hak hiç yanmıyordu ve aynı üç hak sonsuza kadar
+  /// yeniden kullanılabiliyordu.
+  ///
+  /// Dayanıklı olan tek şey bildirimin **kurulmuş** olması. Kurulduğu an kaydı
+  /// buraya giriyor; zamanı geçince [freeReminderNotes]'a taşınıyor ve hak
+  /// kalıcı olarak yanıyor. Çalmadan iptal edilirse buradan düşüyor, yani
+  /// kurup vazgeçen kullanıcıdan bir şey alınmıyor.
+  ///
+  /// Kalıcı listeden ayrı durmak zorunda: Keychain tabanı asla küçülmediği
+  /// için iptali oraya yazmak geri alınamaz olurdu.
+  final String freeReminderArmed;
+
+  /// Latermark içinde kontrastı, sistem kapalı olsa da güçlendirir.
+  ///
+  /// Varsayılan kapalıdır: yükseltme mevcut görünümü değiştirmez. Sistem
+  /// "Kontrastı Artır" tercihi bu sütundan bağımsız olarak her zaman daha
+  /// yüksek önceliklidir ve uygulama katmanında uygulanır.
+  final bool alwaysHighContrast;
+
+  /// Latermark içindeki dekoratif hareketi azaltır.
+  ///
+  /// Varsayılan kapalıdır: yükseltmeden sonra normal geçişler aynı kalır.
+  /// Sistem "Hareketi Azalt" tercihi açıksa bu değer kapalı olsa bile hareket
+  /// geri açılamaz.
+  final bool alwaysReduceMotion;
   const SettingsRow({
     required this.id,
     required this.themeMode,
@@ -1754,6 +1869,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.proUnlocked,
     required this.collapsedGroups,
     required this.freeReminderNotes,
+    required this.freeReminderArmed,
+    required this.alwaysHighContrast,
+    required this.alwaysReduceMotion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1792,6 +1910,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     map['pro_unlocked'] = Variable<bool>(proUnlocked);
     map['collapsed_groups'] = Variable<String>(collapsedGroups);
     map['free_reminder_notes'] = Variable<String>(freeReminderNotes);
+    map['free_reminder_armed'] = Variable<String>(freeReminderArmed);
+    map['always_high_contrast'] = Variable<bool>(alwaysHighContrast);
+    map['always_reduce_motion'] = Variable<bool>(alwaysReduceMotion);
     return map;
   }
 
@@ -1811,6 +1932,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       proUnlocked: Value(proUnlocked),
       collapsedGroups: Value(collapsedGroups),
       freeReminderNotes: Value(freeReminderNotes),
+      freeReminderArmed: Value(freeReminderArmed),
+      alwaysHighContrast: Value(alwaysHighContrast),
+      alwaysReduceMotion: Value(alwaysReduceMotion),
     );
   }
 
@@ -1846,6 +1970,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       proUnlocked: serializer.fromJson<bool>(json['proUnlocked']),
       collapsedGroups: serializer.fromJson<String>(json['collapsedGroups']),
       freeReminderNotes: serializer.fromJson<String>(json['freeReminderNotes']),
+      freeReminderArmed: serializer.fromJson<String>(json['freeReminderArmed']),
+      alwaysHighContrast: serializer.fromJson<bool>(json['alwaysHighContrast']),
+      alwaysReduceMotion: serializer.fromJson<bool>(json['alwaysReduceMotion']),
     );
   }
   @override
@@ -1876,6 +2003,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'proUnlocked': serializer.toJson<bool>(proUnlocked),
       'collapsedGroups': serializer.toJson<String>(collapsedGroups),
       'freeReminderNotes': serializer.toJson<String>(freeReminderNotes),
+      'freeReminderArmed': serializer.toJson<String>(freeReminderArmed),
+      'alwaysHighContrast': serializer.toJson<bool>(alwaysHighContrast),
+      'alwaysReduceMotion': serializer.toJson<bool>(alwaysReduceMotion),
     };
   }
 
@@ -1894,6 +2024,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? proUnlocked,
     String? collapsedGroups,
     String? freeReminderNotes,
+    String? freeReminderArmed,
+    bool? alwaysHighContrast,
+    bool? alwaysReduceMotion,
   }) => SettingsRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
@@ -1909,6 +2042,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     proUnlocked: proUnlocked ?? this.proUnlocked,
     collapsedGroups: collapsedGroups ?? this.collapsedGroups,
     freeReminderNotes: freeReminderNotes ?? this.freeReminderNotes,
+    freeReminderArmed: freeReminderArmed ?? this.freeReminderArmed,
+    alwaysHighContrast: alwaysHighContrast ?? this.alwaysHighContrast,
+    alwaysReduceMotion: alwaysReduceMotion ?? this.alwaysReduceMotion,
   );
   SettingsRow copyWithCompanion(SettingsTableCompanion data) {
     return SettingsRow(
@@ -1942,6 +2078,15 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       freeReminderNotes: data.freeReminderNotes.present
           ? data.freeReminderNotes.value
           : this.freeReminderNotes,
+      freeReminderArmed: data.freeReminderArmed.present
+          ? data.freeReminderArmed.value
+          : this.freeReminderArmed,
+      alwaysHighContrast: data.alwaysHighContrast.present
+          ? data.alwaysHighContrast.value
+          : this.alwaysHighContrast,
+      alwaysReduceMotion: data.alwaysReduceMotion.present
+          ? data.alwaysReduceMotion.value
+          : this.alwaysReduceMotion,
     );
   }
 
@@ -1961,7 +2106,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('shareSignature: $shareSignature, ')
           ..write('proUnlocked: $proUnlocked, ')
           ..write('collapsedGroups: $collapsedGroups, ')
-          ..write('freeReminderNotes: $freeReminderNotes')
+          ..write('freeReminderNotes: $freeReminderNotes, ')
+          ..write('freeReminderArmed: $freeReminderArmed, ')
+          ..write('alwaysHighContrast: $alwaysHighContrast, ')
+          ..write('alwaysReduceMotion: $alwaysReduceMotion')
           ..write(')'))
         .toString();
   }
@@ -1982,6 +2130,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     proUnlocked,
     collapsedGroups,
     freeReminderNotes,
+    freeReminderArmed,
+    alwaysHighContrast,
+    alwaysReduceMotion,
   );
   @override
   bool operator ==(Object other) =>
@@ -2000,7 +2151,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.shareSignature == this.shareSignature &&
           other.proUnlocked == this.proUnlocked &&
           other.collapsedGroups == this.collapsedGroups &&
-          other.freeReminderNotes == this.freeReminderNotes);
+          other.freeReminderNotes == this.freeReminderNotes &&
+          other.freeReminderArmed == this.freeReminderArmed &&
+          other.alwaysHighContrast == this.alwaysHighContrast &&
+          other.alwaysReduceMotion == this.alwaysReduceMotion);
 }
 
 class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
@@ -2018,6 +2172,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> proUnlocked;
   final Value<String> collapsedGroups;
   final Value<String> freeReminderNotes;
+  final Value<String> freeReminderArmed;
+  final Value<bool> alwaysHighContrast;
+  final Value<bool> alwaysReduceMotion;
   const SettingsTableCompanion({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
@@ -2033,6 +2190,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     this.proUnlocked = const Value.absent(),
     this.collapsedGroups = const Value.absent(),
     this.freeReminderNotes = const Value.absent(),
+    this.freeReminderArmed = const Value.absent(),
+    this.alwaysHighContrast = const Value.absent(),
+    this.alwaysReduceMotion = const Value.absent(),
   });
   SettingsTableCompanion.insert({
     this.id = const Value.absent(),
@@ -2049,6 +2209,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     this.proUnlocked = const Value.absent(),
     this.collapsedGroups = const Value.absent(),
     this.freeReminderNotes = const Value.absent(),
+    this.freeReminderArmed = const Value.absent(),
+    this.alwaysHighContrast = const Value.absent(),
+    this.alwaysReduceMotion = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2065,6 +2228,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? proUnlocked,
     Expression<String>? collapsedGroups,
     Expression<String>? freeReminderNotes,
+    Expression<String>? freeReminderArmed,
+    Expression<bool>? alwaysHighContrast,
+    Expression<bool>? alwaysReduceMotion,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2082,6 +2248,11 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
       if (proUnlocked != null) 'pro_unlocked': proUnlocked,
       if (collapsedGroups != null) 'collapsed_groups': collapsedGroups,
       if (freeReminderNotes != null) 'free_reminder_notes': freeReminderNotes,
+      if (freeReminderArmed != null) 'free_reminder_armed': freeReminderArmed,
+      if (alwaysHighContrast != null)
+        'always_high_contrast': alwaysHighContrast,
+      if (alwaysReduceMotion != null)
+        'always_reduce_motion': alwaysReduceMotion,
     });
   }
 
@@ -2100,6 +2271,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? proUnlocked,
     Value<String>? collapsedGroups,
     Value<String>? freeReminderNotes,
+    Value<String>? freeReminderArmed,
+    Value<bool>? alwaysHighContrast,
+    Value<bool>? alwaysReduceMotion,
   }) {
     return SettingsTableCompanion(
       id: id ?? this.id,
@@ -2116,6 +2290,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
       proUnlocked: proUnlocked ?? this.proUnlocked,
       collapsedGroups: collapsedGroups ?? this.collapsedGroups,
       freeReminderNotes: freeReminderNotes ?? this.freeReminderNotes,
+      freeReminderArmed: freeReminderArmed ?? this.freeReminderArmed,
+      alwaysHighContrast: alwaysHighContrast ?? this.alwaysHighContrast,
+      alwaysReduceMotion: alwaysReduceMotion ?? this.alwaysReduceMotion,
     );
   }
 
@@ -2176,6 +2353,15 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     if (freeReminderNotes.present) {
       map['free_reminder_notes'] = Variable<String>(freeReminderNotes.value);
     }
+    if (freeReminderArmed.present) {
+      map['free_reminder_armed'] = Variable<String>(freeReminderArmed.value);
+    }
+    if (alwaysHighContrast.present) {
+      map['always_high_contrast'] = Variable<bool>(alwaysHighContrast.value);
+    }
+    if (alwaysReduceMotion.present) {
+      map['always_reduce_motion'] = Variable<bool>(alwaysReduceMotion.value);
+    }
     return map;
   }
 
@@ -2195,7 +2381,10 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
           ..write('shareSignature: $shareSignature, ')
           ..write('proUnlocked: $proUnlocked, ')
           ..write('collapsedGroups: $collapsedGroups, ')
-          ..write('freeReminderNotes: $freeReminderNotes')
+          ..write('freeReminderNotes: $freeReminderNotes, ')
+          ..write('freeReminderArmed: $freeReminderArmed, ')
+          ..write('alwaysHighContrast: $alwaysHighContrast, ')
+          ..write('alwaysReduceMotion: $alwaysReduceMotion')
           ..write(')'))
         .toString();
   }
@@ -3028,6 +3217,9 @@ typedef $$SettingsTableTableCreateCompanionBuilder =
       Value<bool> proUnlocked,
       Value<String> collapsedGroups,
       Value<String> freeReminderNotes,
+      Value<String> freeReminderArmed,
+      Value<bool> alwaysHighContrast,
+      Value<bool> alwaysReduceMotion,
     });
 typedef $$SettingsTableTableUpdateCompanionBuilder =
     SettingsTableCompanion Function({
@@ -3045,6 +3237,9 @@ typedef $$SettingsTableTableUpdateCompanionBuilder =
       Value<bool> proUnlocked,
       Value<String> collapsedGroups,
       Value<String> freeReminderNotes,
+      Value<String> freeReminderArmed,
+      Value<bool> alwaysHighContrast,
+      Value<bool> alwaysReduceMotion,
     });
 
 class $$SettingsTableTableFilterComposer
@@ -3130,6 +3325,21 @@ class $$SettingsTableTableFilterComposer
     column: $table.freeReminderNotes,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get freeReminderArmed => $composableBuilder(
+    column: $table.freeReminderArmed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get alwaysHighContrast => $composableBuilder(
+    column: $table.alwaysHighContrast,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get alwaysReduceMotion => $composableBuilder(
+    column: $table.alwaysReduceMotion,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableTableOrderingComposer
@@ -3210,6 +3420,21 @@ class $$SettingsTableTableOrderingComposer
     column: $table.freeReminderNotes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get freeReminderArmed => $composableBuilder(
+    column: $table.freeReminderArmed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get alwaysHighContrast => $composableBuilder(
+    column: $table.alwaysHighContrast,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get alwaysReduceMotion => $composableBuilder(
+    column: $table.alwaysReduceMotion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableTableAnnotationComposer
@@ -3279,6 +3504,21 @@ class $$SettingsTableTableAnnotationComposer
     column: $table.freeReminderNotes,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get freeReminderArmed => $composableBuilder(
+    column: $table.freeReminderArmed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get alwaysHighContrast => $composableBuilder(
+    column: $table.alwaysHighContrast,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get alwaysReduceMotion => $composableBuilder(
+    column: $table.alwaysReduceMotion,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableTableManager
@@ -3328,6 +3568,9 @@ class $$SettingsTableTableTableManager
                 Value<bool> proUnlocked = const Value.absent(),
                 Value<String> collapsedGroups = const Value.absent(),
                 Value<String> freeReminderNotes = const Value.absent(),
+                Value<String> freeReminderArmed = const Value.absent(),
+                Value<bool> alwaysHighContrast = const Value.absent(),
+                Value<bool> alwaysReduceMotion = const Value.absent(),
               }) => SettingsTableCompanion(
                 id: id,
                 themeMode: themeMode,
@@ -3343,6 +3586,9 @@ class $$SettingsTableTableTableManager
                 proUnlocked: proUnlocked,
                 collapsedGroups: collapsedGroups,
                 freeReminderNotes: freeReminderNotes,
+                freeReminderArmed: freeReminderArmed,
+                alwaysHighContrast: alwaysHighContrast,
+                alwaysReduceMotion: alwaysReduceMotion,
               ),
           createCompanionCallback:
               ({
@@ -3360,6 +3606,9 @@ class $$SettingsTableTableTableManager
                 Value<bool> proUnlocked = const Value.absent(),
                 Value<String> collapsedGroups = const Value.absent(),
                 Value<String> freeReminderNotes = const Value.absent(),
+                Value<String> freeReminderArmed = const Value.absent(),
+                Value<bool> alwaysHighContrast = const Value.absent(),
+                Value<bool> alwaysReduceMotion = const Value.absent(),
               }) => SettingsTableCompanion.insert(
                 id: id,
                 themeMode: themeMode,
@@ -3375,6 +3624,9 @@ class $$SettingsTableTableTableManager
                 proUnlocked: proUnlocked,
                 collapsedGroups: collapsedGroups,
                 freeReminderNotes: freeReminderNotes,
+                freeReminderArmed: freeReminderArmed,
+                alwaysHighContrast: alwaysHighContrast,
+                alwaysReduceMotion: alwaysReduceMotion,
               ),
           withReferenceMapper: (p0) => p0
               .map(

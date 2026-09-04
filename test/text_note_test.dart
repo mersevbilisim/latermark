@@ -181,11 +181,9 @@ void main() {
     final id = await repository.createText(
       body: 'Vazgeçilen',
       retention: const RetentionChoice.off(),
-      reminder: ReminderChoice(
-        at: DateTime.now().add(const Duration(days: 2)),
-      ),
+      reminder: ReminderChoice(at: DateTime.now().add(const Duration(days: 2))),
     );
-    await repository.settleFreeReminders(permissionGranted: true);
+    await repository.settleFreeReminders(deliveredNoteIds: {id});
     expect((await settings.read()).freeReminderNotes, isEmpty);
 
     // Aynı kayıt geçmişe alınınca hak yanıyor.
@@ -193,9 +191,27 @@ void main() {
       id,
       ReminderChoice(at: DateTime.now().subtract(const Duration(minutes: 5))),
     );
-    await repository.settleFreeReminders(permissionGranted: true);
+    await repository.settleFreeReminders(deliveredNoteIds: {id});
     expect((await settings.read()).freeReminderNotes, {id});
   });
+
+  test(
+    'zamanı geçen ama teslimat kanıtı olmayan hatırlatma hakkı yakmıyor',
+    () async {
+      final id = await repository.createText(
+        body: 'Kurulamadı',
+        retention: const RetentionChoice.off(),
+        reminder: ReminderChoice(
+          at: DateTime.now().subtract(const Duration(minutes: 5)),
+        ),
+      );
+
+      await repository.settleFreeReminders(deliveredNoteIds: const {});
+
+      expect((await settings.read()).freeReminderNotes, isEmpty);
+      expect((await repository.noteById(id))!.remindAt, isNotNull);
+    },
+  );
 
   test('bildirim izni yokken hak yanmıyor', () async {
     // İzin kapalıyken program hiç kurulmuyor; kullanıcının görmediği bir şey
@@ -208,7 +224,7 @@ void main() {
       ),
     );
     expect(id, isPositive);
-    await repository.settleFreeReminders(permissionGranted: false);
+    await repository.settleFreeReminders(deliveredNoteIds: const {});
     expect((await settings.read()).freeReminderNotes, isEmpty);
   });
 
@@ -216,7 +232,7 @@ void main() {
     // En sık kullanılan yol tam da burası: "hatırlat, sonra sil" seçildiğinde
     // not bildirimden yarım saat sonra gidiyor. Süpürme hesaptan önce
     // koşarsa kayıt yok oluyor ve hak sessizce geri geliyordu — kullanıcı
-    // aynı üç hakkı sonsuza kadar yeniden kullanabilirdi.
+    // aynı hakları sonsuza kadar yeniden kullanabilirdi.
     final id = await repository.createText(
       body: 'çaldı ve silinecek',
       retention: const RetentionChoice.off(),
@@ -225,18 +241,16 @@ void main() {
       ),
     );
     // Kaydı süresi dolmuş hâle getir: süpürme onu silecek.
-    await database.customStatement(
-      'UPDATE notes SET expires_at = ? WHERE id = ?',
-      [
-        DateTime.now()
-                .subtract(const Duration(hours: 1))
-                .millisecondsSinceEpoch ~/
-            1000,
-        id,
-      ],
-    );
+    await database
+        .customStatement('UPDATE notes SET expires_at = ? WHERE id = ?', [
+          DateTime.now()
+                  .subtract(const Duration(hours: 1))
+                  .millisecondsSinceEpoch ~/
+              1000,
+          id,
+        ]);
 
-    expect(await repository.purgeExpired(reminderPermissionGranted: true), 1);
+    expect(await repository.purgeExpired(deliveredReminderNoteIds: {id}), 1);
     expect(await database.select(database.notes).get(), isEmpty);
     // Kayıt gitti ama hak yandı.
     expect((await settings.read()).freeReminderNotes, {id});
@@ -250,18 +264,16 @@ void main() {
       retention: const RetentionChoice.off(),
       reminder: ReminderChoice(at: DateTime.now().add(const Duration(days: 3))),
     );
-    await database.customStatement(
-      'UPDATE notes SET expires_at = ? WHERE id = ?',
-      [
-        DateTime.now()
-                .subtract(const Duration(minutes: 1))
-                .millisecondsSinceEpoch ~/
-            1000,
-        id,
-      ],
-    );
+    await database
+        .customStatement('UPDATE notes SET expires_at = ? WHERE id = ?', [
+          DateTime.now()
+                  .subtract(const Duration(minutes: 1))
+                  .millisecondsSinceEpoch ~/
+              1000,
+          id,
+        ]);
 
-    expect(await repository.purgeExpired(reminderPermissionGranted: true), 1);
+    expect(await repository.purgeExpired(deliveredReminderNoteIds: {id}), 1);
     expect((await settings.read()).freeReminderNotes, isEmpty);
   });
 
@@ -306,6 +318,28 @@ void main() {
     expect((await noteById(id)).remindAt, isNull, reason: 'hak yok');
   });
 
+  test('ilk kayıt silinmeyen tabanı kendisi yüklemeden geçemiyor', () async {
+    // AppScope henüz ilk senkronunu tamamlamadan Share/Siri ya da hızlı bir
+    // kullanıcı kaydı gelebilir. Güvenlik yalnız açılış sırasına bağlıysa bu
+    // dar pencerede yeniden kurulum hakları geri verirdi.
+    final store = _FakeQuota(ProLimits.freeReminders);
+    final fresh = NotesRepository(
+      database: database,
+      photos: photos,
+      quota: store,
+    );
+
+    final id = await fresh.createText(
+      body: 'açılıştan önce',
+      retention: const RetentionChoice.off(),
+      reminder: ReminderChoice(at: DateTime.now().add(const Duration(days: 1))),
+    );
+
+    expect(store.reads, 1);
+    expect(fresh.freeReminderFloor, ProLimits.freeReminders);
+    expect((await noteById(id)).remindAt, isNull, reason: 'hak geri açılmadı');
+  });
+
   test('Pro açıkken silinmeyen sayaca hiç uğranmıyor', () async {
     await settings.setProUnlocked(true);
     final store = _FakeQuota(3);
@@ -345,7 +379,7 @@ void main() {
       ),
     );
     expect(id, isPositive);
-    await repo.settleFreeReminders(permissionGranted: true);
+    await repo.settleFreeReminders(deliveredNoteIds: {id});
 
     expect(store.writes, [1]);
     expect(repo.freeReminderFloor, 1);
@@ -371,7 +405,7 @@ void main() {
 
   test('güncellemeyi alan kullanıcı hakkını kaybetmiyor', () async {
     // Keychain boş; yani bu sertleştirmeyi ilk kez alan mevcut kullanıcı.
-    // Davranış eskisiyle birebir aynı kalmalı: üç hakkın tamamı yerinde.
+    // Davranış eskisiyle birebir aynı kalmalı: hakların tamamı yerinde.
     final store = _FakeQuota(null);
     final repo = NotesRepository(
       database: database,
@@ -390,6 +424,70 @@ void main() {
       );
       expect((await noteById(id)).remindAt, isNotNull, reason: 'kayıt $i');
     }
+  });
+
+  test('tepsiden silinen bildirim hakkı kaçırmıyor', () async {
+    // Ölçülmüş bir sızıntının testi. Kanıt olarak yalnız tepsi
+    // (`getActiveNotifications`) kullanıldığında, kullanıcı çalan bildirimi
+    // kaydırıp silince geriye hiç iz kalmıyordu: hak hiç yanmıyor ve aynı üç
+    // hak sonsuza kadar yeniden kullanılabiliyordu.
+    //
+    // Dayanıklı kanıt kurulumun kendisi. Burada bildirim kuruluyor, sonra
+    // tepside **hiç görünmeden** zamanı geçiyor.
+    final id = await repository.createText(
+      body: 'tepsiden silinecek',
+      retention: const RetentionChoice.off(),
+      reminder: ReminderChoice(at: DateTime.now().add(const Duration(days: 1))),
+    );
+    await repository.armFreeReminders({id});
+
+    // Kurulduğu an değil, zamanı geçtiğinde yanıyor.
+    await repository.settleFreeReminders(deliveredNoteIds: const <int>{});
+    expect((await settings.read()).freeReminderNotes, isEmpty);
+
+    await database.customStatement(
+      'UPDATE notes SET remind_at = ? WHERE id = ?',
+      [
+        DateTime.now()
+                .subtract(const Duration(minutes: 5))
+                .millisecondsSinceEpoch ~/
+            1000,
+        id,
+      ],
+    );
+    // Tepsi **boş** — kullanıcı bildirimi sildi.
+    await repository.settleFreeReminders(deliveredNoteIds: const <int>{});
+    expect((await settings.read()).freeReminderNotes, {id});
+  });
+
+  test('çalmadan iptal edilen hatırlatma hakkı geri veriyor', () async {
+    final id = await repository.createText(
+      body: 'vazgeçilecek',
+      retention: const RetentionChoice.off(),
+      reminder: ReminderChoice(at: DateTime.now().add(const Duration(days: 1))),
+    );
+    await repository.armFreeReminders({id});
+
+    // Kapı kurulu kaydı sayıyor.
+    expect(
+      await repository.setReminder(id, const ReminderChoice.off()),
+      isTrue,
+    );
+
+    // Kurulu listeden düştüğü için zamanı geçse bile yanmıyor: ortada teslim
+    // edilmiş bir değer yok.
+    await database.customStatement(
+      'UPDATE notes SET remind_at = ? WHERE id = ?',
+      [
+        DateTime.now()
+                .subtract(const Duration(minutes: 5))
+                .millisecondsSinceEpoch ~/
+            1000,
+        id,
+      ],
+    );
+    await repository.settleFreeReminders(deliveredNoteIds: const <int>{});
+    expect((await settings.read()).freeReminderNotes, isEmpty);
   });
 
   test('aynı teslim kimliği ikinci kaydı açmıyor', () async {

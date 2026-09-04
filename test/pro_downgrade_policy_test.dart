@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/pro_downgrade_policy.dart';
 
@@ -93,11 +94,15 @@ void main() {
             ),
           );
 
-      await settings.setProUnlocked(false);
+      // Sahte "şimdi" veriliyor: iki hatırlatma da bu ana göre önde duruyor,
+      // yani testin sonucu takvimin gerçek gününe bağlı kalmıyor.
+      await settings.setProUnlocked(false, now: createdAt);
 
       final downgraded = await settings.read();
       expect(downgraded.proUnlocked, isFalse);
-      expect(downgraded.reminderEnabled, isFalse);
+      // Ücretsiz katmanda hatırlatma var; sağ kalanları kapalı bir şalterin
+      // arkasında bırakmak onları silmenin sessiz hâli olurdu.
+      expect(downgraded.reminderEnabled, isTrue);
       expect(downgraded.defaultRetention, Retention.oneWeek);
       expect(downgraded.defaultCustomMinutes, 0);
 
@@ -108,7 +113,9 @@ void main() {
       expect(note.customMinutes, 0);
       expect(note.expiresAt, createdAt.add(const Duration(days: 7)));
       expect(note.expiresAt!.isBefore(expiresAt), isFalse);
-      expect(note.remindAt, isNull);
+      // Saklama free karşılığa indi ama hatırlatma duruyor: ücretsiz katmanın
+      // kendi hakkı kadarı (burada ikisi de) downgrade'den sağ çıkıyor.
+      expect(note.remindAt, createdAt.add(const Duration(days: 2)));
 
       final longNote = await (database.select(
         database.notes,
@@ -116,7 +123,7 @@ void main() {
       expect(longNote.retention, Retention.off);
       expect(longNote.customMinutes, 0);
       expect(longNote.expiresAt, isNull);
-      expect(longNote.remindAt, isNull);
+      expect(longNote.remindAt, createdAt.add(const Duration(days: 5)));
 
       // Downgrade'dan önce açılmış bir custom seçim geç sonuçlansa bile yeniden
       // Pro varsayılanı yazamaz.
@@ -129,7 +136,10 @@ void main() {
 
       // İzin isteği downgrade'dan sonra geç tamamlansa bile şalter açılamaz.
       await settings.setReminderEnabled(true);
-      expect((await settings.read()).reminderEnabled, isFalse);
+      expect(
+        (await settings.read()).reminderEnabled,
+        ProLimits.freeRemindersEnabled,
+      );
     },
   );
 }

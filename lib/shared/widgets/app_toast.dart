@@ -32,44 +32,52 @@ void showToast(
             : const Duration(seconds: 6),
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         padding: EdgeInsets.zero,
-        content: GlassSurface(
-          borderRadius: const BorderRadius.all(Radius.circular(12)),
-          tint: palette.canvasLift,
-          elevation: 18,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(
-                error
-                    ? Icons.error_outline_rounded
-                    : Icons.check_circle_outline_rounded,
-                size: 17,
-                color: error ? palette.danger : palette.ember,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  message,
-                  style: palette.label.copyWith(color: palette.ink),
+        // Canlı bölge: hap ekrana geldiğinde VoiceOver metni kendiliğinden
+        // okur. Olmasaydı silme, geri alma ve hata sonuçları yalnız görene
+        // ulaşırdı — üstelik hap kendiliğinden kaybolduğu için sonradan
+        // dolaşıp bulunacak bir yeri de yok.
+        content: Semantics(
+          liveRegion: true,
+          container: true,
+          child: GlassSurface(
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            tint: palette.canvasLift,
+            elevation: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(
+                  error
+                      ? Icons.error_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 17,
+                  color: error ? palette.danger : palette.ember,
                 ),
-              ),
-              if (actionLabel != null && onAction != null) ...[
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () {
-                    messenger.hideCurrentSnackBar();
-                    onAction();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: palette.ember,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: palette.label.copyWith(color: palette.ink),
                   ),
-                  child: Text(actionLabel),
                 ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      messenger.hideCurrentSnackBar();
+                      onAction();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: palette.ember,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(actionLabel),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

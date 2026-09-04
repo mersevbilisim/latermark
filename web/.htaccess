@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# 1. Herhangi bir dil kodu girilmezse varsayılan sayfa (örneğin Türkçe) açılır
+RewriteRule ^privacy$ privacy-en.html [L,QSA]
+
+# 2. /privacy-en, /privacy-de, /privacy-pt-br gibi tüm istekleri ilgili HTML dosyasına yönlendirir
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^privacy-([a-zA-Z0-9-]+)$ privacy-$1.html [L,QSA]

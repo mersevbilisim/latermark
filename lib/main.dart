@@ -43,24 +43,23 @@ Future<void> main() async {
   // edilemez bir ölüm. Aynı temizlik `AppScope` içinde açılışta ve dakikada
   // bir yeniden koşuyor; buradaki tur kaçarsa bir sonraki tutar.
   try {
-    // İzin **süpürmeden önce** okunuyor.
+    // Teslim edilmiş bildirimler **süpürmeden önce** okunuyor.
     //
     // Süpürme, çalmış bir hatırlatmayı taşıyan kaydı silerken ücretsiz hakkın
-    // hesabını da kapatıyor. Burada izni bilmeden silmek, o hesabı sessizce
-    // kaçırmak olurdu: kayıt yok olduğu için `AppScope` de sonradan
-    // kapatamazdı ve kullanıcı aynı üç hakkı sonsuza kadar yeniden
-    // kullanabilirdi. Okuma başarısız olursa hak yakılmıyor — kullanıcının
-    // aleyhine olan yön, kaçırılan gelirden daha pahalı.
-    final permissionProbe = ReminderService();
-    var granted = false;
+    // hesabını da kapatıyor. Yalnız izin durumuna bakmak yeterli değil:
+    // programlama başarısız olmuş veya alarm iptal edilmiş olabilir. Aktif tepsi
+    // kaydı okunamazsa hak yakılmıyor — kullanıcının aleyhine olan yön, kaçırılan
+    // gelirden daha pahalı.
+    final reminderProbe = ReminderService();
+    var delivered = const <int>{};
     try {
-      granted = await permissionProbe.hasPermission();
+      delivered = await reminderProbe.deliveredReminderNoteIds();
     } on Object catch (error) {
-      debugPrint('Açılışta bildirim izni okunamadı: $error');
+      debugPrint('Açılışta teslim edilmiş bildirimler okunamadı: $error');
     } finally {
-      unawaited(permissionProbe.dispose());
+      unawaited(reminderProbe.dispose());
     }
-    await notes.purgeExpired(reminderPermissionGranted: granted);
+    await notes.purgeExpired(deliveredReminderNoteIds: delivered);
   } on Object catch (error) {
     debugPrint('Açılış temizliği yapılamadı: $error');
   }

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/</loc>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Gizlilik sayfaları: .htaccess uzantısız biçime yönlendiriyor, uygulama
+       da (LegalLinks.privacy) bu biçimi açıyor. Her dil kendi satırında ve
+       hepsi birbirinin alternatifi olarak bildiriliyor. -->
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-en</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://www.mersev.com/latermark-app/privacy-tr"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.mersev.com/latermark-app/privacy-de"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.mersev.com/latermark-app/privacy-es"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.mersev.com/latermark-app/privacy-fr"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://www.mersev.com/latermark-app/privacy-it"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.mersev.com/latermark-app/privacy-ja"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://www.mersev.com/latermark-app/privacy-ko"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://www.mersev.com/latermark-app/privacy-pt"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-tr</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://www.mersev.com/latermark-app/privacy-tr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-de</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.mersev.com/latermark-app/privacy-de"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-es</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.mersev.com/latermark-app/privacy-es"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-fr</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.mersev.com/latermark-app/privacy-fr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-it</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://www.mersev.com/latermark-app/privacy-it"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-ja</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.mersev.com/latermark-app/privacy-ja"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-ko</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://www.mersev.com/latermark-app/privacy-ko"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+  <url>
+    <loc>https://www.mersev.com/latermark-app/privacy-pt</loc>
+    <lastmod>2026-08-01</lastmod>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.mersev.com/latermark-app/privacy-en"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://www.mersev.com/latermark-app/privacy-pt"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mersev.com/latermark-app/privacy-en"/>
+  </url>
+</urlset>

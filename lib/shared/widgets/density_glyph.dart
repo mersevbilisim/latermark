@@ -1,6 +1,8 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_motion.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_palette.dart';
@@ -48,7 +50,10 @@ class DensityToggle extends StatelessWidget {
             child: Center(
               child: TweenAnimationBuilder<double>(
                 tween: Tween<double>(end: split ? 1 : 0),
-                duration: const Duration(milliseconds: 460),
+                duration: AppMotion.travel(
+                  context,
+                  const Duration(milliseconds: 460),
+                ),
                 curve: Curves.easeOutBack,
                 builder: (context, t, _) => CustomPaint(
                   size: const Size.square(17),

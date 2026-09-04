@@ -91,7 +91,9 @@ void main() {
     expect(find.byKey(const Key('reminder-switch')), findsOneWidget);
     expect(find.byKey(const Key('reminder-locked-row')), findsNothing);
     expect(
-      find.text('Ücretsiz kullanım: 3 hatırlatma hakkın kaldı'),
+      find.text(
+        'Ücretsiz kullanım: ${ProLimits.freeReminders} hatırlatma hakkın kaldı',
+      ),
       findsOneWidget,
     );
 
@@ -109,7 +111,9 @@ void main() {
     await pump(tester);
 
     expect(
-      find.text('Ücretsiz kullanım: 2 hatırlatma hakkın kaldı'),
+      find.text(
+        'Ücretsiz kullanım: ${ProLimits.freeReminders - 1} hatırlatma hakkın kaldı',
+      ),
       findsOneWidget,
     );
 

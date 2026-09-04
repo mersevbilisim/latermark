@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Hareket dili. Tüm animasyonlar bu üç süre ve iki eğriden türer; böylece
 /// uygulama tek bir ritimde nefes alır.
@@ -23,4 +23,18 @@ abstract final class AppMotion {
 
   /// Kaybolan öğeler.
   static const exit = Curves.easeInCubic;
+
+  /// Yer değiştiren, ölçeklenen ya da büyüyen bir hareketin süresi.
+  ///
+  /// "Hareketi azalt" açıkken sıfır: sahne kurulmaz, kurulmuş olarak gelir.
+  /// Ölçüldü — diyafram ilk kayıtta ekranın ortasından şeride **362 pt** yol
+  /// alıyordu ve tercih açıkken de alıyordu; uygulamanın en büyük hareketi
+  /// tam da hareketten rahatsız olan kullanıcıya gidiyordu.
+  ///
+  /// Solmalar bu kapıdan **geçmiyor**. Erişilebilirlik sayfası "derinlik
+  /// geçişlerini yumuşak solmalarla değiştirir" diyor: kalkan hareket, kalan
+  /// solma. Dokunma geri bildirimi (basılınca içeri çöken düğme) da kalıyor —
+  /// o dekoratif değil, parmağın altındaki doğrudan karşılık.
+  static Duration travel(BuildContext context, Duration base) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : base;
 }

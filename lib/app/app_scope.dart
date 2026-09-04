@@ -98,10 +98,18 @@ class AppScope extends StatefulWidget {
   static int freeReminderFloor(BuildContext context) =>
       _scope(context).freeReminderFloor;
 
+  /// Siri'nin geçici alarmını kaldırmadan önce aynı notun ana uygulama
+  /// programında gerçekten kurulduğunu, AppScope'un tekli senkron kuyruğunda
+  /// doğrular.
+  static Future<bool> ensureReminderScheduled(
+    BuildContext context,
+    int noteId,
+  ) => _scope(context).ensureReminderScheduled(noteId);
+
   /// Not künyesinde gerçekten çalışan bir hatırlatma gösterilebilir mi?
   static bool remindersActive(BuildContext context) {
     final scope = _scope(context);
-    return scope.preferences.proUnlocked &&
+    return ProLimits.remindersAvailable(isPro: scope.preferences.proUnlocked) &&
         scope.preferences.reminderEnabled &&
         scope.reminderPermission == ReminderPermissionState.granted;
   }
@@ -193,34 +201,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
         _widgets?.locale = value.locale.locale ?? _deviceLocale();
         // Uzantılar veritabanını açamıyor; Siri konuşurken doğru şeyi
         // söyleyebilmesi için okuyabileceği tek yer bu ayna.
-        unawaited(
-          SharedImportBridge.setShareMirror(
-            proUnlocked: value.proUnlocked,
-            reminderEnabled: value.reminderEnabled,
-            retentionMinutes:
-                RetentionChoice(
-                  value.defaultRetention,
-                  customMinutes: value.defaultCustomMinutes,
-                ).duration?.inMinutes ??
-                0,
-            // Kurulu ama çalmamış olanlar da düşülüyor: Siri'nin "hakkın var"
-            // deyip uygulamanın sonra düşürmesi en kötü sıralama olurdu.
-            //
-            // Özellik kapalıyken `null` gidiyor, sıfır değil: uzantı için
-            // "bilinmiyor" demek ve o hâlde sade Pro kapısına düşüyor. Sıfır
-            // göndermek, hiç hakkı olmamış kullanıcıya "hakkın doldu"
-            // dedirtirdi.
-            freeRemindersLeft: !ProLimits.freeRemindersEnabled
-                ? null
-                : ProLimits.remainingReminders(
-                    value.freeReminderNotes,
-                    burnedFloor: widget.notes.freeReminderFloor,
-                    inFlight: _pendingReminders
-                        .where((id) => !value.freeReminderNotes.contains(id))
-                        .length,
-                  ),
-          ),
-        );
+        _mirrorShareSettings(value);
         if (value != _preferences) setState(() => _preferences = value);
         _startReminderClock();
         // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu
@@ -281,7 +262,11 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
           if (at.isAfter(now)) note.id,
     };
     if (setEquals(next, _pendingReminders)) return;
-    if (mounted) setState(() => _pendingReminders = next);
+    _pendingReminders = next;
+    // Kalan hak yalnız ayar satırı değiştiğinde aynalanırsa not ekleme/iptal
+    // etme Siri'ye bayat sayı bırakır. Not programı değiştiği anda da yayınla.
+    if (_settingsLoaded) _mirrorShareSettings(_preferences);
+    if (mounted) setState(() {});
   }
 
   void _syncRemindersWhenReady() {
@@ -304,6 +289,59 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       }
     });
     unawaited(_syncQueue);
+  }
+
+  Future<bool> _ensureReminderScheduled(int noteId) {
+    final completer = Completer<bool>();
+    // Kuyrukta henüz başlamamış eski snapshot artık geçersizdir; bu işlem en
+    // güncel Drift değerlerini kendisi okuyacak.
+    _syncRevision++;
+    _syncQueue = _syncQueue.then((_) async {
+      if (!mounted) {
+        completer.complete(false);
+        return;
+      }
+      try {
+        final settings = await widget.settings.read();
+        final notes = await widget.notes.watchNotes().first;
+        final result = await _syncReminders(notes, settings);
+        // `scheduled`, servis turunda varlığı doğrulanmış veya o turda
+        // başarıyla kurulmuş kayıtlardır. Sadece DB'deki remindAt yetmez.
+        completer.complete(result.scheduled.contains(noteId));
+      } catch (error) {
+        debugPrint('Siri hatırlatma devri tamamlanamadı: $error');
+        completer.complete(false);
+      }
+    });
+    unawaited(_syncQueue);
+    return completer.future;
+  }
+
+  void _mirrorShareSettings(AppSettings value) {
+    unawaited(
+      SharedImportBridge.setShareMirror(
+        proUnlocked: value.proUnlocked,
+        reminderEnabled: value.reminderEnabled,
+        retentionMinutes:
+            RetentionChoice(
+              value.defaultRetention,
+              customMinutes: value.defaultCustomMinutes,
+            ).duration?.inMinutes ??
+            0,
+        // Kurulu ama çalmamış olanlar da düşülüyor: Siri'nin "hakkın var"
+        // deyip uygulamanın sonra düşürmesi en kötü sıralama olurdu.
+        // Özellik kapalıyken `null`, "kota bilinmiyor" demektir.
+        freeRemindersLeft: !ProLimits.freeRemindersEnabled
+            ? null
+            : ProLimits.remainingReminders(
+                value.freeReminderNotes,
+                burnedFloor: widget.notes.freeReminderFloor,
+                inFlight: _pendingReminders
+                    .where((id) => !value.freeReminderNotes.contains(id))
+                    .length,
+              ),
+      ),
+    );
   }
 
   /// Bildirim düğmeleri uygulamayı açmadan veri yazıyor; o yazma **ayrı bir
@@ -335,7 +373,12 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     // elle değiştirilmiş/stale bir `true` değerinin veritabanında kalmasına
     // yol açardı. Kesin mağaza sonucunu ilk yüklemeden önce daima yaz.
     if (_settingsLoaded && value == _preferences.proUnlocked) return;
-    unawaited(widget.settings.setProUnlocked(value));
+    unawaited(
+      widget.settings.setProUnlocked(
+        value,
+        burnedFloor: widget.notes.freeReminderFloor,
+      ),
+    );
   }
 
   @override
@@ -409,7 +452,10 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   ///
   /// Kullanıcı "Sistem" seçtiyse telefonun dili alınır ve desteklenmiyorsa
   /// İngilizce'ye düşülür — arayüzdeki çözümlemenin aynısı.
-  Future<void> _syncReminders(List<Note> notes, AppSettings settings) async {
+  Future<ReminderSyncResult> _syncReminders(
+    List<Note> notes,
+    AppSettings settings,
+  ) async {
     final locale = settings.locale.locale ?? _deviceLocale();
     final l10n = await L10n.delegate.load(locale);
     // Widget köprüsüne buradan l10n geçilmiyor: zamana bağlı her metni native
@@ -424,18 +470,36 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     // Pro'da çağrı **hiç yapılmıyor**. Deponun kendi Pro kontrolü de var ama
     // o bir veritabanı sorgusu; ayarlar zaten elimizdeyken onu her senkronda
     // ödemenin anlamı yok.
-    if (!settings.proUnlocked) await widget.notes.loadFreeReminderFloor();
-    await _reminders.sync(notes, settings, l10n);
-    // Ücretsiz hak kurulumda değil **teslimde** yanıyor. Senkron her öne
-    // dönüşte ve her kayıt değişiminde koştuğu için hesap da burada kapanıyor;
-    // ayrı bir zamanlayıcı, uygulamanın zaten yaptığı işi tekrarlardı.
+    final floorChanged =
+        !settings.proUnlocked && await widget.notes.loadFreeReminderFloor();
+    if (floorChanged && mounted) {
+      // Keychain sonucu DB akışını değiştirmez; açık ekranı ve Siri aynasını
+      // açıkça tazelemezsek yeniden kurulumdan sonra üç hak kısa süreliğine geri
+      // görünürdü.
+      setState(() {});
+      _mirrorShareSettings(settings);
+    }
+    // Senkronun dönüşü iki ayrı kanıt taşıyor: işletim sistemine **kurulmuş**
+    // kayıtlar ve tepside **görülmüş** olanlar.
     //
-    // İzin durumu senkronun kendi okumasından geliyor: bildirim gösterilmeden
-    // hak yakılmaz.
-    await widget.notes.settleFreeReminders(
-      permissionGranted:
-          _reminders.permission.value == ReminderPermissionState.granted,
-    );
+    // Kurulum kalıcı olarak yazılıyor, çünkü dayanıklı kanıt odur. Tepsiye
+    // bakmak tek başına yetmiyordu: kullanıcı çalan bildirimi kaydırıp
+    // silince geriye iz kalmıyor ve hak hiç yanmıyordu — ölçüldü, aynı üç hak
+    // sonsuza kadar yeniden kullanılabiliyordu.
+    final result = await _reminders.sync(notes, settings, l10n);
+    await widget.notes.armFreeReminders(result.scheduled);
+    // Defter, programın kendisiyle uzlaşıyor.
+    //
+    // Eklemek tek başına yetmiyordu: ana şalteri kapatan kullanıcının alarmı
+    // `cancelAll` ile kalkıyor, kaydı defterde kalıyordu ve zamanı geçince
+    // hiç çalmamış bir bildirim için hak yanıyordu. Program okunamadıysa
+    // uzlaştırma atlanıyor — eksik fotoğraf, kurulu kayıtları düşürürdü.
+    if (result.scheduleKnown) {
+      await widget.notes.reconcileFreeReminders(scheduled: result.scheduled);
+    }
+    // Hesap, kurulu kaydın zamanı geçtiğinde kapanıyor.
+    await widget.notes.settleFreeReminders(deliveredNoteIds: result.delivered);
+    return result;
   }
 
   Locale _deviceLocale() =>
@@ -550,10 +614,8 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   /// gömüyordu.
   Future<void> _purgeExpired() async {
     try {
-      await widget.notes.purgeExpired(
-        reminderPermissionGranted:
-            _reminders.permission.value == ReminderPermissionState.granted,
-      );
+      final delivered = await _reminders.deliveredReminderNoteIds();
+      await widget.notes.purgeExpired(deliveredReminderNoteIds: delivered);
     } on Object catch (error) {
       debugPrint('Süresi dolan kayıtlar temizlenemedi: $error');
     }
@@ -592,6 +654,7 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       preferences: _preferences,
       pendingReminderNoteIds: _pendingReminders,
       freeReminderFloor: widget.notes.freeReminderFloor,
+      ensureReminderScheduled: _ensureReminderScheduled,
       reminderPermission: _reminders.permission.value,
       reminderClock: _reminderClock,
       archiveRepair:
@@ -619,6 +682,7 @@ class _RepositoryScope extends InheritedWidget {
     required this.preferences,
     required this.pendingReminderNoteIds,
     required this.freeReminderFloor,
+    required this.ensureReminderScheduled,
     required this.reminderPermission,
     required this.reminderClock,
     required this.archiveRepair,
@@ -639,6 +703,7 @@ class _RepositoryScope extends InheritedWidget {
 
   /// Yeniden kurulumdan sonra da duran hak tabanı.
   final int freeReminderFloor;
+  final Future<bool> Function(int noteId) ensureReminderScheduled;
 
   final ReminderPermissionState reminderPermission;
   final ArchiveRepair? archiveRepair;

@@ -723,6 +723,42 @@ class L10nPt extends L10n {
   String get settingsTitle => 'Definições';
 
   @override
+  String get accessibilityTitle => 'Acessibilidade';
+
+  @override
+  String get accessibilityDescription =>
+      'Aumente o contraste ou reduza o movimento apenas no Latermark.';
+
+  @override
+  String get accessibilityIntro =>
+      'O Latermark respeita sempre as definições de acessibilidade do dispositivo. Estes controlos apenas podem reforçá-las dentro da aplicação.';
+
+  @override
+  String get accessibilityContrastTitle => 'Aumentar sempre o contraste';
+
+  @override
+  String get accessibilityContrastDescription =>
+      'Reforça o texto secundário, os controlos e as sobreposições nas fotografias.';
+
+  @override
+  String get accessibilityMotionTitle => 'Reduzir sempre o movimento';
+
+  @override
+  String get accessibilityMotionDescription =>
+      'Interrompe o movimento decorativo e substitui transições de profundidade por desvanecimentos suaves.';
+
+  @override
+  String get accessibilitySystemNote =>
+      'O dispositivo mantém o controlo. Se Aumentar contraste ou Reduzir movimento estiver ativo no sistema, o Latermark respeita-o mesmo com estes interruptores desligados.';
+
+  @override
+  String get accessibilityTextSizeTitle => 'Tamanho do texto';
+
+  @override
+  String get accessibilityTextSizeBody =>
+      'O tamanho do texto é uma definição do dispositivo e o Latermark segue-a até ao dobro. Definições › Acessibilidade › Ecrã e Tamanho do Texto › Texto Maior. Só dentro do Latermark: Definições › Acessibilidade › Definições por App.';
+
+  @override
   String get sectionAppearance => 'Aspeto';
 
   @override
@@ -783,6 +819,9 @@ class L10nPt extends L10n {
 
   @override
   String get accentGold => 'Dourado';
+
+  @override
+  String get accentSilver => 'Prateado';
 
   @override
   String get accentCustom => 'Personalizada';
@@ -2007,6 +2046,42 @@ class L10nPtBr extends L10nPt {
   String get settingsTitle => 'Ajustes';
 
   @override
+  String get accessibilityTitle => 'Acessibilidade';
+
+  @override
+  String get accessibilityDescription =>
+      'Aumente o contraste ou reduza o movimento apenas no Latermark.';
+
+  @override
+  String get accessibilityIntro =>
+      'O Latermark sempre respeita os ajustes de acessibilidade do dispositivo. Estes controles só podem reforçá-los dentro do app.';
+
+  @override
+  String get accessibilityContrastTitle => 'Sempre aumentar o contraste';
+
+  @override
+  String get accessibilityContrastDescription =>
+      'Reforça textos secundários, controles e sobreposições nas fotos.';
+
+  @override
+  String get accessibilityMotionTitle => 'Sempre reduzir o movimento';
+
+  @override
+  String get accessibilityMotionDescription =>
+      'Interrompe movimentos decorativos e troca transições de profundidade por fades suaves.';
+
+  @override
+  String get accessibilitySystemNote =>
+      'O dispositivo mantém o controle. Se Aumentar Contraste ou Reduzir Movimento estiver ativo no sistema, o Latermark respeita a opção mesmo com estes controles desligados.';
+
+  @override
+  String get accessibilityTextSizeTitle => 'Tamanho do texto';
+
+  @override
+  String get accessibilityTextSizeBody =>
+      'O tamanho do texto é um ajuste do dispositivo e o Latermark o segue até o dobro. Ajustes › Acessibilidade › Tela e Tamanho do Texto › Texto Maior. Só dentro do Latermark: Ajustes › Acessibilidade › Ajustes por App.';
+
+  @override
   String get sectionAppearance => 'Aparência';
 
   @override
@@ -2067,6 +2142,9 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get accentGold => 'Dourado';
+
+  @override
+  String get accentSilver => 'Prateado';
 
   @override
   String get accentCustom => 'Personalizada';

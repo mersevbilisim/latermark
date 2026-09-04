@@ -234,6 +234,7 @@ class _UnitRail extends StatelessWidget {
                   onPressed: () => onChanged(unit),
                   scale: 0.97,
                   semanticLabel: labelOf(unit),
+                  minimumTarget: const Size.fromHeight(44),
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
                       color: unit == value

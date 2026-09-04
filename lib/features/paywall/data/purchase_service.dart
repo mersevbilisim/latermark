@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'debug_entitlement.dart';
@@ -120,6 +122,9 @@ class PurchaseService {
     // yine de kurmanın anlamı yok, cevabı zaten kullanılmayacak.
     if (_debugEntitlement() != null) return;
     if (!_supported) return;
+    // Debug anahtarı kapandığında yeniden çağrılıyor; ikinci bir dinleyici
+    // her olayı iki kez işler ve tamamlama çağrılarını ikizler.
+    if (_subscription != null) return;
 
     // Akış dinlemesi sorgudan *önce* kurulmalı: uygulama kapalıyken tamamlanan
     // ya da askıda kalmış bir satın alma, bağlanır bağlanmaz buraya düşer.
@@ -283,7 +288,23 @@ class PurchaseService {
   Future<void> setDebugPro(bool value) async {
     if (!DebugEntitlement.available) return;
     await DebugEntitlement.set(value);
+    // Elle verilen karar da bir nesil: uçuştaki mağaza sorgusu onu ezmemeli.
+    _confirmations++;
     unlocked.value = value ? true : null;
+    if (value) return;
+
+    // Anahtar açıkken başlayan oturumda [start] mağaza akışını hiç kurmuyor:
+    // cevabı kullanılmayacak bir bağlantı açmanın anlamı yok. Ama anahtar aynı
+    // oturumda kapanınca o karar geçersizleşiyor — gerçek satın almayı
+    // dinleyecek kimse kalmıyor ve Android geri yüklemesi timeout'a düşüyordu.
+    //
+    // Beklenmiyor: mağaza turu saniyeler sürebiliyor ve ayarlardaki anahtarı o
+    // kadar bekletmenin bir karşılığı yok.
+    unawaited(
+      start().catchError(
+        (Object error) => _log('Mağaza akışı yeniden kurulamadı: $error'),
+      ),
+    );
   }
 
   Future<bool?> _refreshPlatformEntitlement() {
@@ -382,6 +403,12 @@ class PurchaseService {
       if (owned == null) {
         throw const FormatException('StoreKit geri yükleme sonucu boş döndü.');
       }
+      // Kesin bir cevap yeni bir nesildir. Sayaç artmazsa, restore'dan **önce**
+      // başlamış ve hâlâ uçuşta olan bir `currentEntitlements` sorgusu kendi
+      // eski cevabını sonradan yazabiliyordu: kullanıcı "geri yükle"ye basıp
+      // hakkını açıyor, saniyeler sonra hak kendiliğinden kapanıyordu — ve
+      // kapanış artık gerçek bir downgrade temizliği demek.
+      _confirmations++;
       unlocked.value = owned;
       return owned;
     } catch (error) {
@@ -423,14 +450,24 @@ class PurchaseService {
 
     busy.value = true;
     try {
-      await _store.buyNonConsumable(
+      final launched = await _store.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: _product!),
       );
+      // Dönüş **ödeme ekranının açılıp açılmadığını** söylüyor, satın almanın
+      // sonucunu değil. Android'de `false` sık: satın alma kısıtlanmış hesap,
+      // açık duran başka bir Billing akışı, bağlantı kurulamamış istemci.
+      // O durumda `purchaseStream`'e hiçbir olay düşmüyor — dönüş yok
+      // sayıldığında ekran sonsuza kadar "işleniyor"da kalıyordu.
+      if (!launched) {
+        _log('[IAP] Ödeme akışı başlatılamadı (buyNonConsumable=false).');
+        busy.value = false;
+      }
     } catch (error) {
       _log('Satın alma başlatılamadı: $error');
       busy.value = false;
     }
-    // Başarı/iptal `purchaseStream` üzerinden gelir; `busy` orada kapanır.
+    // Akış başladıysa başarı/iptal `purchaseStream` üzerinden gelir; `busy`
+    // orada kapanır.
   }
 
   /// "Satın alımları geri yükle".
@@ -468,6 +505,16 @@ class PurchaseService {
     }
   }
 
+  /// Play kaydı ödemeyi bekliyor mu?
+  ///
+  /// Yalnız Android'de anlamlı; başka platformda ve testlerin sahte
+  /// kayıtlarında `false` döner. Google'ın kuralı net: hak yalnız
+  /// `PURCHASED` durumunda verilir, `PENDING` tamamlanmayı bekler.
+  static bool _awaitingPayment(PurchaseDetails purchase) =>
+      purchase is GooglePlayPurchaseDetails &&
+      purchase.billingClientPurchase.purchaseState !=
+          PurchaseStateWrapper.purchased;
+
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     var owned = false;
     var hasError = false;
@@ -481,6 +528,15 @@ class PurchaseService {
 
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          // Android'de bu durum **güvenilir değil**: eklentinin
+          // `restorePurchases()` yolu, sorgudan dönen her kaydın durumunu
+          // toplu olarak `restored`'a eziyor
+          // (`in_app_purchase_android/lib/src/in_app_purchase_android_platform.dart`).
+          // Google `queryPurchases` sonuçlarında ödenmemiş (PENDING) satın
+          // almaları da döndürüyor; yukarıdaki `pending` dalı bu yolda hiç
+          // çalışmıyor ve hak, parası ödenmemiş bir satın almaya açılıyordu.
+          // Gerçek durum yalnız Play'in kendi kaydında.
+          if (_awaitingPayment(purchase)) continue;
           if (purchase.productID == productId) {
             owned = true;
           }

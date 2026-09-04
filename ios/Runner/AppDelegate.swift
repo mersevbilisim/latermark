@@ -145,6 +145,22 @@ import flutter_local_notifications
         // kendi kimlik şemasıyla kuruyor.
         QueuedReminder.cancel(importId: id)
         result(true)
+      case "claimFreeReminderReservation":
+        guard
+          let arguments = call.arguments as? [String: Any],
+          let id = arguments["id"] as? String
+        else {
+          result(false)
+          return
+        }
+        // `NSNull` Pro katmanını ifade eder: rezervasyon devredilir ama Free
+        // aynası, downgrade senkronu kesin sayıyı getirene kadar değiştirilmez.
+        result(
+          SharedImportStore.claimFreeReminderReservation(
+            id: id,
+            databaseRemaining: arguments["databaseRemaining"] as? Int
+          )
+        )
       default:
         result(FlutterMethodNotImplemented)
       }

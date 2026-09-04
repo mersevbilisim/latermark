@@ -100,7 +100,8 @@ void main() {
     // Geri düğmesi ana ekranın sağ üst denetimleriyle aynı yuvarlak kabı
     // taşır: iki ekranda iki ayrı düğme dili yok.
     final backAction = find.byKey(const ValueKey('detail-action-back'));
-    expect(tester.getSize(backAction), const Size.square(38));
+    // Görsel cam 38 pt kalır; erişilebilir dokunma yüzeyi 44 pt'dir.
+    expect(tester.getSize(backAction), const Size.square(44));
 
     // Üç eylem alt şeritte, künyenin diliyle: ikon yok, geniş harf aralıklı
     // ad var. Sıra referans düzendeki gibi.

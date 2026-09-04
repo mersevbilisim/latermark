@@ -30,6 +30,7 @@ import '../../paywall/presentation/paywall_host.dart';
 import '../../notes/presentation/widgets/retention_selector.dart';
 import '../../../core/utils/legal_links.dart';
 import '../../paywall/data/debug_entitlement.dart';
+import 'accessibility_page.dart';
 import 'your_data_page.dart';
 
 /// Ayarlar.
@@ -148,9 +149,12 @@ class _SettingsPageState extends State<SettingsPage>
                     SettingsRow(
                       title: context.l10n.appColorTitle,
                       description: context.l10n.appColorDescription,
-                      trailing: Text(
-                        settings.accent.label(context.l10n),
-                        style: palette.label.copyWith(color: palette.inkSoft),
+                      semanticValue: settings.accent.label(context.l10n),
+                      trailing: ExcludeSemantics(
+                        child: Text(
+                          settings.accent.label(context.l10n),
+                          style: palette.label.copyWith(color: palette.inkSoft),
+                        ),
                       ),
                       below: Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -222,6 +226,8 @@ class _SettingsPageState extends State<SettingsPage>
                       ),
                       scale: 0.995,
                       semanticLabel: context.l10n.languageTitle,
+                      semanticHint: context.l10n.languageDescription,
+                      semanticValue: settings.locale.label(context.l10n),
                       child: SettingsRow(
                         title: context.l10n.languageTitle,
                         description: context.l10n.languageDescription,
@@ -246,6 +252,25 @@ class _SettingsPageState extends State<SettingsPage>
                               color: palette.inkFaint,
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Pressable(
+                      key: const Key('settings-accessibility'),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).push(AppRoutes.lift(const AccessibilityPage())),
+                      scale: 0.995,
+                      semanticLabel: context.l10n.accessibilityTitle,
+                      semanticHint: context.l10n.accessibilityDescription,
+                      child: SettingsRow(
+                        title: context.l10n.accessibilityTitle,
+                        description: context.l10n.accessibilityDescription,
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: palette.inkFaint,
                         ),
                       ),
                     ),
@@ -304,6 +329,10 @@ class _SettingsPageState extends State<SettingsPage>
                       onPressed: _openBackupHub,
                       scale: .995,
                       semanticLabel: context.l10n.backupManageTitle,
+                      semanticHint: context.l10n.backupManageDescription,
+                      semanticValue: settings.proUnlocked
+                          ? null
+                          : context.l10n.proBadge,
                       child: SettingsRow(
                         title: context.l10n.backupManageTitle,
                         description: context.l10n.backupManageDescription,
@@ -597,13 +626,17 @@ class _Header extends SliverPersistentHeaderDelegate {
               left: lerpDouble(22, 72, eased)!,
               right: 22,
               bottom: lerpDouble(13, 17, eased)!,
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: palette.display.copyWith(
-                  fontSize: lerpDouble(34, 19, eased),
-                  letterSpacing: lerpDouble(-0.9, -0.3, eased),
+              child: Semantics(
+                header: true,
+                namesRoute: true,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: palette.display.copyWith(
+                    fontSize: lerpDouble(34, 19, eased),
+                    letterSpacing: lerpDouble(-0.9, -0.3, eased),
+                  ),
                 ),
               ),
             ),
@@ -648,6 +681,7 @@ class _YourDataLink extends StatelessWidget {
 
     return Center(
       child: Pressable(
+        key: const Key('settings-your-data'),
         onPressed: () =>
             Navigator.of(context).push(AppRoutes.lift(const YourDataPage())),
         scale: 0.97,

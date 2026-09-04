@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_motion.dart';
+
 import '../../core/theme/app_palette.dart';
 import '../../l10n/l10n_context.dart';
 import 'aperture.dart';
@@ -92,7 +94,11 @@ class ProOwnedMark extends StatelessWidget {
                 dimension: size,
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.08, end: 1),
-                  duration: const Duration(milliseconds: 720),
+                  // Diyaframın açılışı süs; hareket azaltıldığında açık doğar.
+                  duration: AppMotion.travel(
+                    context,
+                    const Duration(milliseconds: 720),
+                  ),
                   curve: Curves.easeOutQuart,
                   builder: (context, value, _) => Aperture(
                     openness: value,

@@ -41,10 +41,17 @@ class IconOrb extends StatelessWidget {
         ? Color.lerp(OnPhoto.canvasDeep, accent, 0.18)!.withValues(alpha: 0.92)
         : fill ?? OnPhoto.canvasDeep.withValues(alpha: 0.78);
 
+    // Cam kap `size` kadar çiziliyor ama dokunma alanı en az 44 pt.
+    //
+    // Apple'ın alt sınırı bu ve uygulamanın yuvarlak düğmeleri 38 pt: titrek
+    // elle ya da tek başparmakla kullanan biri için altı puanlık fark, işin
+    // kendisi kadar zor bir nişan demek. Görünüm değişmiyor — büyüyen yalnız
+    // parmağın bulabildiği alan.
     return Pressable(
       onPressed: onPressed,
       scale: 0.9,
       semanticLabel: semanticLabel,
+      minimumTarget: const Size.square(44),
       child: GlassSurface.circle(
         tint: effectiveFill,
         borderColor: active

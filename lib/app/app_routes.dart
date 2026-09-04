@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_motion.dart';
+import 'back_swipe_route.dart';
 
 /// Sayfa geçişleri.
 ///
@@ -20,43 +21,24 @@ abstract final class AppRoutes {
           curve: AppMotion.ease,
           reverseCurve: AppMotion.exit,
         );
-        return FadeTransition(
-          opacity: eased,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 1.12, end: 1.0).animate(eased),
-            child: child,
-          ),
+        final faded = FadeTransition(opacity: eased, child: child);
+        if (MediaQuery.disableAnimationsOf(context)) return faded;
+        return ScaleTransition(
+          scale: Tween<double>(begin: 1.12, end: 1.0).animate(eased),
+          child: faded,
         );
       },
     );
   }
 
   /// Kameradan yazma ekranına: fotoğraf yerinde kalır, panel alttan yükselir.
-  static Route<T> lift<T>(Widget page) {
-    return PageRouteBuilder<T>(
-      transitionDuration: AppMotion.medium,
-      reverseTransitionDuration: AppMotion.medium,
-      opaque: true,
-      pageBuilder: (_, _, _) => page,
-      transitionsBuilder: (context, animation, secondary, child) {
-        final eased = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutQuart,
-          reverseCurve: AppMotion.exit,
-        );
-        return FadeTransition(
-          opacity: eased,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(eased),
-            child: child,
-          ),
-        );
-      },
-    );
-  }
+  ///
+  /// Sayfa kenardan geri çekilebiliyor. Bu rotalar opak olduğu için hareket
+  /// sayfanın gövdesine değil rotanın kendi denetleyicisine bağlı — detay
+  /// sayfasındaki saydam çözümün neden burada işe yaramadığı
+  /// [BackSwipeRoute]'un başında yazıyor.
+  static Route<T> lift<T>(Widget page) =>
+      BackSwipeRoute<T>(builder: (_) => page);
 
   /// Fotoğraf detayı: alttaki akışı canlı tutar; böylece fotoğraf aşağı
   /// çekildiğinde detay bir perde gibi kapanmak yerine ana ekranı açığa çıkarır.
@@ -73,12 +55,11 @@ abstract final class AppRoutes {
           curve: Curves.easeOutCubic,
           reverseCurve: AppMotion.exit,
         );
-        return FadeTransition(
-          opacity: eased,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: .985, end: 1).animate(eased),
-            child: child,
-          ),
+        final faded = FadeTransition(opacity: eased, child: child);
+        if (MediaQuery.disableAnimationsOf(context)) return faded;
+        return ScaleTransition(
+          scale: Tween<double>(begin: .985, end: 1).animate(eased),
+          child: faded,
         );
       },
     );

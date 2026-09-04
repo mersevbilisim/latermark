@@ -23,6 +23,7 @@ void main() {
             'takePendingSharedImport' => pending,
             'completeSharedImport' => true,
             'cancelQueuedReminder' => true,
+            'claimFreeReminderReservation' => true,
             _ => null,
           };
         });
@@ -44,6 +45,9 @@ void main() {
       'saveImmediately': true,
       'remindAfterDays': 0,
       'remindAtMilliseconds': 1756742400000,
+      'freeReminderReserved': true,
+      'freeReminderClaimed': false,
+      'queuedReminderState': 'scheduled',
     };
 
     final shared = await SharedImportBridge.takePending();
@@ -58,6 +62,9 @@ void main() {
     );
     // Gün sayısına çevrilmiyor: "yarın 9'da" diyen birinin saati kaybolurdu.
     expect(shared.remindAt, DateTime.fromMillisecondsSinceEpoch(1756742400000));
+    expect(shared.freeReminderReserved, isTrue);
+    expect(shared.freeReminderClaimed, isFalse);
+    expect(shared.queuedReminderWasScheduled, isTrue);
   });
 
   test('hatırlatmasız metin teslimi de geçerli', () async {
@@ -77,6 +84,9 @@ void main() {
 
     expect(shared!.isText, isTrue);
     expect(shared.remindAt, isNull);
+    // 1.0.3 sözleşmesinde rezervasyon alanları yoktu.
+    expect(shared.freeReminderReserved, isFalse);
+    expect(shared.queuedReminderState, QueuedReminderState.none);
   });
 
   test('kind alanı olmayan eski teslim fotoğraf sayılır', () async {
@@ -114,30 +124,45 @@ void main() {
   });
 
   test('geçici alarm kimliğiyle iptal ediliyor', () async {
-    await SharedImportBridge.cancelQueuedReminder('9f2c');
+    expect(await SharedImportBridge.cancelQueuedReminder('9f2c'), isTrue);
 
     expect(calls.single.method, 'cancelQueuedReminder');
     expect(calls.single.arguments, {'id': '9f2c'});
   });
 
-  test('ayna Pro, hatırlatma tercihi ve saklama süresini birlikte gönderir',
-      () async {
-    await SharedImportBridge.setShareMirror(
-      proUnlocked: true,
-      reminderEnabled: true,
-      // Sıfır "süresiz sakla"; uzantı bunu "değer yok" ile karıştırmamalı.
-      retentionMinutes: 0,
-      // Uzantı veritabanını açamıyor; ücretsiz hatırlatma hakkını yalnız
-      // buradan görebiliyor.
-      freeRemindersLeft: 2,
+  test('Free rezervasyonu kesin DB boşluğuyla nota devrediliyor', () async {
+    expect(
+      await SharedImportBridge.claimFreeReminderReservation(
+        '9f2c',
+        databaseRemaining: 1,
+      ),
+      isTrue,
     );
 
-    expect(calls.single.method, 'setShareMirror');
-    expect(calls.single.arguments, {
-      'unlocked': true,
-      'reminderEnabled': true,
-      'retentionMinutes': 0,
-      'freeRemindersLeft': 2,
-    });
+    expect(calls.single.method, 'claimFreeReminderReservation');
+    expect(calls.single.arguments, {'id': '9f2c', 'databaseRemaining': 1});
   });
+
+  test(
+    'ayna Pro, hatırlatma tercihi ve saklama süresini birlikte gönderir',
+    () async {
+      await SharedImportBridge.setShareMirror(
+        proUnlocked: true,
+        reminderEnabled: true,
+        // Sıfır "süresiz sakla"; uzantı bunu "değer yok" ile karıştırmamalı.
+        retentionMinutes: 0,
+        // Uzantı veritabanını açamıyor; ücretsiz hatırlatma hakkını yalnız
+        // buradan görebiliyor.
+        freeRemindersLeft: 2,
+      );
+
+      expect(calls.single.method, 'setShareMirror');
+      expect(calls.single.arguments, {
+        'unlocked': true,
+        'reminderEnabled': true,
+        'retentionMinutes': 0,
+        'freeRemindersLeft': 2,
+      });
+    },
+  );
 }

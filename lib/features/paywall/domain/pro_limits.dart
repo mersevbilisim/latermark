@@ -51,7 +51,7 @@ abstract final class ProLimits {
   /// Sayı **süre değil adet**: değer, hatırlatma çaldığında doğuyor. Yedi
   /// günlük bir deneme, onuncu güne kurulmuş bir hatırlatmayı hiç göstermez.
   /// Ölçünün birimi tamamlanmış turdur.
-  static const freeReminders = 3;
+  static const freeReminders = 2;
 
   /// Ücretsiz hatırlatma hakkı açık mı.
   ///
@@ -63,6 +63,15 @@ abstract final class ProLimits {
   /// olmamış birine olmayan bir şeyi kaybettirmek olurdu; o hâlde ekran da
   /// Siri de sade Pro kapısına dönüyor.
   static bool get freeRemindersEnabled => freeReminders > 0;
+
+  /// Hatırlatma altyapısı bu katmanda kullanılabilir mi.
+  ///
+  /// Bu soru kotadan farklıdır: hakkı bitmiş bir Free kullanıcı daha önce
+  /// hakkını yakmış bir kaydı yeniden kurabilir ve ana şalteri kapatıp açabilir.
+  /// Kaç yeni kayıt kurulabileceğine [allowsReminder] karar verir; servis ve
+  /// ayarlar yalnız özelliğin katmana bütünüyle açık olup olmadığını sorar.
+  static bool remindersAvailable({required bool isPro}) =>
+      isPro || freeRemindersEnabled;
 
   /// Bu kayda hatırlatma kurulabilir mi.
   ///
@@ -89,6 +98,7 @@ abstract final class ProLimits {
     int? noteId,
   }) {
     if (isPro) return true;
+    if (!freeRemindersEnabled) return false;
     if (noteId != null && usedNoteIds.contains(noteId)) return true;
     return burnedCount(usedNoteIds, burnedFloor) + inFlight < freeReminders;
   }
@@ -99,7 +109,7 @@ abstract final class ProLimits {
 
   /// Ücretsiz katmanda tekrar **yok**.
   ///
-  /// Hak "üç bildirim" demek. Tekrarlı bir hatırlatma tek hakla sınırsız
+  /// Hak "iki bildirim" demek. Tekrarlı bir hatırlatma tek hakla sınırsız
   /// bildirim üretir: günlük tekrar kuran bir kullanıcı bir slotla ömür boyu
   /// hatırlatma alır ve sayının hiçbir anlamı kalmaz. Ritim bu yüzden Pro'da.
   static ReminderCadence effectiveCadence(

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show SemanticsValidationResult;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -233,11 +234,17 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
 
     final navigator = Navigator.of(context);
     try {
-      await _repository!.setReminder(
+      final saved = await _repository!.setReminder(
         widget.noteId,
         ReminderChoice(at: _at, cadence: _cadence),
         deleteAfterReminder: _promisesDelete,
       );
+      if (!saved) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        showToast(context, context.l10n.reminderFreeSpent, error: true);
+        return;
+      }
     } on ReminderAfterExpiryException {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -602,11 +609,19 @@ class _DeleteAfterRow extends StatelessWidget {
     // takvimi oynatırdı.
     final detail = replacesRetention ? l10n.reminderDeleteAfterOverride : null;
 
-    return GestureDetector(
+    // Satırın tamamı **tek** bir anahtar: adı, durumu ve eylemi aynı düğümde.
+    // Önceden dıştaki dokunuş yüzeyi adsız bir düğme olarak ayrı listeleniyor,
+    // içindeki anahtar da ikinci bir denetim gibi okunuyordu — aynı işi yapan
+    // iki öğe.
+    return Semantics(
       key: const Key('reminder-delete-after-row'),
-      behavior: HitTestBehavior.opaque,
+      toggled: value,
+      label: detail == null ? label : '$label. $detail',
       onTap: () => onChanged(!value),
-      child: MergeSemantics(
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onChanged(!value),
         child: NoteOptionRow(
           label: ExcludeSemantics(
             child: NoteOptionLabel(
@@ -695,8 +710,9 @@ class _ReminderClockState extends State<ReminderClock> {
   final FocusNode _hourFocus = FocusNode();
   final FocusNode _minuteFocus = FocusNode();
 
-  /// Yazılan saat geçmişte kalıyor ya da okunamıyor. Yalnızca görsel: kayda
-  /// geçersiz bir an yazılmıyor, rakamlar tehlike rengine dönüyor.
+  /// Yazılan saat geçmişte kalıyor ya da okunamıyor. Kayda geçersiz bir an
+  /// yazılmıyor; görsel işaretin yanında VoiceOver'a doğrulama durumu ve canlı
+  /// hata duyurusu da veriliyor.
   bool _invalid = false;
 
   @override
@@ -803,9 +819,35 @@ class _ReminderClockState extends State<ReminderClock> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          context.l10n.upper(context.l10n.reminderTimeLabel),
-          style: palette.overline,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              context.l10n.upper(context.l10n.reminderTimeLabel),
+              style: palette.overline,
+            ),
+            AnimatedSwitcher(
+              duration: AppMotion.fast,
+              child: _invalid
+                  ? Semantics(
+                      key: const Key('reminder-time-invalid-mark'),
+                      container: true,
+                      liveRegion: true,
+                      label: MaterialLocalizations.of(context).invalidTimeLabel,
+                      child: ExcludeSemantics(
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(start: 6),
+                          child: Icon(
+                            Icons.error_outline_rounded,
+                            size: 15,
+                            color: palette.danger,
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
@@ -883,6 +925,9 @@ class _Digits extends StatelessWidget {
           child: Semantics(
             label: semanticLabel,
             textField: true,
+            validationResult: invalid
+                ? SemanticsValidationResult.invalid
+                : SemanticsValidationResult.none,
             child: TextField(
               key: Key('reminder-time-$name'),
               controller: controller,

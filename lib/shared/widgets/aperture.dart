@@ -294,7 +294,7 @@ class _AperturePainter extends CustomPainter {
         lit >= 0
             ? (Paint()
                 ..color = tint.withValues(
-                  alpha: 0.02 + 0.19 * math.pow(lit, 1.6).toDouble(),
+                  alpha: 0.015 + 0.125 * math.pow(lit, 1.6).toDouble(),
                 ))
             : (Paint()
                 ..color = const Color(
@@ -315,9 +315,9 @@ class _AperturePainter extends CustomPainter {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            tint.withValues(alpha: 0.10),
-            tint.withValues(alpha: 0.02),
             tint.withValues(alpha: 0.07),
+            tint.withValues(alpha: 0.015),
+            tint.withValues(alpha: 0.05),
           ],
           stops: const [0.0, 0.55, 1.0],
         ).createShader(bounds),
@@ -344,7 +344,7 @@ class _AperturePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
         ..strokeCap = StrokeCap.round
-        ..color = tint.withValues(alpha: 0.30),
+        ..color = tint.withValues(alpha: 0.20),
     );
 
     // 5) Namlunun derinliği.
@@ -425,7 +425,7 @@ class _AperturePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
         ..strokeJoin = StrokeJoin.miter
-        ..color = tint.withValues(alpha: 0.46),
+        ..color = tint.withValues(alpha: 0.32),
     );
 
     // 7) Namlunun ön yüzü — bıçakların **üstünde** duran gerçek bir bant.
@@ -462,11 +462,11 @@ class _AperturePainter extends CustomPainter {
           // 0. durak ışığın geldiği yöne düşsün.
           transform: GradientRotation(lightAngle),
           colors: [
-            glint.withValues(alpha: 0.46),
-            tint.withValues(alpha: 0.10),
-            tint.withValues(alpha: 0.0),
+            glint.withValues(alpha: 0.27),
             tint.withValues(alpha: 0.07),
-            glint.withValues(alpha: 0.46),
+            tint.withValues(alpha: 0.0),
+            tint.withValues(alpha: 0.05),
+            glint.withValues(alpha: 0.27),
           ],
           stops: const [0.0, 0.22, 0.5, 0.80, 1.0],
         ).createShader(bounds),
@@ -506,7 +506,7 @@ class _AperturePainter extends CustomPainter {
             ? glint.withValues(
                 alpha:
                     knurlFade *
-                    0.20 *
+                    0.13 *
                     math.pow((facing - 0.5) * 2, 1.4).toDouble(),
               )
             : const Color(0xFF000000).withValues(
@@ -529,11 +529,11 @@ class _AperturePainter extends CustomPainter {
         ..shader = SweepGradient(
           transform: GradientRotation(lightAngle),
           colors: [
-            glint.withValues(alpha: 0.72),
-            tint.withValues(alpha: 0.30),
-            tint.withValues(alpha: 0.14),
-            tint.withValues(alpha: 0.44),
-            glint.withValues(alpha: 0.72),
+            glint.withValues(alpha: 0.42),
+            tint.withValues(alpha: 0.19),
+            tint.withValues(alpha: 0.09),
+            tint.withValues(alpha: 0.26),
+            glint.withValues(alpha: 0.42),
           ],
           stops: const [0.0, 0.26, 0.52, 0.82, 1.0],
         ).createShader(rim),
@@ -555,9 +555,9 @@ class _AperturePainter extends CustomPainter {
           // dikiş yok.
           transform: GradientRotation(lightAngle),
           colors: [
-            tint.withValues(alpha: 0.05),
-            glint.withValues(alpha: 0.40),
-            tint.withValues(alpha: 0.05),
+            tint.withValues(alpha: 0.04),
+            glint.withValues(alpha: 0.23),
+            tint.withValues(alpha: 0.04),
           ],
           stops: const [0.0, 0.5, 1.0],
         ).createShader(rim),
@@ -585,7 +585,7 @@ class _AperturePainter extends CustomPainter {
         height: outer * 0.13,
       ),
       Paint()
-        ..color = glint.withValues(alpha: 0.30)
+        ..color = glint.withValues(alpha: 0.15)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, outer * 0.035),
     );
     canvas.restore();
@@ -751,26 +751,34 @@ class _ApertureButtonState extends State<ApertureButton>
   /// sahnedeki nesnenin duruşu, ışığın kendisi değil.
   static const _lightSwing = 0.55;
 
-  bool _lightMoves = false;
+  bool? _ambientMoves;
 
   @override
   void initState() {
     super.initState();
-    if (widget.breathing) _breath.repeat(reverse: true);
     if (widget.locked) _press.value = 1;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Hareketi azalt açıkken ışık da durur: bu döngünün işi bilgi taşımak
-    // değil, nesneye ağırlık vermek.
+    _syncAmbientMotion();
+  }
+
+  void _syncAmbientMotion() {
+    // Nefes ve ışık yalnız dekoratif, sürekli hareketler. Sistem "Hareketi
+    // Azalt" açıkken ikisi de orta karelerinde donar; düğmenin anlamı ve
+    // basma geri bildirimi aynen kalır.
     final moves = widget.breathing && !MediaQuery.disableAnimationsOf(context);
-    if (moves == _lightMoves) return;
-    _lightMoves = moves;
+    if (moves == _ambientMoves) return;
+    _ambientMoves = moves;
     if (moves) {
+      _breath.repeat(reverse: true);
       _light.repeat(reverse: true);
     } else {
+      _breath
+        ..stop()
+        ..value = widget.breathing ? 0.5 : 0;
       _light
         ..stop()
         ..value = 0.5;
@@ -781,17 +789,8 @@ class _ApertureButtonState extends State<ApertureButton>
   void didUpdateWidget(ApertureButton old) {
     super.didUpdateWidget(old);
     if (widget.breathing != old.breathing) {
-      widget.breathing ? _breath.repeat(reverse: true) : _breath.stop();
-      // Kapanışta ışık ortada bırakılıyor; nesne sahnenin varsayılan
-      // aydınlığında donuyor.
-      if (!widget.breathing) {
-        _light
-          ..stop()
-          ..value = 0.5;
-        _lightMoves = false;
-      } else {
-        didChangeDependencies();
-      }
+      _ambientMoves = null;
+      _syncAmbientMotion();
     }
     if (widget.locked != old.locked) {
       widget.locked ? _press.forward() : _press.reverse();

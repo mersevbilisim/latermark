@@ -104,6 +104,24 @@ void main() {
     );
   });
 
+  test('yedekten dönüş cihazın erişilebilirlik tercihlerini korur', () async {
+    final settingsRepository = SettingsRepository(database);
+    await settingsRepository.setAlwaysHighContrast(true);
+    await settingsRepository.setAlwaysReduceMotion(true);
+    final staging = Directory('${sandbox.path}/staging')..createSync();
+    await File('${staging.path}/new.jpg').writeAsBytes([4, 5, 6]);
+
+    await repository.replaceAll(
+      notes: [imported('new.jpg')],
+      settings: settings,
+      stagedPhotos: staging,
+    );
+
+    final restored = await settingsRepository.read();
+    expect(restored.alwaysHighContrast, isTrue);
+    expect(restored.alwaysReduceMotion, isTrue);
+  });
+
   test('hatırlattıktan sonra sil sözü yedekten aynen döner', () async {
     final settingsRepository = SettingsRepository(database);
     await settingsRepository.setProUnlocked(true);
@@ -270,10 +288,12 @@ void main() {
 
     // Geri yükleme: dosyalar hazırlanıp klasör değiştiriliyor.
     final staging = Directory('${sandbox.path}/staging')..createSync();
-    File('${staging.path}/${before.imageName}')
-        .writeAsBytesSync(List<int>.filled(500, 1));
-    File('${staging.path}/${before.originalName}')
-        .writeAsBytesSync(List<int>.filled(900000, 4));
+    File(
+      '${staging.path}/${before.imageName}',
+    ).writeAsBytesSync(List<int>.filled(500, 1));
+    File(
+      '${staging.path}/${before.originalName}',
+    ).writeAsBytesSync(List<int>.filled(900000, 4));
 
     await repository.replaceAll(
       notes: [exported.single],

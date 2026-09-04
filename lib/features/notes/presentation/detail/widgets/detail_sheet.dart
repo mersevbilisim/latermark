@@ -173,12 +173,17 @@ class _NoteCopy extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onEdit,
-        child: ExcludeSemantics(
-          child: Text(
-            hasBody ? body : l10n.composeHint,
-            key: const ValueKey('detail-note-copy'),
-            textAlign: TextAlign.center,
-            style: style,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: ExcludeSemantics(
+            child: Center(
+              child: Text(
+                hasBody ? body : l10n.composeHint,
+                key: const ValueKey('detail-note-copy'),
+                textAlign: TextAlign.center,
+                style: style,
+              ),
+            ),
           ),
         ),
       ),

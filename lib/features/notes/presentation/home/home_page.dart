@@ -182,7 +182,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (reminders != _reminders) {
       unawaited(_reminderLinkSubscription?.cancel());
       _reminders = reminders;
-      _reminderLinkSubscription = reminders.listenNoteTaps(_queueLinkedNote);
+      _reminderLinkSubscription = reminders.listenNoteTaps(_onReminderTap);
       unawaited(_initializeReminderLinks(reminders));
     }
   }
@@ -328,15 +328,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           try {
             final processed = await _repository!.hasProcessedImport(shared.id);
             if (!processed && !await _allowNewNote()) break;
-            var settings = await settingsRepository.read();
-            if (shared.remindAfterDays > 0 && !settings.proUnlocked) {
-              if (!mounted) break;
-              await showPaywall(context, reason: PaywallReason.reminder);
-              settings = await settingsRepository.read();
-              // Extension son bilinen hakkı görür; mağaza bu arada hakkı
-              // düşürdüyse seçimi sessizce yok saymak yerine payload bekler.
-              if (!settings.proUnlocked) break;
-            }
+            final settings = await settingsRepository.read();
             if (shared.remindAfterDays > 0) {
               await settingsRepository.setReminderEnabled(true);
               var allowed = await reminders.hasPermission();
@@ -345,7 +337,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               // kaldığı için kullanıcı Ayarlar'dan izin verdiği anda sonraki
               // sync bildirimi kurar.
             }
-            await _repository!.create(
+            final requestedReminder = shared.remindAfterDays > 0;
+            final noteId = await _repository!.create(
               capture: image,
               body: shared.initialText,
               retention: RetentionChoice(
@@ -365,11 +358,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   : const ReminderChoice.off(),
               importId: shared.id,
             );
+            final droppedReminder =
+                requestedReminder &&
+                (await _repository!.noteById(noteId))?.remindAt == null;
+            if (shared.freeReminderReserved) {
+              final remaining = await _repository!.remainingFreeReminders();
+              final claimed =
+                  shared.freeReminderClaimed ||
+                  await SharedImportBridge.claimFreeReminderReservation(
+                    shared.id,
+                    databaseRemaining: remaining,
+                  );
+              // Native rezervasyon Drift'e devredilmeden metadata silinmez.
+              // Bir sonraki foreground turu aynı import kimliğiyle notu
+              // çoğaltmadan yeniden dener.
+              if (!claimed) break;
+            }
             if (reviewPrompts != null) {
               unawaited(reviewPrompts.recordSuccessfulSave());
             }
-            await SharedImportBridge.complete(shared.id);
-            if (mounted) showToast(context, context.l10n.toastSharedPhotoAdded);
+            if (!await SharedImportBridge.complete(shared.id)) break;
+            if (mounted) {
+              showToast(
+                context,
+                droppedReminder
+                    ? context.l10n.reminderFreeSpent
+                    : context.l10n.toastSharedPhotoAdded,
+                error: droppedReminder,
+              );
+            }
           } catch (_) {
             if (mounted) {
               showToast(
@@ -399,7 +416,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         // Sistem geri hareketinde PopScope temizliği eşzamansız başlayabilir.
         // Route döndüğünde kuyruğu bir kez daha idempotent biçimde kapatmak,
         // aynı paylaşımın kısa bir yarışta yeniden açılmasını önler.
-        await SharedImportBridge.complete(shared.id);
+        if (!await SharedImportBridge.complete(shared.id)) break;
       }
     } finally {
       _drainingSharedImports = false;
@@ -425,17 +442,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final processed = await _repository!.hasProcessedImport(shared.id);
       if (!processed && !await _allowNewNote()) return false;
 
-      var settings = await settingsRepository.read();
+      final settings = await settingsRepository.read();
       var remindAt = shared.remindAt;
-
-      if (remindAt != null && !settings.proUnlocked) {
-        if (!mounted) return false;
-        // Uzantı son bilinen hakkı görüyor; mağaza bu arada hakkı düşürdüyse
-        // seçimi sessizce yok saymak yerine payload bekler.
-        await showPaywall(context, reason: PaywallReason.reminder);
-        settings = await settingsRepository.read();
-        if (!settings.proUnlocked) return false;
-      }
 
       if (remindAt != null) {
         await settingsRepository.setReminderEnabled(true);
@@ -455,8 +463,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Notu tümden kaybetmektense hatırlatmayı düşürmek daha az zarar veriyor
       // — ama sessizce değil, kullanıcı ne olduğunu görüyor.
       final expiry = retention.expiryFrom(shared.createdAt);
-      var droppedReminder =
+      final reminderPastExpiry =
           remindAt != null && expiry != null && !remindAt.isBefore(expiry);
+      // Native kurulum başarısız olmuş ve an uygulama açılmadan geçmişse
+      // geçmiş bir DB niyeti bırakma: artık kurulabilecek bir alarm yoktur.
+      // Başarıyla kurulan geçici alarmda ise geçmiş an korunur; biraz aşağıda
+      // dayanıklı `armed → burned` hesabını kapatmak için bu kanıt gerekir.
+      final reminderMissedWithoutSchedule =
+          remindAt != null &&
+          !remindAt.isAfter(DateTime.now()) &&
+          !shared.queuedReminderWasScheduled;
+      var droppedReminder = reminderPastExpiry || reminderMissedWithoutSchedule;
       if (droppedReminder) remindAt = null;
 
       final requestedReminder = remindAt;
@@ -478,23 +495,72 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Sebebi tek tek sormak yerine sonuca bakılıyor: istenen hatırlatma
       // kayda geçmediyse düşmüştür. Böylece ileride eklenecek her kapı da
       // kullanıcıya kendiliğinden görünür olur.
+      final saved = await _repository!.noteById(noteId);
       if (!droppedReminder && requestedReminder != null) {
-        final saved = await _repository!.noteById(noteId);
         droppedReminder = saved?.remindAt == null;
+      }
+
+      final savedReminder = saved?.remindAt;
+      final now = DateTime.now();
+      if (shared.freeReminderReserved &&
+          shared.queuedReminderWasScheduled &&
+          savedReminder != null &&
+          !savedReminder.isAfter(now)) {
+        // `import/<id>` payload'ı normal `note/<id>` tarayıcısına görünmez.
+        // Siri alarmı uygulama açılmadan çaldıysa metadata'daki başarılı
+        // kurulum kanıtını nota taşı ve aynı idempotent DB transaction'ında
+        // hakkı kapat. Bildirim tepsiden silinmiş olsa da iz kaybolmaz.
+        await _repository!.armFreeReminders({noteId});
+        await _repository!.settleFreeReminders(
+          deliveredNoteIds: {noteId},
+          now: now,
+        );
+      }
+
+      // Gelecekteki alarmda geçici isteği kaldırmadan önce AppScope'un tekli
+      // senkron kuyruğu ana `note/<id>` isteğini gerçekten görmeli. DB satırı
+      // oluşturulmuş olmak tek başına devir kanıtı değildir.
+      if (savedReminder != null && savedReminder.isAfter(DateTime.now())) {
+        if (!mounted) return false;
+        final handedOff = await AppScope.ensureReminderScheduled(
+          context,
+          noteId,
+        );
+        if (!handedOff) return false;
+      }
+
+      if (shared.freeReminderReserved) {
+        // Gelecekteki alarmın ana programa geçtiği (veya geçmişteki native
+        // alarmın hesabının kapandığı) kesinleşmeden rezervasyonu bırakma.
+        // Devir başarısızken kullanıcının notu silmesi bile geçici alarmı
+        // kotanın dışında bırakamaz.
+        final remaining = await _repository!.remainingFreeReminders();
+        final claimed =
+            shared.freeReminderClaimed ||
+            await SharedImportBridge.claimFreeReminderReservation(
+              shared.id,
+              databaseRemaining: remaining,
+            );
+        if (!claimed) return false;
       }
 
       if (reviewPrompts != null) {
         unawaited(reviewPrompts.recordSuccessfulSave());
       }
-      await SharedImportBridge.complete(shared.id);
-      // Kayıt oluştuktan **sonra**: arada bir hata olsaydı kullanıcı hem
-      // kaydı hem alarmı kaybederdi.
-      await SharedImportBridge.cancelQueuedReminder(shared.id);
+      // Ana alarm doğrulandıktan **sonra**, önce geçici isteği kaldır; süreç
+      // bundan hemen sonra ölse bile DB notu ve ana alarm ayaktadır. Temizlik
+      // başarısızsa aynı import kimliği sonraki foreground'da yeniden denenir.
+      if (!await SharedImportBridge.cancelQueuedReminder(shared.id)) {
+        return false;
+      }
+      if (!await SharedImportBridge.complete(shared.id)) return false;
       if (mounted) {
         showToast(
           context,
           droppedReminder
-              ? context.l10n.toastQueuedNoteReminderDropped
+              ? reminderPastExpiry
+                    ? context.l10n.toastQueuedNoteReminderDropped
+                    : context.l10n.reminderFreeSpent
               : context.l10n.toastQueuedNoteAdded,
           error: droppedReminder,
         );
@@ -532,6 +598,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _queueWidgetCamera();
         return;
     }
+  }
+
+  void _onReminderTap(int noteId) {
+    final repository = _repository;
+    if (repository != null) {
+      // Dokunma, tepsideki satır auto-cancel ile kaybolsa bile teslimatın kesin
+      // kanıtıdır. Hesabı route açılışından bağımsız kapat.
+      unawaited(repository.settleFreeReminders(deliveredNoteIds: {noteId}));
+    }
+    _queueLinkedNote(noteId);
   }
 
   /// Widget, bildirim ve hızlı çekim dokunuşlarını aynı tekli route kuyruğunda

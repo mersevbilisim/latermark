@@ -702,6 +702,42 @@ class L10nTr extends L10n {
   String get settingsTitle => 'Ayarlar';
 
   @override
+  String get accessibilityTitle => 'Erişilebilirlik';
+
+  @override
+  String get accessibilityDescription =>
+      'Yalnız Latermark için kontrastı güçlendir veya hareketi azalt.';
+
+  @override
+  String get accessibilityIntro =>
+      'Latermark cihazındaki erişilebilirlik ayarlarını her zaman izler. Buradaki kontroller onları yalnız uygulama içinde daha güçlü hâle getirebilir.';
+
+  @override
+  String get accessibilityContrastTitle => 'Kontrastı her zaman artır';
+
+  @override
+  String get accessibilityContrastDescription =>
+      'İkincil metinleri, kontrolleri ve fotoğraf üstü katmanları daha belirgin yapar.';
+
+  @override
+  String get accessibilityMotionTitle => 'Hareketi her zaman azalt';
+
+  @override
+  String get accessibilityMotionDescription =>
+      'Dekoratif hareketi durdurur ve derinlik geçişlerini yumuşak solmalarla değiştirir.';
+
+  @override
+  String get accessibilitySystemNote =>
+      'Öncelik cihazındadır. Sistem ayarlarında Kontrastı Artır veya Hareketi Azalt açıksa, buradaki anahtarlar kapalı olsa bile Latermark buna uyar.';
+
+  @override
+  String get accessibilityTextSizeTitle => 'Yazı boyu';
+
+  @override
+  String get accessibilityTextSizeBody =>
+      'Yazı boyu cihazının ayarıdır; Latermark onu iki katına kadar izler. Ayarlar › Erişilebilirlik › Ekran ve Metin Boyutu › Daha Büyük Metin. Yalnız Latermark\'ta büyütmek istersen Ayarlar › Erişilebilirlik › Uygulama Bazlı Ayarlar.';
+
+  @override
   String get sectionAppearance => 'Görünüm';
 
   @override
@@ -762,6 +798,9 @@ class L10nTr extends L10n {
 
   @override
   String get accentGold => 'Altın';
+
+  @override
+  String get accentSilver => 'Gümüş';
 
   @override
   String get accentCustom => 'Özel';

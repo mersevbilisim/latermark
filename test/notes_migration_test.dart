@@ -140,75 +140,77 @@ void main() {
     await database.close();
   });
 
-  test('v12 arşivi ücretsiz hatırlatma sütununa veri kaybetmeden yükseliyor', (
-  ) async {
-    var database = await open();
+  test(
+    'v12 arşivi ücretsiz hatırlatma sütununa veri kaybetmeden yükseliyor',
+    () async {
+      var database = await open();
 
-    // Cihazda v12'den kalan hâl: tablo yeni sütunu tanımıyor. Bu, güncellemeyi
-    // alan **mevcut kullanıcının** durumu.
-    await database.customStatement(
-      'ALTER TABLE settings DROP COLUMN free_reminder_notes',
-    );
-    await database.customStatement(
-      'UPDATE settings SET theme_mode = 1, accent = 6, accent_hue = 214, '
-      'locale = 3, density = 0, pro_unlocked = 0, reminder_enabled = 1, '
-      'default_retention = 2, share_signature = 0',
-    );
-    await database.customStatement(
-      "INSERT INTO notes (image_name, body, created_at, retention, expires_at, "
-      "remind_at, remind_every_days) VALUES "
-      "('v12.jpg', 'eski kullanıcının karesi', 1754000000, 2, 1754600000, "
-      "1754500000, 7)",
-    );
-    await database.customStatement(
-      "INSERT INTO notes (image_name, body, created_at, retention) "
-      "VALUES ('', 'karesiz eski kayıt', 1754000001, 0)",
-    );
-    await database.customStatement('PRAGMA user_version = 12');
-    await database.close();
+      // Cihazda v12'den kalan hâl: tablo yeni sütunu tanımıyor. Bu, güncellemeyi
+      // alan **mevcut kullanıcının** durumu.
+      await database.customStatement(
+        'ALTER TABLE settings DROP COLUMN free_reminder_notes',
+      );
+      await database.customStatement(
+        'UPDATE settings SET theme_mode = 1, accent = 6, accent_hue = 214, '
+        'locale = 3, density = 0, pro_unlocked = 0, reminder_enabled = 1, '
+        'default_retention = 2, share_signature = 0',
+      );
+      await database.customStatement(
+        "INSERT INTO notes (image_name, body, created_at, retention, expires_at, "
+        "remind_at, remind_every_days) VALUES "
+        "('v12.jpg', 'eski kullanıcının karesi', 1754000000, 2, 1754600000, "
+        "1754500000, 7)",
+      );
+      await database.customStatement(
+        "INSERT INTO notes (image_name, body, created_at, retention) "
+        "VALUES ('', 'karesiz eski kayıt', 1754000001, 0)",
+      );
+      await database.customStatement('PRAGMA user_version = 12');
+      await database.close();
 
-    database = await open();
-    expect(
-      await database
-          .customSelect('PRAGMA user_version')
-          .map((row) => row.read<int>('user_version'))
-          .getSingle(),
-      database.schemaVersion,
-    );
+      database = await open();
+      expect(
+        await database
+            .customSelect('PRAGMA user_version')
+            .map((row) => row.read<int>('user_version'))
+            .getSingle(),
+        database.schemaVersion,
+      );
 
-    // Tercihlerin tamamı yerinde.
-    final settings = await database
-        .customSelect('SELECT * FROM settings WHERE id = 1')
-        .getSingle();
-    expect(settings.read<int>('theme_mode'), 1);
-    expect(settings.read<int>('accent'), 6);
-    expect(settings.read<int>('accent_hue'), 214);
-    expect(settings.read<int>('locale'), 3);
-    expect(settings.read<int>('density'), 0);
-    expect(settings.read<int>('reminder_enabled'), 1);
-    expect(settings.read<int>('default_retention'), 2);
-    expect(settings.read<int>('share_signature'), 0);
+      // Tercihlerin tamamı yerinde.
+      final settings = await database
+          .customSelect('SELECT * FROM settings WHERE id = 1')
+          .getSingle();
+      expect(settings.read<int>('theme_mode'), 1);
+      expect(settings.read<int>('accent'), 6);
+      expect(settings.read<int>('accent_hue'), 214);
+      expect(settings.read<int>('locale'), 3);
+      expect(settings.read<int>('density'), 0);
+      expect(settings.read<int>('reminder_enabled'), 1);
+      expect(settings.read<int>('default_retention'), 2);
+      expect(settings.read<int>('share_signature'), 0);
 
-    // Yeni sütun **boş** doluyor: yükseltmeden gelen kullanıcı üç hakkının
-    // tamamıyla başlıyor. Dolu gelseydi hiç kullanmadığı bir hakkı harcamış
-    // sayılırdı.
-    expect(settings.read<String>('free_reminder_notes'), '');
+      // Yeni sütun **boş** doluyor: yükseltmeden gelen kullanıcı haklarının
+      // tamamıyla başlıyor. Dolu gelseydi hiç kullanmadığı bir hakkı harcamış
+      // sayılırdı.
+      expect(settings.read<String>('free_reminder_notes'), '');
 
-    // Ve asıl mesele: arşivin kendisi, hatırlatmasıyla birlikte.
-    final notes = await database.customSelect(
-      'SELECT * FROM notes ORDER BY id',
-    ).get();
-    expect(notes, hasLength(2));
-    expect(notes.first.read<String>('body'), 'eski kullanıcının karesi');
-    expect(notes.first.read<String>('image_name'), 'v12.jpg');
-    expect(notes.first.read<int>('remind_at'), 1754500000);
-    expect(notes.first.read<int>('remind_every_days'), 7);
-    expect(notes.first.read<int>('expires_at'), 1754600000);
-    expect(notes.last.read<String>('body'), 'karesiz eski kayıt');
-    expect(notes.last.read<String>('image_name'), '');
+      // Ve asıl mesele: arşivin kendisi, hatırlatmasıyla birlikte.
+      final notes = await database
+          .customSelect('SELECT * FROM notes ORDER BY id')
+          .get();
+      expect(notes, hasLength(2));
+      expect(notes.first.read<String>('body'), 'eski kullanıcının karesi');
+      expect(notes.first.read<String>('image_name'), 'v12.jpg');
+      expect(notes.first.read<int>('remind_at'), 1754500000);
+      expect(notes.first.read<int>('remind_every_days'), 7);
+      expect(notes.first.read<int>('expires_at'), 1754600000);
+      expect(notes.last.read<String>('body'), 'karesiz eski kayıt');
+      expect(notes.last.read<String>('image_name'), '');
 
-    await database.close();
-  });
+      await database.close();
+    },
+  );
 
   test('v13 arşivi v12\'ye düşüp tekrar yükselince de açılıyor', () async {
     // TestFlight'ta eski yapıya dönen kullanıcının hâli: sütun tabloda duruyor
@@ -230,55 +232,109 @@ void main() {
     await database.close();
   });
 
-  test('güncellemeyi alan Pro kullanıcının hatırlatmaları kotadan yemiyor', (
-  ) async {
-    // Kullanıcının en çok korkacağı senaryo: güncellemeyi al, kurulu
-    // hatırlatmaları kaybet. Kota kimseden var olan bir şeyi alamamalı.
-    //
-    // İki ayrı güvence ölçülüyor. Birincisi Pro kullanıcı kapıdan hiç
-    // geçmiyor. İkincisi daha ince: hak **teslimde** yandığı için, çoktan
-    // çalmış eski hatırlatmalar da geriye dönük olarak hak yakmamalı.
-    var database = await open();
-    await database.customStatement(
-      'ALTER TABLE settings DROP COLUMN free_reminder_notes',
-    );
-    await database.customStatement(
-      'UPDATE settings SET pro_unlocked = 1, reminder_enabled = 1',
-    );
-    await database.customStatement(
-      "INSERT INTO notes (image_name, body, created_at, retention, remind_at) "
-      "VALUES ('gecmis.jpg', 'çoktan çalmış', 1754000000, 0, 1754000600)",
-    );
-    await database.customStatement(
-      "INSERT INTO notes (image_name, body, created_at, retention, remind_at, "
-      "remind_every_days) VALUES ('gelecek.jpg', 'ileride çalacak', "
-      "1754000000, 0, 4102444800, 1)",
-    );
-    await database.customStatement('PRAGMA user_version = 12');
-    await database.close();
+  test(
+    'v14 arşivi erişilebilirlik ayarlarını veri kaybetmeden alıyor',
+    () async {
+      var database = await open();
 
-    database = await open();
-    final photos = await PhotoStore.openIn(sandbox);
-    final repository = NotesRepository(database: database, photos: photos);
-    final settings = SettingsRepository(database);
+      // v14'ün gerçek sınırı: yeni iki sütun yok, kullanıcının bütün eski
+      // tercihleri ve kota defterleri ise dolu olabilir.
+      await database.customStatement(
+        'UPDATE settings SET theme_mode = 1, accent = 6, accent_hue = 214, '
+        'locale = 3, density = 0, pro_unlocked = 1, reminder_enabled = 1, '
+        "collapsed_groups = 'today,week', free_reminder_notes = '4,9', "
+        "free_reminder_armed = '11'",
+      );
+      await database.customStatement(
+        "INSERT INTO notes (image_name, body, created_at, retention, remind_at) "
+        "VALUES ('v14.jpg', 'dokunulmaması gereken kayıt', 1754000000, 0, "
+        '4102444800)',
+      );
+      await database.customStatement(
+        'ALTER TABLE settings DROP COLUMN always_high_contrast',
+      );
+      await database.customStatement(
+        'ALTER TABLE settings DROP COLUMN always_reduce_motion',
+      );
+      await database.customStatement('PRAGMA user_version = 14');
+      await database.close();
 
-    // Senkron her öne dönüşte koşuyor; güncellemeden sonraki ilk açılış da bu.
-    await repository.settleFreeReminders(permissionGranted: true);
+      database = await open();
+      final row = await database.select(database.settingsTable).getSingle();
+      expect(row.themeMode.index, 1);
+      expect(row.accent.index, 6);
+      expect(row.accentHue, 214);
+      expect(row.locale.index, 3);
+      expect(row.density.index, 0);
+      expect(row.proUnlocked, isTrue);
+      expect(row.reminderEnabled, isTrue);
+      expect(row.collapsedGroups, 'today,week');
+      expect(row.freeReminderNotes, '4,9');
+      expect(row.freeReminderArmed, '11');
+      expect(row.alwaysHighContrast, isFalse);
+      expect(row.alwaysReduceMotion, isFalse);
 
-    // Pro kullanıcıda hesap hiç açılmıyor.
-    expect((await settings.read()).freeReminderNotes, isEmpty);
+      final note = await database.select(database.notes).getSingle();
+      expect(note.imageName, 'v14.jpg');
+      expect(note.body, 'dokunulmaması gereken kayıt');
+      expect(note.remindAt, DateTime.fromMillisecondsSinceEpoch(4102444800000));
+      await database.close();
+    },
+  );
 
-    // Ve hatırlatmaların ikisi de yerinde.
-    final notes = await repository.watchNotes().first;
-    expect(notes, hasLength(2));
-    expect(notes.every((note) => note.remindAt != null), isTrue);
-    expect(
-      notes.firstWhere((note) => note.body == 'ileride çalacak').remindEveryDays,
-      1,
-    );
+  test(
+    'güncellemeyi alan Pro kullanıcının hatırlatmaları kotadan yemiyor',
+    () async {
+      // Kullanıcının en çok korkacağı senaryo: güncellemeyi al, kurulu
+      // hatırlatmaları kaybet. Kota kimseden var olan bir şeyi alamamalı.
+      //
+      // İki ayrı güvence ölçülüyor. Birincisi Pro kullanıcı kapıdan hiç
+      // geçmiyor. İkincisi daha ince: hak **teslimde** yandığı için, çoktan
+      // çalmış eski hatırlatmalar da geriye dönük olarak hak yakmamalı.
+      var database = await open();
+      await database.customStatement(
+        'ALTER TABLE settings DROP COLUMN free_reminder_notes',
+      );
+      await database.customStatement(
+        'UPDATE settings SET pro_unlocked = 1, reminder_enabled = 1',
+      );
+      await database.customStatement(
+        "INSERT INTO notes (image_name, body, created_at, retention, remind_at) "
+        "VALUES ('gecmis.jpg', 'çoktan çalmış', 1754000000, 0, 1754000600)",
+      );
+      await database.customStatement(
+        "INSERT INTO notes (image_name, body, created_at, retention, remind_at, "
+        "remind_every_days) VALUES ('gelecek.jpg', 'ileride çalacak', "
+        "1754000000, 0, 4102444800, 1)",
+      );
+      await database.customStatement('PRAGMA user_version = 12');
+      await database.close();
 
-    await database.close();
-  });
+      database = await open();
+      final photos = await PhotoStore.openIn(sandbox);
+      final repository = NotesRepository(database: database, photos: photos);
+      final settings = SettingsRepository(database);
+
+      // Senkron her öne dönüşte koşuyor; güncellemeden sonraki ilk açılış da bu.
+      await repository.settleFreeReminders(deliveredNoteIds: const {1, 2});
+
+      // Pro kullanıcıda hesap hiç açılmıyor.
+      expect((await settings.read()).freeReminderNotes, isEmpty);
+
+      // Ve hatırlatmaların ikisi de yerinde.
+      final notes = await repository.watchNotes().first;
+      expect(notes, hasLength(2));
+      expect(notes.every((note) => note.remindAt != null), isTrue);
+      expect(
+        notes
+            .firstWhere((note) => note.body == 'ileride çalacak')
+            .remindEveryDays,
+        1,
+      );
+
+      await database.close();
+    },
+  );
 
   test('gerçek yükseltme hâlâ koşuyor: v7 kaydı mutlak ana dönüyor', () async {
     // Korumanın asıl riski bu: "zaten dönüşmüş" ölçütü, gerçekten dönüşmesi
@@ -355,29 +411,145 @@ void main() {
     },
   );
 
-  test('v10 arşivi kapalı bölüm sütununu boş alıyor', () async {
-    // Yükseltmeden gelen kullanıcı: sütun yeni, değeri boş, yani bütün
-    // bölümler açık. Görünüm tercihi için eklenen bir sütun kimsenin arşivini
-    // değiştirmemeli.
-    var database = await open();
-    await database.customStatement(
-      'ALTER TABLE settings DROP COLUMN collapsed_groups',
-    );
-    await database.customStatement('PRAGMA user_version = 10');
-    await database.close();
+  for (final isPro in [false, true]) {
+    test(
+      'gerçek 1.0.3/v10 ${isPro ? 'Pro' : 'Free'} arşivi eksiksiz açılıyor',
+      () async {
+        // Güncel tabloyu kırparak eskiyi taklit etmek gelecekteki sütunları
+        // yanlışlıkla fixture'da bırakabiliyor. Burada 1.0.3'ün üretilmiş
+        // Drift şeması baştan kuruluyor; dolayısıyla v10 -> güncel zincir gerçek
+        // cihaz dosyasında karşılaşacağı biçimle sınanıyor.
+        var database = await open();
+        await database.customStatement('DROP TABLE note_search');
+        await database.customStatement('DROP TABLE notes');
+        await database.customStatement('DROP TABLE settings');
+        await database.customStatement('''
+          CREATE TABLE notes (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            image_name TEXT NOT NULL,
+            original_name TEXT NULL,
+            body TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL,
+            retention INTEGER NOT NULL DEFAULT 0,
+            custom_minutes INTEGER NOT NULL DEFAULT 0,
+            expires_at INTEGER NULL,
+            last_seen_at INTEGER NULL,
+            updated_at INTEGER NULL,
+            latitude REAL NULL,
+            longitude REAL NULL,
+            remind_at INTEGER NULL,
+            remind_every_days INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        await database.customStatement('''
+          CREATE TABLE note_search (
+            note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+            body_folded TEXT NOT NULL DEFAULT '',
+            photo_folded TEXT NULL,
+            photo_fingerprint TEXT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (note_id)
+          )
+        ''');
+        await database.customStatement('''
+          CREATE TABLE settings (
+            id INTEGER NOT NULL DEFAULT 1,
+            theme_mode INTEGER NOT NULL DEFAULT 2,
+            accent INTEGER NOT NULL DEFAULT 0,
+            density INTEGER NOT NULL DEFAULT 1,
+            reminder_enabled INTEGER NOT NULL DEFAULT 0
+              CHECK (reminder_enabled IN (0, 1)),
+            location_enabled INTEGER NOT NULL DEFAULT 0
+              CHECK (location_enabled IN (0, 1)),
+            default_retention INTEGER NOT NULL DEFAULT 0,
+            locale INTEGER NOT NULL DEFAULT 0,
+            default_custom_minutes INTEGER NOT NULL DEFAULT 0,
+            share_signature INTEGER NOT NULL DEFAULT 1
+              CHECK (share_signature IN (0, 1)),
+            pro_unlocked INTEGER NOT NULL DEFAULT 0
+              CHECK (pro_unlocked IN (0, 1)),
+            PRIMARY KEY (id)
+          )
+        ''');
 
-    database = await open();
-    final settings = await database.select(database.settingsTable).getSingle();
-    expect(settings.collapsedGroups, '');
-    expect(
-      await database
-          .customSelect('PRAGMA user_version')
-          .map((row) => row.read<int>('user_version'))
-          .getSingle(),
-      database.schemaVersion,
+        final remindAt = isPro ? 4102444800 : null;
+        await database.customStatement(
+          'INSERT INTO settings (id, theme_mode, accent, density, '
+          'reminder_enabled, location_enabled, default_retention, locale, '
+          'default_custom_minutes, share_signature, pro_unlocked) '
+          'VALUES (1, 1, 4, 0, ?, 1, 2, 3, 0, 0, ?)',
+          [isPro ? 1 : 0, isPro ? 1 : 0],
+        );
+        await database.customStatement(
+          'INSERT INTO notes (image_name, original_name, body, created_at, '
+          'retention, expires_at, remind_at, remind_every_days) '
+          "VALUES ('v103.jpg', 'v103-original.jpg', '1.0.3 kaydı', "
+          '1754000000, 2, 1754600000, ?, ?)',
+          [remindAt, isPro ? 7 : 0],
+        );
+        await database.customStatement(
+          "INSERT INTO note_search (note_id, body_folded, photo_folded, "
+          "photo_fingerprint, attempts) VALUES (1, '103 kaydı', 'ocr', "
+          "'fingerprint', 1)",
+        );
+        await database.customStatement('PRAGMA user_version = 10');
+        await database.close();
+
+        database = await open();
+        final row = await database.select(database.notes).getSingle();
+        expect(row.imageName, 'v103.jpg');
+        expect(row.originalName, 'v103-original.jpg');
+        expect(row.body, '1.0.3 kaydı');
+        expect(row.expiresAt, isNotNull);
+        expect(row.remindAt, isPro ? isNotNull : isNull);
+        expect(row.remindEveryDays, isPro ? 7 : 0);
+
+        final search = await database.select(database.noteSearch).getSingle();
+        expect(search.photoFolded, 'ocr');
+        expect(search.photoFingerprint, 'fingerprint');
+        expect(search.attempts, 1);
+
+        final rawSettings = await database
+            .select(database.settingsTable)
+            .getSingle();
+        expect(rawSettings.themeMode.index, 1);
+        expect(rawSettings.accent.index, 4);
+        expect(rawSettings.density.index, 0);
+        expect(rawSettings.locationEnabled, isTrue);
+        expect(rawSettings.defaultRetention.index, 2);
+        expect(rawSettings.locale.index, 3);
+        expect(rawSettings.shareSignature, isFalse);
+        expect(rawSettings.proUnlocked, isPro);
+        expect(rawSettings.reminderEnabled, isPro);
+        expect(rawSettings.collapsedGroups, '');
+        expect(rawSettings.accentHue, AccentTone.defaultHue);
+        expect(rawSettings.freeReminderNotes, '');
+        expect(rawSettings.freeReminderArmed, '');
+        expect(rawSettings.alwaysHighContrast, isFalse);
+        expect(rawSettings.alwaysReduceMotion, isFalse);
+
+        final settings = SettingsRepository(database);
+        final model = await settings.read();
+        expect(model.proUnlocked, isPro);
+        expect(model.reminderEnabled, isPro);
+        if (!isPro) {
+          // 1.0.3 Free kullanıcının yeni haklara erişmesi için eski kapalı
+          // anahtar, kullanıcı açtığında artık Pro önbelleğine takılmamalı.
+          await settings.setReminderEnabled(true);
+          expect((await settings.read()).reminderEnabled, isTrue);
+        }
+
+        expect(
+          await database
+              .customSelect('PRAGMA user_version')
+              .map((row) => row.read<int>('user_version'))
+              .getSingle(),
+          database.schemaVersion,
+        );
+        await database.close();
+      },
     );
-    await database.close();
-  });
+  }
 
   test('kayıtlar ve ayarlar zincir yeniden koşunca yerinde kalıyor', () async {
     var database = await open();

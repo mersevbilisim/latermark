@@ -263,6 +263,40 @@ class SettingsTable extends Table {
   /// hâlde eski bir yedeği geri yüklemek hakkı sıfırlamanın yolu olurdu.
   TextColumn get freeReminderNotes => text().withDefault(const Constant(''))();
 
+  /// İşletim sistemine **kurulmuş** ama henüz çalmamış ücretsiz
+  /// hatırlatmaların kayıt kimlikleri.
+  ///
+  /// Ayrı bir liste olmasının sebebi kanıtın dayanıklılığı. Teslimatı tepsiden
+  /// (`getActiveNotifications`) okumak yanlıştı: tepsi anlık bir fotoğraf ve
+  /// kullanıcı bildirimi kaydırıp sildiğinde geriye hiç iz kalmıyor — ölçüldü,
+  /// çalan bildirim silinince hak hiç yanmıyordu ve aynı haklar sonsuza kadar
+  /// yeniden kullanılabiliyordu.
+  ///
+  /// Dayanıklı olan tek şey bildirimin **kurulmuş** olması. Kurulduğu an kaydı
+  /// buraya giriyor; zamanı geçince [freeReminderNotes]'a taşınıyor ve hak
+  /// kalıcı olarak yanıyor. Çalmadan iptal edilirse buradan düşüyor, yani
+  /// kurup vazgeçen kullanıcıdan bir şey alınmıyor.
+  ///
+  /// Kalıcı listeden ayrı durmak zorunda: Keychain tabanı asla küçülmediği
+  /// için iptali oraya yazmak geri alınamaz olurdu.
+  TextColumn get freeReminderArmed => text().withDefault(const Constant(''))();
+
+  /// Latermark içinde kontrastı, sistem kapalı olsa da güçlendirir.
+  ///
+  /// Varsayılan kapalıdır: yükseltme mevcut görünümü değiştirmez. Sistem
+  /// "Kontrastı Artır" tercihi bu sütundan bağımsız olarak her zaman daha
+  /// yüksek önceliklidir ve uygulama katmanında uygulanır.
+  BoolColumn get alwaysHighContrast =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Latermark içindeki dekoratif hareketi azaltır.
+  ///
+  /// Varsayılan kapalıdır: yükseltmeden sonra normal geçişler aynı kalır.
+  /// Sistem "Hareketi Azalt" tercihi açıksa bu değer kapalı olsa bile hareket
+  /// geri açılamaz.
+  BoolColumn get alwaysReduceMotion =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -275,7 +309,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 15;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -517,9 +551,30 @@ class NotesDatabase extends _$NotesDatabase {
         await _addColumnOnce(m, settingsTable, settingsTable.accentHue);
       }
       // Ücretsiz hatırlatma hakkı. Varsayılanı boş liste: yükseltmeden gelen
-      // herkes üç hakkının tamamıyla başlıyor. Pro kullanıcıda hiç okunmuyor.
+      // herkes hakkının tamamıyla başlıyor. Pro kullanıcıda hiç okunmuyor.
       if (from < 13) {
         await _addColumnOnce(m, settingsTable, settingsTable.freeReminderNotes);
+      }
+      // Kurulu ama çalmamış hatırlatmalar. Boş başlıyor: yükseltmeden gelen
+      // kullanıcının kurulu hatırlatmaları ilk senkronda yeniden kuruluyor ve
+      // liste orada doğal olarak doluyor.
+      if (from < 14) {
+        await _addColumnOnce(m, settingsTable, settingsTable.freeReminderArmed);
+      }
+      // Erişilebilirlik tercihleri yalnızca arayüz sunumunu etkiler. İkisi de
+      // kapalı eklenir: eski sürümden yükseltmede görünüm ve hareket mevcut
+      // hâliyle kalır; not, Pro ve ücretsiz hak sütunlarına dokunulmaz.
+      if (from < 15) {
+        await _addColumnOnce(
+          m,
+          settingsTable,
+          settingsTable.alwaysHighContrast,
+        );
+        await _addColumnOnce(
+          m,
+          settingsTable,
+          settingsTable.alwaysReduceMotion,
+        );
       }
     },
     beforeOpen: (details) async {

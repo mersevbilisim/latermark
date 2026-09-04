@@ -662,6 +662,42 @@ class L10nJa extends L10n {
   String get settingsTitle => '設定';
 
   @override
+  String get accessibilityTitle => 'アクセシビリティ';
+
+  @override
+  String get accessibilityDescription =>
+      'Latermark だけでコントラストを強めたり、動きを減らしたりできます。';
+
+  @override
+  String get accessibilityIntro =>
+      'Latermark は端末のアクセシビリティ設定を常に反映します。ここでは、アプリ内の設定をさらに強めることだけができます。';
+
+  @override
+  String get accessibilityContrastTitle => '常にコントラストを上げる';
+
+  @override
+  String get accessibilityContrastDescription =>
+      '補助テキスト、操作項目、写真上の表示をより見やすくします。';
+
+  @override
+  String get accessibilityMotionTitle => '常に視差効果を減らす';
+
+  @override
+  String get accessibilityMotionDescription =>
+      '装飾的な動きを止め、奥行きのある画面遷移を穏やかなフェードに置き換えます。';
+
+  @override
+  String get accessibilitySystemNote =>
+      '端末の設定が優先されます。システムでコントラストを上げる、または視差効果を減らすがオンなら、ここがオフでも Latermark はその設定に従います。';
+
+  @override
+  String get accessibilityTextSizeTitle => '文字サイズ';
+
+  @override
+  String get accessibilityTextSizeBody =>
+      '文字サイズは端末の設定で、Latermark は 2 倍まで従います。設定 › アクセシビリティ › 画面表示とテキストサイズ › さらに大きな文字。Latermark だけ大きくするには、設定 › アクセシビリティ › アプリごとの設定。';
+
+  @override
   String get sectionAppearance => '表示';
 
   @override
@@ -720,6 +756,9 @@ class L10nJa extends L10n {
 
   @override
   String get accentGold => 'ゴールド';
+
+  @override
+  String get accentSilver => 'シルバー';
 
   @override
   String get accentCustom => 'カスタム';

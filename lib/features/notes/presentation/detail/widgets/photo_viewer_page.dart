@@ -36,6 +36,7 @@ Future<void> showPhotoViewer(
       transitionDuration: const Duration(milliseconds: 360),
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, animation, _) => _PhotoViewer(
+        key: const Key('photo-viewer'),
         photo: photo,
         heroTag: heroTag,
         createdAt: createdAt,
@@ -52,6 +53,7 @@ Future<void> showPhotoViewer(
 
 class _PhotoViewer extends StatefulWidget {
   const _PhotoViewer({
+    super.key,
     required this.photo,
     required this.heroTag,
     required this.createdAt,
@@ -325,6 +327,11 @@ class _PhotoViewerState extends State<_PhotoViewer>
                 scale: 1 - (progress * .24),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  // Künyeyi göster/gizle ile yakınlaştırma görene ait
+                  // hareketler; ekran okuyucuda ekran boyunda adsız bir
+                  // düğmeye dönüşüyorlardı. Sayfanın adı olan denetimleri
+                  // künyenin kendisinde duruyor.
+                  excludeFromSemantics: true,
                   onTap: _toggleChrome,
                   onDoubleTapDown: (details) =>
                       _doubleTapAt = details.localPosition,
@@ -363,12 +370,15 @@ class _PhotoViewerState extends State<_PhotoViewer>
   Widget _stage() {
     final aspect = widget.aspect;
 
-    final photo = Hero(
-      tag: widget.heroTag,
-      flightShuttleBuilder: _flightShuttle,
-      child: NotePhoto(
-        file: widget.photo,
-        fit: aspect == null ? BoxFit.contain : BoxFit.cover,
+    final photo = HeroMode(
+      enabled: !MediaQuery.disableAnimationsOf(context),
+      child: Hero(
+        tag: widget.heroTag,
+        flightShuttleBuilder: _flightShuttle,
+        child: NotePhoto(
+          file: widget.photo,
+          fit: aspect == null ? BoxFit.contain : BoxFit.cover,
+        ),
       ),
     );
 
@@ -603,33 +613,40 @@ class _ChromeScrim extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final highContrast = MediaQuery.highContrastOf(context);
+    final scrim = highContrast
+        ? const Color(0xD9000000)
+        : const Color(0x59000000);
+    final bottomScrim = highContrast
+        ? const Color(0xD9000000)
+        : const Color(0x4D000000);
     return Column(
       children: [
         SizedBox(
           height: MediaQuery.paddingOf(context).top + 96,
-          child: const DecoratedBox(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0x59000000), Color(0x00000000)],
+                colors: [scrim, const Color(0x00000000)],
               ),
             ),
-            child: SizedBox.expand(),
+            child: const SizedBox.expand(),
           ),
         ),
         const Spacer(),
         SizedBox(
           height: MediaQuery.paddingOf(context).bottom + 88,
-          child: const DecoratedBox(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [Color(0x4D000000), Color(0x00000000)],
+                colors: [bottomScrim, const Color(0x00000000)],
               ),
             ),
-            child: SizedBox.expand(),
+            child: const SizedBox.expand(),
           ),
         ),
       ],

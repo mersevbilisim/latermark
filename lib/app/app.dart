@@ -51,12 +51,32 @@ class LatermarkApp extends StatelessWidget {
       child: Builder(
         builder: (context) {
           final preferences = AppScope.preferences(context);
+          final lightTheme = preferences.alwaysHighContrast
+              ? AppTheme.lightHighContrast(
+                  preferences.accent,
+                  preferences.accentHue,
+                )
+              : AppTheme.light(preferences.accent, preferences.accentHue);
+          final darkTheme = preferences.alwaysHighContrast
+              ? AppTheme.darkHighContrast(
+                  preferences.accent,
+                  preferences.accentHue,
+                )
+              : AppTheme.dark(preferences.accent, preferences.accentHue);
 
           return MaterialApp(
             onGenerateTitle: (context) => context.l10n.appTitle,
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(preferences.accent, preferences.accentHue),
-            darkTheme: AppTheme.dark(preferences.accent, preferences.accentHue),
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            highContrastTheme: AppTheme.lightHighContrast(
+              preferences.accent,
+              preferences.accentHue,
+            ),
+            highContrastDarkTheme: AppTheme.darkHighContrast(
+              preferences.accent,
+              preferences.accentHue,
+            ),
             themeMode: preferences.themeMode.flutterMode,
             // `null` ise Flutter telefonun dilini kullanır ve eşleşme yoksa
             // aşağıdaki çözümleyici devreye girer.
@@ -67,10 +87,20 @@ class LatermarkApp extends StatelessWidget {
             builder: (context, child) {
               // Durum çubuğu ikonları temaya göre; ayrıca sistem yazı ölçeği
               // aşırı büyüdüğünde düzenin dağılmaması için makul bir tavan.
+              // Uygulama içi erişilebilirlik tercihleri yalnızca sistemi daha
+              // sıkı hâle getirebilir: cihazın açık bir tercihini kapatamaz.
+              final media = MediaQuery.of(context);
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: AppTheme.overlayFor(context.palette.brightness),
-                child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: 1.3,
+                child: MediaQuery(
+                  data: media.copyWith(
+                    textScaler: media.textScaler.clamp(maxScaleFactor: 2),
+                    highContrast:
+                        media.highContrast || preferences.alwaysHighContrast,
+                    disableAnimations:
+                        media.disableAnimations ||
+                        preferences.alwaysReduceMotion,
+                  ),
                   child: child ?? const SizedBox.shrink(),
                 ),
               );

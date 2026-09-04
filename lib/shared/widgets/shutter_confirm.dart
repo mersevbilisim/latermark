@@ -43,12 +43,11 @@ Future<bool?> showShutterConfirm(
           curve: Curves.easeOutQuart,
           reverseCurve: Curves.easeInCubic,
         );
-        return FadeTransition(
-          opacity: eased,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 1.08, end: 1).animate(eased),
-            child: child,
-          ),
+        final faded = FadeTransition(opacity: eased, child: child);
+        if (MediaQuery.disableAnimationsOf(context)) return faded;
+        return ScaleTransition(
+          scale: Tween<double>(begin: 1.08, end: 1).animate(eased),
+          child: faded,
         );
       },
     ),
@@ -131,6 +130,10 @@ class _ShutterConfirmState extends State<_ShutterConfirm>
           // Düz perde geçiş animasyonu boyunca yeniden blur hesaplanmasını
           // önler; alttaki ekran bağlam olarak yine seçilir.
           GestureDetector(
+            // Ekran okuyucuda görünmüyor: adsız, ekran boyunda bir düğme
+            // olarak listeleniyordu. Vazgeçmenin adı olan yolu rotanın kendi
+            // perdesi (`barrierLabel`) ve paneldeki eylem zaten veriyor.
+            excludeFromSemantics: true,
             onTap: () => Navigator.of(context).maybePop(),
             child: ColoredBox(
               color: OnPhoto.canvasDeep.withValues(alpha: 0.86),

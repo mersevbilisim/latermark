@@ -192,7 +192,9 @@ void main() {
     // hatırlatması zaten temizleniyor. Bir düğmeye basmak o temizliği geri
     // alıp ücretsiz kullanıcıya hatırlatma yazdırmamalı.
     final note = await noteWithReminder();
-    await settings.setProUnlocked(false);
+    // Hatırlatma bu ana göre geçmişte: ücretsiz katmanın slotunu geri
+    // gelmeyecek bir istek yemiyor, kayıt gerçekten temizleniyor.
+    await settings.setProUnlocked(false, now: DateTime(2026, 8, 8, 10));
 
     final downgraded = await repository.noteById(note.id);
     expect(downgraded!.remindAt, isNull);

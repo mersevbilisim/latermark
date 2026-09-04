@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import UserNotifications
 
 /// Share Extension ile Runner'ın App Group üzerinden paylaştığı dayanıklı
@@ -19,10 +20,22 @@ enum SharedImportStore {
   /// yalniz Siri'nin dogru cumleyi kurabilmesi icin okuyor.
   private static let freeRemindersLeftKey = "share.free_reminders_left"
   private static let orphanGrace: TimeInterval = 24 * 60 * 60
+  private static let coordinationLockName = ".coordination.lock"
 
   private enum ImportKind: String, Codable {
     case photo
     case text
+  }
+
+  /// Uzantı hatırlatmasının native → Runner devrindeki dayanıklı durumu.
+  ///
+  /// Alan 1.0.3 metadata'sında yoktur; decoder aşağıda güvenli varsayıma
+  /// düşer. Rezervasyonun Drift'e devri ayrı bir bayraktır; alarmın gerçekten
+  /// kurulmuş olduğu bilgisi hiçbir geçişte kaybedilmez.
+  private enum QueuedReminderState: String, Codable {
+    case none
+    case reserved
+    case scheduled
   }
 
   private struct Metadata: Codable, Equatable {
@@ -34,6 +47,9 @@ enum SharedImportStore {
     let saveImmediately: Bool
     let remindAfterDays: Int?
     let remindAtMilliseconds: Int64?
+    let freeReminderReserved: Bool
+    var freeReminderClaimed: Bool
+    var queuedReminderState: QueuedReminderState
 
     private enum CodingKeys: String, CodingKey {
       case id
@@ -44,6 +60,9 @@ enum SharedImportStore {
       case saveImmediately
       case remindAfterDays
       case remindAtMilliseconds
+      case freeReminderReserved
+      case freeReminderClaimed
+      case queuedReminderState
     }
 
     init(
@@ -54,7 +73,10 @@ enum SharedImportStore {
       createdAtMilliseconds: Int64,
       saveImmediately: Bool,
       remindAfterDays: Int?,
-      remindAtMilliseconds: Int64?
+      remindAtMilliseconds: Int64?,
+      freeReminderReserved: Bool = false,
+      freeReminderClaimed: Bool = false,
+      queuedReminderState: QueuedReminderState = .none
     ) {
       self.id = id
       self.kind = kind
@@ -64,6 +86,9 @@ enum SharedImportStore {
       self.saveImmediately = saveImmediately
       self.remindAfterDays = remindAfterDays
       self.remindAtMilliseconds = remindAtMilliseconds
+      self.freeReminderReserved = freeReminderReserved
+      self.freeReminderClaimed = freeReminderClaimed
+      self.queuedReminderState = queuedReminderState
     }
 
     init(from decoder: Decoder) throws {
@@ -90,12 +115,28 @@ enum SharedImportStore {
         Int64.self,
         forKey: .remindAtMilliseconds
       )
+      // 1.0.3'ten kalan teslimler ücretli katmanda üretildi. Onları sonradan
+      // Free hakkı gibi saymak sessiz bir hak kaybı olurdu.
+      freeReminderReserved = try values.decodeIfPresent(
+        Bool.self,
+        forKey: .freeReminderReserved
+      ) ?? false
+      freeReminderClaimed = try values.decodeIfPresent(
+        Bool.self,
+        forKey: .freeReminderClaimed
+      ) ?? false
+      queuedReminderState = try values.decodeIfPresent(
+        QueuedReminderState.self,
+        forKey: .queuedReminderState
+      ) ?? (remindAtMilliseconds == nil ? .none : .scheduled)
     }
   }
 
   enum StoreError: LocalizedError {
     case invalidIdentifier
     case conflictingImport(String)
+    case noFreeReminders
+    case coordinationUnavailable
 
     var errorDescription: String? {
       switch self {
@@ -103,7 +144,25 @@ enum SharedImportStore {
         return "The shared import identifier is not a UUID."
       case let .conflictingImport(id):
         return "A different shared import already exists for \(id)."
+      case .noFreeReminders:
+        return "No free reminder reservation is available."
+      case .coordinationUnavailable:
+        return "The shared import store could not be locked."
       }
+    }
+  }
+
+  struct ReminderEnqueueResult {
+    let id: String
+    let proUnlocked: Bool
+  }
+
+  struct ReminderAvailability {
+    let proUnlocked: Bool
+    let freeRemindersLeft: Int?
+
+    var allowsReminder: Bool {
+      proUnlocked || (freeRemindersLeft ?? 0) > 0
     }
   }
 
@@ -145,29 +204,21 @@ enum SharedImportStore {
   /// Anahtar hic yoksa `nil`: "deger bilinmiyor" ile "hak kalmadi" ayri
   /// seyler. Bilinmiyorsa uzanti eski davranisina, yani Pro kapisina duser.
   static var freeRemindersLeft: Int? {
-    guard
-      let defaults = UserDefaults(suiteName: appGroup),
-      defaults.object(forKey: freeRemindersLeftKey) != nil
-    else {
-      return nil
+    try? withInboxLock { directory in
+      freeRemindersLeft(in: directory)
     }
-    return defaults.integer(forKey: freeRemindersLeftKey)
   }
 
-  /// Hakki yerel aynada bir dusurur.
-  ///
-  /// Uygulama acilmadan art arda soylenen istekler icin gerekli: ayna ancak
-  /// uygulama onе geldiginde tazeleniyor, o zamana kadar sayiyi uzantinin
-  /// kendisi tutuyor. Uygulama bir sonraki yayinda gercek degeri yaziyor.
-  static func consumeFreeReminder() {
-    guard
-      let defaults = UserDefaults(suiteName: appGroup),
-      defaults.object(forKey: freeRemindersLeftKey) != nil
-    else {
-      return
-    }
-    let left = defaults.integer(forKey: freeRemindersLeftKey)
-    defaults.set(max(0, left - 1), forKey: freeRemindersLeftKey)
+  /// Katman ile kalan slot aynı App Group karesinden okunur. Runner bu iki
+  /// değeri tek kilitte aynaladığı için uzantı bir satın alma/iade geçişinin
+  /// yarısını görmez.
+  static var reminderAvailability: ReminderAvailability {
+    (try? withInboxLock { directory in
+      ReminderAvailability(
+        proUnlocked: proUnlocked,
+        freeRemindersLeft: freeRemindersLeft(in: directory)
+      )
+    }) ?? ReminderAvailability(proUnlocked: false, freeRemindersLeft: nil)
   }
 
   static func setProUnlocked(_ value: Bool) {
@@ -184,18 +235,23 @@ enum SharedImportStore {
     retentionMinutes: Int?,
     freeRemindersLeft: Int?
   ) {
-    guard let defaults = UserDefaults(suiteName: appGroup) else { return }
-    defaults.set(proUnlocked, forKey: proUnlockedKey)
-    defaults.set(reminderEnabled, forKey: reminderEnabledKey)
-    if let freeRemindersLeft {
-      defaults.set(max(0, freeRemindersLeft), forKey: freeRemindersLeftKey)
-    } else {
-      defaults.removeObject(forKey: freeRemindersLeftKey)
-    }
-    if let retentionMinutes {
-      defaults.set(retentionMinutes, forKey: defaultRetentionMinutesKey)
-    } else {
-      defaults.removeObject(forKey: defaultRetentionMinutesKey)
+    try? withInboxLock { _ in
+      guard let defaults = UserDefaults(suiteName: appGroup) else { return }
+      defaults.set(proUnlocked, forKey: proUnlockedKey)
+      defaults.set(reminderEnabled, forKey: reminderEnabledKey)
+      if let freeRemindersLeft {
+        // Bu, yalnız Drift'in bildiği kullanılabilir sayıdır. Henüz Drift'e
+        // geçmemiş uzantı rezervasyonları getter'da ayrıca çıkarılır; böylece
+        // Runner'ın ayna tazelemesi uzantının aldığı slotları geri açamaz.
+        defaults.set(max(0, freeRemindersLeft), forKey: freeRemindersLeftKey)
+      } else {
+        defaults.removeObject(forKey: freeRemindersLeftKey)
+      }
+      if let retentionMinutes {
+        defaults.set(retentionMinutes, forKey: defaultRetentionMinutesKey)
+      } else {
+        defaults.removeObject(forKey: defaultRetentionMinutesKey)
+      }
     }
   }
 
@@ -207,6 +263,7 @@ enum SharedImportStore {
   ) throws {
     let directory = try inboxDirectory()
     let id = UUID().uuidString.lowercased()
+    let reminderDays = max(0, min(remindAfterDays, 365))
     let sourceExtension = source.pathExtension.isEmpty
       ? "jpg"
       : source.pathExtension.lowercased()
@@ -219,19 +276,31 @@ enum SharedImportStore {
 
     do {
       try FileManager.default.copyItem(at: source, to: image)
-      try writeMetadata(
-        Metadata(
-          id: id,
-          kind: .photo,
-          imageName: imageName,
-          initialText: initialText,
-          createdAtMilliseconds: Int64(Date().timeIntervalSince1970 * 1_000),
-          saveImmediately: saveImmediately,
-          remindAfterDays: max(0, min(remindAfterDays, 365)),
-          remindAtMilliseconds: nil
-        ),
-        to: metadata
-      )
+      try withInboxLock { lockedDirectory in
+        let currentProUnlocked = proUnlocked
+        if reminderDays > 0 && !currentProUnlocked {
+          guard
+            let remaining = freeRemindersLeft(in: lockedDirectory),
+            remaining > 0
+          else { throw StoreError.noFreeReminders }
+        }
+        try writeMetadata(
+          Metadata(
+            id: id,
+            kind: .photo,
+            imageName: imageName,
+            initialText: initialText,
+            createdAtMilliseconds: Int64(
+              Date().timeIntervalSince1970 * 1_000
+            ),
+            saveImmediately: saveImmediately,
+            remindAfterDays: reminderDays,
+            remindAtMilliseconds: nil,
+            freeReminderReserved: reminderDays > 0 && !currentProUnlocked
+          ),
+          to: metadata
+        )
+      }
     } catch {
       try? FileManager.default.removeItem(at: image)
       try? FileManager.default.removeItem(at: metadata)
@@ -278,8 +347,6 @@ enum SharedImportStore {
       throw StoreError.invalidIdentifier
     }
 
-    let directory = try inboxDirectory()
-    let metadataURL = directory.appendingPathComponent("\(normalizedID).json")
     let metadata = Metadata(
       id: normalizedID,
       kind: .text,
@@ -291,18 +358,9 @@ enum SharedImportStore {
       remindAtMilliseconds: remindAtMilliseconds
     )
 
-    do {
-      try writeMetadataWithoutOverwriting(metadata, to: metadataURL)
-    } catch {
-      // Başka bir süreç aynı kimliği arada yazmış olabilir. Birebir aynı
-      // teslim güvenli bir yeniden denemedir; farklı veri çakışmadır.
-      if metadataAt(metadataURL) == metadata { return normalizedID }
-      if FileManager.default.fileExists(atPath: metadataURL.path) {
-        throw StoreError.conflictingImport(normalizedID)
-      }
-      throw error
+    return try withInboxLock { directory in
+      try writeTextMetadata(metadata, in: directory)
     }
-    return normalizedID
   }
 
   /// App Intents tarafının doğal `Date` değerini sözleşmedeki mutlak Unix
@@ -315,6 +373,126 @@ enum SharedImportStore {
         Int64($0.timeIntervalSince1970 * 1_000)
       }
     )
+  }
+
+  /// Siri hatırlatmasını ve gerekiyorsa Free slotunu tek kilit altında alır.
+  ///
+  /// Önce ayrı bir sayaç okuyup sonra metadata yazmak iki eşzamanlı intent'in
+  /// son slotu birlikte almasına izin verirdi. Rezervasyon metadata'nın
+  /// kendisidir; Runner aynayı tazelese bile teslim tamamlanana kadar kaybolmaz.
+  @discardableResult
+  static func enqueueReminder(
+    text: String,
+    remindAt: Date,
+    id: String = UUID().uuidString.lowercased(),
+    createdAtMilliseconds: Int64 = Int64(
+      Date().timeIntervalSince1970 * 1_000
+    )
+  ) throws -> ReminderEnqueueResult {
+    guard let normalizedID = normalizedIdentifier(id) else {
+      throw StoreError.invalidIdentifier
+    }
+
+    return try withInboxLock { directory in
+      let url = directory.appendingPathComponent("\(normalizedID).json")
+      let reminderMilliseconds = Int64(
+        remindAt.timeIntervalSince1970 * 1_000
+      )
+      if let existing = metadataAt(url) {
+        guard
+          existing.id == normalizedID,
+          existing.kind == .text,
+          existing.imageName.isEmpty,
+          existing.initialText == text,
+          existing.createdAtMilliseconds == createdAtMilliseconds,
+          existing.saveImmediately,
+          existing.remindAfterDays == nil,
+          existing.remindAtMilliseconds == reminderMilliseconds
+        else {
+          throw StoreError.conflictingImport(normalizedID)
+        }
+        // Alarm durumu veya Runner claim'i ilerlemiş olabilir; aynı intent'in
+        // yeniden denenmesi bu monoton alanları ve ilk alınan katmanı geriye
+        // çevirmemeli.
+        return ReminderEnqueueResult(
+          id: normalizedID,
+          proUnlocked: !existing.freeReminderReserved
+        )
+      }
+
+      // Katman da kota da aynı kilidin içinden okunur. Satın alma veya hak
+      // geri alma tam bu anda aynalanırsa teslim ya bütünüyle Pro ya da
+      // bütünüyle Free olur; metadata ile alarm başlığı farklı katmanları
+      // temsil etmez.
+      let currentProUnlocked = proUnlocked
+      if !currentProUnlocked {
+        guard let remaining = freeRemindersLeft(in: directory), remaining > 0
+        else { throw StoreError.noFreeReminders }
+      }
+
+      let metadata = Metadata(
+        id: normalizedID,
+        kind: .text,
+        imageName: "",
+        initialText: text,
+        createdAtMilliseconds: createdAtMilliseconds,
+        saveImmediately: true,
+        remindAfterDays: nil,
+        remindAtMilliseconds: reminderMilliseconds,
+        freeReminderReserved: !currentProUnlocked,
+        queuedReminderState: .reserved
+      )
+      _ = try writeTextMetadata(metadata, in: directory)
+      return ReminderEnqueueResult(
+        id: normalizedID,
+        proUnlocked: currentProUnlocked
+      )
+    }
+  }
+
+  /// `UNUserNotificationCenter.add` başarıyla döndükten sonra kanıtı kalıcı
+  /// yapar. Yazma başarısızsa çağıran native alarmı geri kaldırır; izsiz alarm
+  /// hiçbir zaman kullanıcı kotasını aşamaz.
+  @discardableResult
+  static func markQueuedReminderScheduled(id: String) -> Bool {
+    guard let normalizedID = normalizedIdentifier(id) else { return false }
+    return (try? withInboxLock { directory in
+      let url = directory.appendingPathComponent("\(normalizedID).json")
+      guard var metadata = metadataAt(url), metadata.id == normalizedID else {
+        return false
+      }
+      metadata.queuedReminderState = .scheduled
+      try writeMetadata(metadata, to: url)
+      return true
+    }) ?? false
+  }
+
+  /// Rezervasyonu Drift'teki nota devreder ve aynı kritik bölgede yeni DB
+  /// aynasını yazar. İki işlem ayrılırsa kısa bir pencerede slot hem metadata
+  /// hem not tarafından sayılabilir veya hiç sayılmayabilir.
+  @discardableResult
+  static func claimFreeReminderReservation(
+    id: String,
+    databaseRemaining: Int?
+  ) -> Bool {
+    guard let normalizedID = normalizedIdentifier(id) else { return false }
+    return (try? withInboxLock { directory in
+      let url = directory.appendingPathComponent("\(normalizedID).json")
+      guard var metadata = metadataAt(url), metadata.id == normalizedID else {
+        // Temizlik daha önce tamamlandıysa idempotent başarıdır.
+        return !FileManager.default.fileExists(atPath: url.path)
+      }
+      if metadata.freeReminderReserved {
+        metadata.freeReminderClaimed = true
+        try writeMetadata(metadata, to: url)
+      }
+      if let databaseRemaining,
+        let defaults = UserDefaults(suiteName: appGroup)
+      {
+        defaults.set(max(0, databaseRemaining), forKey: freeRemindersLeftKey)
+      }
+      return true
+    }) ?? false
   }
 
   static func nextPending() -> [String: Any]? {
@@ -381,6 +559,9 @@ enum SharedImportStore {
       ]
       pending["remindAtMilliseconds"] = metadata.remindAtMilliseconds
         .map { NSNumber(value: $0) } ?? NSNull()
+      pending["freeReminderReserved"] = metadata.freeReminderReserved
+      pending["freeReminderClaimed"] = metadata.freeReminderClaimed
+      pending["queuedReminderState"] = metadata.queuedReminderState.rawValue
       return pending
     }
     return nil
@@ -388,37 +569,27 @@ enum SharedImportStore {
 
   @discardableResult
   static func complete(id: String) -> Bool {
-    guard
-      let normalizedID = normalizedIdentifier(id),
-      let directory = try? inboxDirectory()
-    else { return false }
-
-    let metadataURL = directory.appendingPathComponent("\(normalizedID).json")
-    if let metadata = metadataAt(metadataURL), metadata.kind == .photo {
-      let imageURL = directory.appendingPathComponent(metadata.imageName)
-      if !metadata.imageName.isEmpty,
-        imageURL.deletingLastPathComponent().standardizedFileURL
-          == directory.standardizedFileURL
-      {
-        do {
+    guard let normalizedID = normalizedIdentifier(id) else { return false }
+    return (try? withInboxLock { directory in
+      let metadataURL = directory.appendingPathComponent("\(normalizedID).json")
+      if let metadata = metadataAt(metadataURL), metadata.kind == .photo {
+        let imageURL = directory.appendingPathComponent(metadata.imageName)
+        if !metadata.imageName.isEmpty,
+          imageURL.deletingLastPathComponent().standardizedFileURL
+            == directory.standardizedFileURL
+        {
           if FileManager.default.fileExists(atPath: imageURL.path) {
             try FileManager.default.removeItem(at: imageURL)
           }
-        } catch {
-          return false
         }
       }
-    }
-    do {
       if FileManager.default.fileExists(atPath: metadataURL.path) {
         try FileManager.default.removeItem(at: metadataURL)
       }
       // Metadata okunamadıysa bile UUID ile başlayan görseli temizle.
       removePayloadFiles(id: normalizedID, in: directory)
       return true
-    } catch {
-      return false
-    }
+    }) ?? false
   }
 
   private static func removePayloadFiles(id: String, in directory: URL) {
@@ -466,6 +637,73 @@ enum SharedImportStore {
       if let modified, modified > cutoff { continue }
       try? FileManager.default.removeItem(at: url)
     }
+  }
+
+  private static func writeTextMetadata(
+    _ metadata: Metadata,
+    in directory: URL
+  ) throws -> String {
+    let metadataURL = directory.appendingPathComponent("\(metadata.id).json")
+    do {
+      try writeMetadataWithoutOverwriting(metadata, to: metadataURL)
+    } catch {
+      // Aynı intent yeniden yürütüldüyse birebir aynı teslim başarıdır;
+      // farklı payload hiçbir zaman öncekinin rezervasyonunu ezmez.
+      if metadataAt(metadataURL) == metadata { return metadata.id }
+      if FileManager.default.fileExists(atPath: metadataURL.path) {
+        throw StoreError.conflictingImport(metadata.id)
+      }
+      throw error
+    }
+    return metadata.id
+  }
+
+  /// Runner'ın aynaladığı DB boşluğundan, henüz DB'ye devredilmemiş uzantı
+  /// rezervasyonlarını çıkarır. Metadata dosyaları kaynak olduğu için Runner
+  /// aynayı tekrar yazsa bile uygulama kapalıyken alınan slotlar geri gelmez.
+  private static func freeRemindersLeft(in directory: URL) -> Int? {
+    guard
+      let defaults = UserDefaults(suiteName: appGroup),
+      defaults.object(forKey: freeRemindersLeftKey) != nil
+    else { return nil }
+
+    let metadataURLs = (try? FileManager.default.contentsOfDirectory(
+      at: directory,
+      includingPropertiesForKeys: nil,
+      options: [.skipsHiddenFiles]
+    ))?.filter { $0.pathExtension == "json" } ?? []
+    let reserved = metadataURLs.reduce(into: 0) { count, url in
+      guard let metadata = metadataAt(url),
+        metadata.freeReminderReserved,
+        !metadata.freeReminderClaimed
+      else { return }
+      count += 1
+    }
+    return max(0, defaults.integer(forKey: freeRemindersLeftKey) - reserved)
+  }
+
+  /// Runner, Share Extension ve App Intents ayrı süreçlerdir. UserDefaults
+  /// read-modify-write ve "dosyaları say → metadata yaz" işlemleri süreçler
+  /// arasında atomik değildir; POSIX advisory lock son slotu tek kazanana
+  /// verir. Kilit aynı App Group dosya sistemindedir ve süreç ölünce kernel
+  /// tarafından otomatik bırakılır.
+  private static func withInboxLock<T>(
+    _ operation: (URL) throws -> T
+  ) throws -> T {
+    let directory = try inboxDirectory()
+    let lockURL = directory.appendingPathComponent(coordinationLockName)
+    let descriptor = open(
+      lockURL.path,
+      O_CREAT | O_RDWR,
+      mode_t(S_IRUSR | S_IWUSR)
+    )
+    guard descriptor >= 0 else { throw StoreError.coordinationUnavailable }
+    defer { close(descriptor) }
+    guard flock(descriptor, LOCK_EX) == 0 else {
+      throw StoreError.coordinationUnavailable
+    }
+    defer { flock(descriptor, LOCK_UN) }
+    return try operation(directory)
   }
 
   private static func inboxDirectory() throws -> URL {
@@ -537,8 +775,6 @@ enum SharedImportStore {
 /// kendi kimlik şemasıyla yeniden kuruyor; buradaki geçici istek o anda
 /// [cancel] ile kaldırılıyor. İkisi bir arada asla çalmaz.
 enum QueuedReminder {
-  /// Bildirim başlığı. `ReminderService._title` ile aynı sabit metin.
-  private static let title = "Latermark Pro"
   private static let soundName = "notification.wav"
 
   /// `flutter_local_notifications` bekleyen isteklerini tamsayı kimlikle
@@ -567,10 +803,12 @@ enum QueuedReminder {
   static func schedule(
     importId: String,
     body: String,
-    at date: Date
+    at date: Date,
+    proUnlocked: Bool
   ) async throws {
     let content = UNMutableNotificationContent()
-    content.title = title
+    // Ana uygulamadaki `ReminderService._titleFor` ile aynı katman ayrımı.
+    content.title = proUnlocked ? "Latermark Pro" : "Latermark"
     content.body = body
     content.sound = UNNotificationSound(
       named: UNNotificationSoundName(soundName)

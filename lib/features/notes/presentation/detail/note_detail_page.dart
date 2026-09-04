@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/app_routes.dart';
@@ -14,6 +15,7 @@ import '../../../../core/theme/app_shape.dart';
 import '../../../../core/utils/app_format.dart';
 import '../../../../l10n/l10n_context.dart';
 import '../../../../shared/widgets/app_toast.dart';
+import '../../../../shared/widgets/back_swipe_region.dart';
 import '../../../../shared/widgets/shutter_confirm.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
@@ -42,7 +44,12 @@ class NoteDetailPage extends StatefulWidget {
 
 class _NoteDetailPageState extends State<NoteDetailPage>
     with SingleTickerProviderStateMixin {
-  /// Künyenin dinlenme yüksekliği.
+  /// Künyenin dinlenme yüksekliği (sistem yazı ölçeği 1×'teyken).
+  ///
+  /// Şerit sabit değil: künyenin içindeki saat, tarih ve orijinal satırı yazı
+  /// ölçeğiyle birlikte büyüyor. Sabit kalsaydı en büyük erişilebilirlik
+  /// boyunda taşma hatası bile vermeden alttan kırpılırdı — kırpılan da
+  /// karenin ne zaman çekildiği olurdu.
   static const _chromeExtent = 56.0;
 
   /// Yazma hâlinde künye yok olmaz, incelir. Sıfıra indirmek fotoğrafı status
@@ -88,6 +95,10 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   double _editorOverscrollPeak = 0;
   bool _editorOverscrollArmed = false;
   bool _editorOverscrollCommitInFlight = false;
+
+  /// Sayfa kenardan çekiliyor: konuma güvenen her şey (Hero uçuşu) bu
+  /// süre boyunca susar.
+  bool _backSwiping = false;
   final Set<String> _warmingPhotos = <String>{};
 
   @override
@@ -115,7 +126,12 @@ class _NoteDetailPageState extends State<NoteDetailPage>
         // `cancel(id:)` native tekrarın bekleyen kaydını da kaldırabilir.
         // Önce tepsiyi temizleyip sonra not akışını yayınlamak, sync'in kaydı
         // eksik görüp tek seferde yeniden kurmasını garanti eder.
-        await reminders.dismissNote(widget.noteId);
+        final delivered = await reminders.dismissNote(widget.noteId);
+        if (delivered) {
+          await repository.settleFreeReminders(
+            deliveredNoteIds: {widget.noteId},
+          );
+        }
         await repository.markSeen(widget.noteId);
       }());
     }
@@ -396,22 +412,33 @@ class _NoteDetailPageState extends State<NoteDetailPage>
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop && _editing) _finishEditing();
         },
-        child: StreamBuilder<Note?>(
-          stream: _note,
-          builder: (context, snapshot) {
-            final note = snapshot.data;
-
-            if (snapshot.connectionState == ConnectionState.active &&
-                note == null) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) Navigator.of(context).maybePop();
-              });
-              return const SizedBox.shrink();
+        child: BackSwipeRegion(
+          onDismissRequested: _preparePhotoDismiss,
+          onActiveChanged: (active) {
+            if (mounted && active != _backSwiping) {
+              setState(() => _backSwiping = active);
             }
-            if (note == null) return ColoredBox(color: palette.canvasSunk);
-
-            return _buildPage(context, note);
           },
+          onDismissed: () {
+            if (mounted) Navigator.of(context).pop();
+          },
+          child: StreamBuilder<Note?>(
+            stream: _note,
+            builder: (context, snapshot) {
+              final note = snapshot.data;
+
+              if (snapshot.connectionState == ConnectionState.active &&
+                  note == null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) Navigator.of(context).maybePop();
+                });
+                return const SizedBox.shrink();
+              }
+              if (note == null) return ColoredBox(color: palette.canvasSunk);
+
+              return _buildPage(context, note);
+            },
+          ),
         ),
       ),
     );
@@ -461,8 +488,18 @@ class _NoteDetailPageState extends State<NoteDetailPage>
       aspect,
     );
     final stage = _editing ? editingStage : restingStage;
-    final chromeExtent = _editing ? _chromeExtentEditing : _chromeExtent;
-    final printInset = _editing ? _printInsetEditing : _printInset;
+    // Künyenin ölçüsü yazıyla birlikte büyüyor; baskının üst boşluğu da onun
+    // ardından geliyor, yoksa kare şeridin altına girerdi.
+    // Okuma ile yazma arasındaki düzen morfu yer ve boy değiştiriyor; hareket
+    // azaltıldığında kare yeni ölçüsünde doğuyor.
+    final morph = AppMotion.travel(context, _morphDuration);
+
+    final chromeScale = media.textScaler.scale(1).clamp(1.0, 2.0);
+    final restingChrome = _chromeExtent * chromeScale;
+    final chromeExtent = _editing ? _chromeExtentEditing : restingChrome;
+    final printInset = _editing
+        ? _printInsetEditing
+        : math.max(_printInset, restingChrome + 16);
 
     final activeDismissProgress = math.max(
       _dismissProgress,
@@ -484,196 +521,214 @@ class _NoteDetailPageState extends State<NoteDetailPage>
               child: _DetailBackdrop(tone: tone),
             ),
           ),
-          Padding(
-            padding: EdgeInsets.only(top: media.padding.top),
-            child: Stack(
-              children: [
-                NotificationListener<ScrollNotification>(
-                  onNotification: _handleDetailScrollNotification,
-                  child: CustomScrollView(
-                    key: const ValueKey('note-detail-scroll'),
-                    controller: _scrollController,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: AnimatedContainer(
-                          key: const ValueKey('detail-chrome-inset'),
-                          duration: _morphDuration,
-                          curve: Curves.easeOutQuart,
-                          height: printInset,
-                        ),
+          // Ekran okuyucunun gezinme sırası burada **açıkça** yazılıyor.
+          //
+          // Flutter sırayı konumdan çıkarıyor; künye ile gövde dikeyde
+          // örtüştüğü için ikisi aynı kümeye düşüyor ve sıra sol kenarların
+          // eşitliğinde boyama sırasına kalıyor — yani bir düzen değişikliğinde
+          // sessizce ters dönebilecek bir tesadüfe. Künye, gövde, şerit.
+          Semantics(
+            sortKey: const OrdinalSortKey(1),
+            container: true,
+            explicitChildNodes: true,
+            child: Padding(
+              padding: EdgeInsets.only(top: media.padding.top),
+              child: Stack(
+                children: [
+                  NotificationListener<ScrollNotification>(
+                    onNotification: _handleDetailScrollNotification,
+                    child: CustomScrollView(
+                      key: const ValueKey('note-detail-scroll'),
+                      controller: _scrollController,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
                       ),
-
-                      // Karesiz kayıtta baskı sahnesi hiç kurulmuyor:
-                      // yazı zaten aşağıdaki künyede, orada ikinci kez
-                      // göstermek aynı cümleyi iki kere okutmak olurdu.
-                      if (note.hasPhoto)
+                      slivers: [
                         SliverToBoxAdapter(
-                          child: Center(
-                            child: AnimatedContainer(
-                              key: const ValueKey('note-photo-stage'),
-                              duration: _morphDuration,
-                              curve: Curves.easeOutQuart,
-                              width: stage.width,
-                              height: stage.height,
-                              child: PhotoDismissSurface(
-                                cornerRadius: AppShape.print,
-                                // Açık temada beyaz bir kare, sıcak kâğıt zemine
-                                // kenarsız akıyordu. Bu çizgi görülmez, yokluğu
-                                // görülür.
-                                borderColor: palette.hairline,
-                                semanticLabel: l10n.openPhotoSemantic,
-                                onTap: () => _openPhoto(note),
-                                onDismissRequested: _preparePhotoDismiss,
-                                onProgressChanged: (progress) {
-                                  if (progress == _dismissProgress ||
-                                      !mounted) {
-                                    return;
-                                  }
-                                  setState(() => _dismissProgress = progress);
-                                },
-                                onDismissed: () {
-                                  if (mounted) Navigator.of(context).pop();
-                                },
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Opacity(
-                                      opacity: 1 - _dismissProgress,
-                                      child: ColoredBox(
-                                        color: palette.canvasSunk,
-                                      ),
-                                    ),
-                                    HeroMode(
-                                      // İnteraktif kapatmada baskı zaten parmağın
-                                      // altında çıkar; ikinci bir Hero uçuşu yok.
-                                      enabled: _dismissProgress <= .001,
-                                      child: Hero(
-                                        tag: 'note-photo-${note.id}',
-                                        child: NotePhoto(
-                                          // Orijinali varsa o gösteriliyor;
-                                          // saklamanın anlamı burada ortaya
-                                          // çıkıyor.
-                                          file: _repository!.fullImageOf(note),
-                                          fit: knownAspect == null
-                                              ? BoxFit.contain
-                                              : BoxFit.cover,
+                          child: AnimatedContainer(
+                            key: const ValueKey('detail-chrome-inset'),
+                            duration: morph,
+                            curve: Curves.easeOutQuart,
+                            height: printInset,
+                          ),
+                        ),
+
+                        // Karesiz kayıtta baskı sahnesi hiç kurulmuyor:
+                        // yazı zaten aşağıdaki künyede, orada ikinci kez
+                        // göstermek aynı cümleyi iki kere okutmak olurdu.
+                        if (note.hasPhoto)
+                          SliverToBoxAdapter(
+                            child: Center(
+                              child: AnimatedContainer(
+                                key: const ValueKey('note-photo-stage'),
+                                duration: morph,
+                                curve: Curves.easeOutQuart,
+                                width: stage.width,
+                                height: stage.height,
+                                child: PhotoDismissSurface(
+                                  cornerRadius: AppShape.print,
+                                  // Açık temada beyaz bir kare, sıcak kâğıt zemine
+                                  // kenarsız akıyordu. Bu çizgi görülmez, yokluğu
+                                  // görülür.
+                                  borderColor: palette.hairline,
+                                  semanticLabel: l10n.openPhotoSemantic,
+                                  onTap: () => _openPhoto(note),
+                                  onDismissRequested: _preparePhotoDismiss,
+                                  onProgressChanged: (progress) {
+                                    if (progress == _dismissProgress ||
+                                        !mounted) {
+                                      return;
+                                    }
+                                    setState(() => _dismissProgress = progress);
+                                  },
+                                  onDismissed: () {
+                                    if (mounted) Navigator.of(context).pop();
+                                  },
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Opacity(
+                                        opacity: 1 - _dismissProgress,
+                                        child: ColoredBox(
+                                          color: palette.canvasSunk,
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                      HeroMode(
+                                        // İnteraktif kapatmada baskı zaten parmağın
+                                        // altında çıkar; ikinci bir Hero uçuşu yok.
+                                        enabled:
+                                            _dismissProgress <= .001 &&
+                                            !_backSwiping &&
+                                            !MediaQuery.disableAnimationsOf(
+                                              context,
+                                            ),
+                                        child: Hero(
+                                          tag: 'note-photo-${note.id}',
+                                          child: NotePhoto(
+                                            // Orijinali varsa o gösteriliyor;
+                                            // saklamanın anlamı burada ortaya
+                                            // çıkıyor.
+                                            file: _repository!.fullImageOf(
+                                              note,
+                                            ),
+                                            fit: knownAspect == null
+                                                ? BoxFit.contain
+                                                : BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
 
-                      if (_editing)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: IgnorePointer(
-                            ignoring: _dismissProgress > .001,
-                            child: Opacity(
-                              opacity: dragChromeOpacity,
-                              child: EditNoteSheet(
-                                key: ValueKey('edit-note-${note.id}'),
-                                note: note,
-                                repository: _repository!,
-                                controller: _editController,
-                                onSaved: _finishEditing,
-                                onScheduleReminder: (initial) =>
-                                    _openReminderSchedule(note, initial),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        // Sayfanın kalan yüksekliği panele veriliyor: kısa
-                        // notta künye ekranın tabanına oturur, uzun notta
-                        // panel büyür ve akış doğal biçimde kaydırılır.
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: IgnorePointer(
-                            ignoring: _dismissProgress > .001,
-                            child: Opacity(
-                              opacity: dragChromeOpacity,
-                              child: Padding(
-                                // Künye sabit eylem şeridinin altında
-                                // kalmaz; sayfanın gerçek tabanı bu.
-                                padding: EdgeInsets.only(
-                                  bottom: DetailActionBar.extentOf(context),
-                                ),
-                                child: _LiveDetailSheet(
-                                  key: ValueKey('detail-note-${note.id}'),
+                        if (_editing)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: IgnorePointer(
+                              ignoring: _dismissProgress > .001,
+                              child: Opacity(
+                                opacity: dragChromeOpacity,
+                                child: EditNoteSheet(
+                                  key: ValueKey('edit-note-${note.id}'),
                                   note: note,
-                                  entrance: _entrance,
-                                  onEdit: _beginEditing,
+                                  repository: _repository!,
+                                  controller: _editController,
+                                  onSaved: _finishEditing,
+                                  onScheduleReminder: (initial) =>
+                                      _openReminderSchedule(note, initial),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          // Sayfanın kalan yüksekliği panele veriliyor: kısa
+                          // notta künye ekranın tabanına oturur, uzun notta
+                          // panel büyür ve akış doğal biçimde kaydırılır.
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: IgnorePointer(
+                              ignoring: _dismissProgress > .001,
+                              child: Opacity(
+                                opacity: dragChromeOpacity,
+                                child: Padding(
+                                  // Künye sabit eylem şeridinin altında
+                                  // kalmaz; sayfanın gerçek tabanı bu.
+                                  padding: EdgeInsets.only(
+                                    bottom: DetailActionBar.extentOf(context),
+                                  ),
+                                  child: _LiveDetailSheet(
+                                    key: ValueKey('detail-note-${note.id}'),
+                                    note: note,
+                                    entrance: _entrance,
+                                    onEdit: _beginEditing,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    ignoring: _editing || _dismissProgress > .001,
-                    child: AnimatedSlide(
-                      offset: _editing ? const Offset(0, 1) : Offset.zero,
-                      duration: AppMotion.medium,
-                      curve: Curves.easeOutCubic,
-                      child: AnimatedOpacity(
-                        opacity: _editing ? 0 : dragChromeOpacity,
-                        duration: AppMotion.fast,
-                        child: DetailActionBar(
-                          reveal: _chromeReveal,
-                          onDelete: () => _delete(note),
-                          onEdit: _beginEditing,
-                          onShare: () => _shareNote(note),
-                          sharing: _sharing,
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      ignoring: _editing || _dismissProgress > .001,
+                      child: AnimatedSlide(
+                        offset: _editing ? const Offset(0, 1) : Offset.zero,
+                        duration: AppMotion.travel(context, AppMotion.medium),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _editing ? 0 : dragChromeOpacity,
+                          duration: AppMotion.fast,
+                          child: DetailActionBar(
+                            reveal: _chromeReveal,
+                            onDelete: () => _delete(note),
+                            onEdit: _beginEditing,
+                            onShare: () => _shareNote(note),
+                            sharing: _sharing,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    ignoring: !_editing || _dismissProgress > .001,
-                    child: AnimatedSlide(
-                      offset: _editing ? Offset.zero : const Offset(0, 1),
-                      duration: AppMotion.medium,
-                      curve: Curves.easeOutCubic,
-                      child: AnimatedOpacity(
-                        opacity: _editing ? 1 : 0,
-                        duration: AppMotion.fast,
-                        child: EditNoteActionRail(
-                          controller: _editController,
-                          onCancel: _finishEditing,
-                          onDismissRequested: _prepareThumbDismiss,
-                          onDismissOffsetChanged: _setEditorDismissOffset,
-                          onDismissProgressChanged: _setEditorDismissProgress,
-                          onDismissed: () {
-                            if (mounted) Navigator.of(context).pop();
-                          },
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      ignoring: !_editing || _dismissProgress > .001,
+                      child: AnimatedSlide(
+                        offset: _editing ? Offset.zero : const Offset(0, 1),
+                        duration: AppMotion.travel(context, AppMotion.medium),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _editing ? 1 : 0,
+                          duration: AppMotion.fast,
+                          child: EditNoteActionRail(
+                            controller: _editController,
+                            onCancel: _finishEditing,
+                            onDismissRequested: _prepareThumbDismiss,
+                            onDismissOffsetChanged: _setEditorDismissOffset,
+                            onDismissProgressChanged: _setEditorDismissProgress,
+                            onDismissed: () {
+                              if (mounted) Navigator.of(context).pop();
+                            },
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
@@ -685,29 +740,34 @@ class _NoteDetailPageState extends State<NoteDetailPage>
             top: 0,
             left: 0,
             right: 0,
-            child: IgnorePointer(
-              ignoring: _editing || _dismissProgress > .001,
-              child: AnimatedOpacity(
-                opacity: _editing ? 0 : dragChromeOpacity,
-                duration: AppMotion.fast,
-                child: AnimatedContainer(
-                  key: const ValueKey('detail-chrome'),
-                  duration: _morphDuration,
-                  curve: Curves.easeOutQuart,
-                  height: media.padding.top + chromeExtent,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: const BoxDecoration(),
-                  child: OverflowBox(
-                    alignment: Alignment.topCenter,
-                    minHeight: media.padding.top + _chromeExtent,
-                    maxHeight: media.padding.top + _chromeExtent,
-                    child: _DetailChrome(
-                      reveal: _chromeReveal,
-                      scrollOffset: _scrollOffset,
-                      topPadding: media.padding.top,
-                      createdAt: note.createdAt,
-                      originalBytes: _originalBytes,
-                      onBack: () => Navigator.of(context).maybePop(),
+            child: Semantics(
+              sortKey: const OrdinalSortKey(0),
+              container: true,
+              explicitChildNodes: true,
+              child: IgnorePointer(
+                ignoring: _editing || _dismissProgress > .001,
+                child: AnimatedOpacity(
+                  opacity: _editing ? 0 : dragChromeOpacity,
+                  duration: AppMotion.fast,
+                  child: AnimatedContainer(
+                    key: const ValueKey('detail-chrome'),
+                    duration: morph,
+                    curve: Curves.easeOutQuart,
+                    height: media.padding.top + chromeExtent,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: const BoxDecoration(),
+                    child: OverflowBox(
+                      alignment: Alignment.topCenter,
+                      minHeight: media.padding.top + restingChrome,
+                      maxHeight: media.padding.top + restingChrome,
+                      child: _DetailChrome(
+                        reveal: _chromeReveal,
+                        scrollOffset: _scrollOffset,
+                        topPadding: media.padding.top,
+                        createdAt: note.createdAt,
+                        originalBytes: _originalBytes,
+                        onBack: () => Navigator.of(context).maybePop(),
+                      ),
                     ),
                   ),
                 ),
@@ -895,39 +955,55 @@ class _DetailChrome extends StatelessWidget {
           ),
         ),
 
-        Padding(
-          padding: EdgeInsets.only(top: topPadding),
+        // Şeridin içindeki sıra ölçüldü ve **yanlıştı**: tarih ortada, düğme
+        // solda duruyor ama ikisi aynı yatay kuşakta olduğu için sıralama
+        // boyama sırasına düşüyor ve "Geri" tarihten sonra okunuyordu. iOS'ta
+        // geri her zaman ilk öğedir — kullanıcı sayfayı dolaşmadan çıkabilmeli.
+        Semantics(
+          sortKey: const OrdinalSortKey(1),
+          container: true,
+          explicitChildNodes: true,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 62),
-            child: Center(
-              child: FadeTransition(
-                opacity: reveal,
-                child: _FrameStamp(
-                  createdAt: createdAt,
-                  originalBytes: originalBytes,
+            padding: EdgeInsets.only(top: topPadding),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 62),
+              child: Center(
+                child: FadeTransition(
+                  opacity: reveal,
+                  child: _FrameStamp(
+                    createdAt: createdAt,
+                    originalBytes: originalBytes,
+                  ),
                 ),
               ),
             ),
           ),
         ),
 
-        Padding(
-          padding: EdgeInsets.only(top: topPadding),
-          child: FadeTransition(
-            opacity: reveal,
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(start: kDetailMargin),
-                child: IconOrb(
-                  key: const ValueKey('detail-action-back'),
-                  icon: Icons.arrow_back_rounded,
-                  semanticLabel: context.l10n.actionBack,
-                  onPressed: onBack,
-                  size: kDetailOrbSize,
-                  iconSize: 18,
-                  tint: palette.ink,
-                  fill: palette.glass,
+        Semantics(
+          sortKey: const OrdinalSortKey(0),
+          container: true,
+          explicitChildNodes: true,
+          child: Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: FadeTransition(
+              opacity: reveal,
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: kDetailMargin,
+                  ),
+                  child: IconOrb(
+                    key: const ValueKey('detail-action-back'),
+                    icon: Icons.arrow_back_rounded,
+                    semanticLabel: context.l10n.actionBack,
+                    onPressed: onBack,
+                    size: kDetailOrbSize,
+                    iconSize: 18,
+                    tint: palette.ink,
+                    fill: palette.glass,
+                  ),
                 ),
               ),
             ),
@@ -1012,7 +1088,9 @@ class _FrameStamp extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: palette.overline.copyWith(
-              color: palette.inkGhost,
+              // Dipnot da olsa bilgi taşıyor (orijinal + dosya boyu); en
+              // sessiz kat yer tutucular için ayrılmış durumda.
+              color: palette.inkFaint,
               fontSize: 9,
               height: 1,
               letterSpacing: 1.4,
@@ -1122,13 +1200,15 @@ class DetailActionBar extends StatelessWidget {
                     ColophonAction(
                       key: const ValueKey('detail-action-edit'),
                       label: l10n.actionEdit,
-                      semanticLabel: l10n.editNoteSemantic,
+                      semanticLabel: l10n.actionEdit,
+                      semanticHint: l10n.editNoteSemantic,
                       onPressed: onEdit,
                     ),
                     ColophonAction(
                       key: const ValueKey('detail-action-share'),
                       label: l10n.actionShare,
-                      semanticLabel: l10n.shareNoteSemantic,
+                      semanticLabel: l10n.actionShare,
+                      semanticHint: l10n.shareNoteSemantic,
                       busy: sharing,
                       onPressed: onShare,
                     ),

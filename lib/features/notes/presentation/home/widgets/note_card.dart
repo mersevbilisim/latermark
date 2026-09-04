@@ -105,8 +105,24 @@ class NoteCard extends StatelessWidget {
     // aynı cümleyi iki kere okutmak olurdu.
     final showsCaption = hasBody && note.hasPhoto;
     final reference = now ?? DateTime.now();
+    // Kartın adı **eksiksiz bir cümle** olmalı: ekran okuyucu kullanan biri
+    // akışta tek tek kayıtlar arasında geziyor ve kararını bu tek okumayla
+    // veriyor. Künyedeki saat ve kalan süre bir zamanlar yalnız görsel katmandan
+    // geliyordu; şimdi ada dahil — dokunmadan önce kaydın ne zaman çekildiği
+    // ve ne zaman sileneceği duyuluyor.
+    final expiresAt = note.expiresAt;
     final semanticLabel = [
       hasBody ? note.body : l10n.noteWithoutBody,
+      dated
+          ? l10n.noteStamp(
+              note.createdAt,
+              now: reference,
+              use24Hour: context.use24Hour,
+            )
+          : l10n.time(note.createdAt, use24Hour: context.use24Hour),
+      if (expiresAt != null)
+        '${l10n.retentionSelectorTitle}: '
+            '${l10n.remainingShort(expiresAt, now: reference)}',
       if (reminderAt != null)
         '${l10n.reminderLabel}: '
             '${ReminderCadence.fromCode(note.remindEveryDays).sentence(l10n, at: reminderAt!, use24Hour: context.use24Hour)}',
@@ -152,19 +168,22 @@ class NoteCard extends StatelessWidget {
                   // Köşe ölçekle değişmiyor: baskı her boyutta baskıdır.
                   child: ClipRSuperellipse(
                     borderRadius: AppShape.all(AppShape.print),
-                    child: Hero(
-                      tag: 'note-photo-${note.id}',
-                      child: note.hasPhoto
-                          ? NotePhoto(
-                              // Izgarada küçük kopya; tek sütun ve detay tam
-                              // kareyi okumaya devam ediyor. Kopya yoksa
-                              // ikisi de aynı dosyayı gösteriyor.
-                              file: scale.isCompact
-                                  ? repository.gridImageOf(note)
-                                  : repository.imageOf(note),
-                              decodeWidth: _printWidth(context),
-                            )
-                          : _TextPrint(note: note, scale: scale),
+                    child: HeroMode(
+                      enabled: !MediaQuery.disableAnimationsOf(context),
+                      child: Hero(
+                        tag: 'note-photo-${note.id}',
+                        child: note.hasPhoto
+                            ? NotePhoto(
+                                // Izgarada küçük kopya; tek sütun ve detay tam
+                                // kareyi okumaya devam ediyor. Kopya yoksa
+                                // ikisi de aynı dosyayı gösteriyor.
+                                file: scale.isCompact
+                                    ? repository.gridImageOf(note)
+                                    : repository.imageOf(note),
+                                decodeWidth: _printWidth(context),
+                              )
+                            : _TextPrint(note: note, scale: scale),
+                      ),
                     ),
                   ),
                 ),
@@ -239,7 +258,7 @@ class _SelectMark extends StatelessWidget {
     return ExcludeSemantics(
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0, end: 1),
-        duration: AppMotion.fast,
+        duration: AppMotion.travel(context, AppMotion.fast),
         curve: AppMotion.spring,
         builder: (context, t, child) => Transform.scale(scale: t, child: child),
         child: Container(

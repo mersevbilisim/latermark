@@ -361,7 +361,7 @@ void main() {
         <String, Object?>{'id': 23, 'payload': 'note/23'},
       ];
 
-      await service.dismissNote(23);
+      expect(await service.dismissNote(23), isTrue);
 
       expect(
         calls,
@@ -379,7 +379,7 @@ void main() {
       await service.initialize();
       calls.clear();
 
-      await service.dismissNote(24);
+      expect(await service.dismissNote(24), isFalse);
 
       expect(calls.where((call) => call.method == 'cancel'), isEmpty);
       await service.dispose();
@@ -442,13 +442,18 @@ void main() {
 
       // Şalter kapanıyor: not listesi aynı, tercih değişti.
       calls.clear();
-      await service.sync(
+      final off = await service.sync(
         [pending],
         const AppSettings(reminderEnabled: false, proUnlocked: true),
         l10n,
       );
 
       expect(calls.where((call) => call.method == 'cancelAll'), hasLength(1));
+      // Program **bilinen** biçimde boş. Çağıran ücretsiz hak defterini buna
+      // dayanarak temizliyor: eskiden alarm kalkıyor ama defter kalıyordu ve
+      // zamanı gelince hiç çalmamış bildirim için hak yanıyordu.
+      expect(off.scheduled, isEmpty);
+      expect(off.scheduleKnown, isTrue);
       expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
 
       // Şalter yeniden açılınca not kendi `remindAt` değerinden geri kuruluyor:
@@ -464,36 +469,39 @@ void main() {
       await service.dispose();
     });
 
-    /// Hak kapandığında da aynı iptal çalışmalı: free kullanıcıya Pro
-    /// bildirimi gitmez.
-    test('Pro hakkı kapalıyken şalter açık olsa da hiçbir şey kurulmaz',
-        () async {
-      final service = ReminderService(supported: true);
-      await service.initialize();
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      final pending = Note(
-        id: 62,
-        imageName: '62.jpg',
-        body: 'Park',
-        createdAt: DateTime.now(),
-        retention: Retention.off,
-        customMinutes: 0,
-        remindAt: DateTime.now().add(const Duration(days: 2)),
-        remindEveryDays: 0,
-      );
+    test(
+      'Free kullanıcıda şalter açıksa tek atışlı bildirim kurulur',
+      () async {
+        final service = ReminderService(supported: true);
+        await service.initialize();
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        final pending = Note(
+          id: 62,
+          imageName: '62.jpg',
+          body: 'Park',
+          createdAt: DateTime.now(),
+          retention: Retention.off,
+          customMinutes: 0,
+          remindAt: DateTime.now().add(const Duration(days: 2)),
+          remindEveryDays: 0,
+        );
 
-      calls.clear();
-      await service.sync(
-        [pending],
-        const AppSettings(reminderEnabled: true, proUnlocked: false),
-        l10n,
-      );
+        calls.clear();
+        await service.sync(
+          [pending],
+          const AppSettings(reminderEnabled: true, proUnlocked: false),
+          l10n,
+        );
 
-      expect(calls.where((call) => call.method == 'cancelAll'), hasLength(1));
-      expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
+        expect(calls.where((call) => call.method == 'cancelAll'), isEmpty);
+        expect(
+          calls.where((call) => call.method == 'zonedSchedule'),
+          hasLength(1),
+        );
 
-      await service.dispose();
-    });
+        await service.dispose();
+      },
+    );
 
     test('zamanı gelmiş tek seferlik hatırlatma yeniden kurulmaz', () async {
       final service = ReminderService(supported: true);
@@ -597,7 +605,10 @@ void main() {
           (call.arguments as Map)['id'] as int:
               (call.arguments as Map)['body'] as String,
       };
-      expect(bodies[reminderNotificationId(41, 0)], l10n.notificationBodyNoBody);
+      expect(
+        bodies[reminderNotificationId(41, 0)],
+        l10n.notificationBodyNoBody,
+      );
       expect(
         bodies[reminderNotificationId(42, 0)],
         l10n.notificationBodyNoFrame,
@@ -1366,11 +1377,17 @@ void main() {
         );
 
         calls.clear();
-        await service.sync(
+        final result = await service.sync(
           [note],
           const AppSettings(reminderEnabled: true, proUnlocked: true),
           l10n,
         );
+        expect(result.delivered, {31});
+        // İki kanıt ayrı kümelerde: kayıt tepside duruyor ama anı geçtiği
+        // için programda değil. Eskiden ikisi tek küme hâlinde dönüyordu ve
+        // çağıran "kurulu" ile "görülmüş"ü ayıramıyordu.
+        expect(result.scheduled, isEmpty);
+        expect(result.scheduleKnown, isTrue);
         expect(calls.where((call) => call.method == 'cancel'), isEmpty);
 
         calls.clear();
@@ -1510,7 +1527,7 @@ void main() {
     );
 
     test(
-      'Pro hakkı geri alınınca açık ana şalter de tümünü iptal eder',
+      'Free katmana geçince açık ana şalter programı topluca iptal etmez',
       () async {
         final service = ReminderService(supported: true);
         await service.initialize();
@@ -1523,7 +1540,7 @@ void main() {
           l10n,
         );
 
-        expect(calls.where((call) => call.method == 'cancelAll'), hasLength(1));
+        expect(calls.where((call) => call.method == 'cancelAll'), isEmpty);
         expect(
           calls.where((call) => call.method == 'cancelAllPendingNotifications'),
           isEmpty,

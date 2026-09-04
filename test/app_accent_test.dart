@@ -75,6 +75,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(selected, AppAccent.violet);
       expect(customTaps, 1);
+      for (final accent in AppAccent.strip) {
+        final size = tester.getSize(
+          find.byKey(ValueKey('app-accent-${accent.name}')),
+        );
+        expect(size.width, greaterThanOrEqualTo(44));
+        expect(size.height, greaterThanOrEqualTo(44));
+      }
       expect(
         tester.getSemantics(find.byKey(const ValueKey('app-accent-violet'))),
         matchesSemantics(
@@ -82,6 +89,7 @@ void main() {
           isButton: true,
           hasSelectedState: true,
           isSelected: true,
+          isInMutuallyExclusiveGroup: true,
           hasTapAction: true,
         ),
       );

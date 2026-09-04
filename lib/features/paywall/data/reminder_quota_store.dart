@@ -30,6 +30,10 @@ class ReminderQuotaStore {
   /// olurdu ve geçici bir hata kullanıcıya üç hak daha verirdi; `null` görende
   /// çağıran yalnız veritabanına güveniyor.
   Future<int?> read() async {
+    // Kanal yalnız Runner'ın iOS tarafında kayıtlı. Android/masaüstü/testte
+    // messenger'a istek bırakmak ya MissingPlugin üretir ya da başsız test
+    // ortamında cevapsız kalabilir; bu platformlarda tasarım gereği taban yok.
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return null;
     // Her hata yutuluyor ve bu bilinçli. Bu sayaç bir **sertleştirme**;
     // Keychain'e ulaşamamak not kaydetmeyi ya da uygulamayı açmayı
     // bozamaz. Okunamayan sayı `null` dönüyor, çağıran da yalnız
@@ -47,6 +51,7 @@ class ReminderQuotaStore {
 
   /// Sayıyı yükseltir. Native taraf asla küçültmüyor.
   Future<void> write(int value) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
     try {
       await _channel.invokeMethod<bool>('write', {'value': value});
     } on MissingPluginException {

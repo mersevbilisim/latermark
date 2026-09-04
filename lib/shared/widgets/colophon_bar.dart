@@ -101,6 +101,7 @@ class ColophonAction {
     required this.label,
     required this.semanticLabel,
     required this.onPressed,
+    this.semanticHint,
     this.color,
     this.pressColor,
     this.accent = false,
@@ -111,6 +112,7 @@ class ColophonAction {
   final Key? key;
   final String label;
   final String semanticLabel;
+  final String? semanticHint;
   final VoidCallback? onPressed;
 
   /// Dinlenirken kelimenin rengi. Boşsa tam mürekkep (ya da [accent] ile kor).
@@ -211,6 +213,7 @@ class _ColophonWordState extends State<_ColophonWord>
       button: true,
       enabled: enabled,
       label: action.semanticLabel,
+      hint: action.semanticHint,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: enabled ? (_) => _setDown(true) : null,

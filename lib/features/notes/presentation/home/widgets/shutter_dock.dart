@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -113,7 +114,9 @@ class _ShutterDockState extends State<ShutterDock> {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(end: widget.docked ? 1 : 0),
-      duration: const Duration(milliseconds: 760),
+      // Uygulamadaki en uzun yolculuk: diyafram ekranın ortasından şeride
+      // iniyor. Hareket azaltıldığında yol yok, yalnız varış var.
+      duration: AppMotion.travel(context, const Duration(milliseconds: 760)),
       curve: Curves.easeOutQuart,
       builder: (context, t, _) {
         return Stack(
@@ -251,16 +254,37 @@ class _ShutterDockState extends State<ShutterDock> {
                               onPressed: widget.onCapture,
                             ),
                           ),
-                          ClipRect(
-                            child: Align(
-                              heightFactor: (1 - t).clamp(0.0, 1.0),
-                              child: Opacity(
-                                opacity: (1 - t * 2).clamp(0.0, 1.0),
-                                child: _Invitation(
-                                  importing: widget.importing,
-                                  onImport: widget.onImport,
-                                  onComposeText: widget.onComposeText,
-                                  onOpenSettings: widget.onOpenSettings,
+                          // Davet ekrana sığmadığında kaydırılabiliyor:
+                          // en büyük yazı boyunda hiçbir şey kırpılmıyor,
+                          // her eyleme parmak yetişiyor.
+                          //
+                          // Kaydırma yüzeyi **yalnız daveti** sarıyor,
+                          // sütunun tamamını değil. Şerit yerleştiğinde
+                          // davetin yüksekliği sıfıra iniyor ve yüzey onunla
+                          // birlikte yok oluyor. Sütun sarılsaydı deklanşör
+                          // hizasında ekran genişliğinde görünmez bir yüzey
+                          // kalır, sağdaki eleme düğmesinin dokunuşunu
+                          // yutardı.
+                          //
+                          // `Flexible` sayaç ve diyaframdan artan yeri
+                          // veriyor; kaydırma da içeriğine göre büzüldüğü
+                          // için davet sığdığı sürece düzen bugünkü hâliyle
+                          // birebir aynı kalıyor.
+                          Flexible(
+                            child: ClipRect(
+                              child: Align(
+                                heightFactor: (1 - t).clamp(0.0, 1.0),
+                                child: Opacity(
+                                  opacity: (1 - t * 2).clamp(0.0, 1.0),
+                                  child: SingleChildScrollView(
+                                    physics: const ClampingScrollPhysics(),
+                                    child: _Invitation(
+                                      importing: widget.importing,
+                                      onImport: widget.onImport,
+                                      onComposeText: widget.onComposeText,
+                                      onOpenSettings: widget.onOpenSettings,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -277,6 +301,10 @@ class _ShutterDockState extends State<ShutterDock> {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  // Ekran okuyucuda görünmüyor: adsız, ekran boyunda bir
+                  // düğme olarak listeleniyordu. Menüyü kapatmanın adı olan
+                  // yolu zaten var — artı, açıkken "Vazgeç"e dönüşüyor.
+                  excludeFromSemantics: true,
                   onTap: _closeAdd,
                 ),
               ),
@@ -342,7 +370,7 @@ class _AddSlot extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(end: open ? 1 : 0),
-      duration: const Duration(milliseconds: 260),
+      duration: AppMotion.travel(context, const Duration(milliseconds: 260)),
       curve: Curves.easeOutCubic,
       builder: (context, t, _) {
         return Column(
@@ -389,9 +417,8 @@ class _AddSlot extends StatelessWidget {
                               child: _ActionPill(
                                 icon: Icons.photo_library_outlined,
                                 label: l10n.pickFromGallery,
-                                semanticLabel: importing
-                                    ? l10n.galleryPickerOpening
-                                    : l10n.pickFromGallerySemantic,
+                                semanticLabel: l10n.pickFromGallery,
+                                busyLabel: l10n.galleryPickerOpening,
                                 busy: importing,
                                 onPressed: onImport,
                               ),
@@ -411,7 +438,10 @@ class _AddSlot extends StatelessWidget {
                 // hem kapatıyor, ikinci bir çıkış aranmıyor.
                 AnimatedRotation(
                   turns: open ? 0.125 : 0,
-                  duration: const Duration(milliseconds: 260),
+                  duration: AppMotion.travel(
+                    context,
+                    const Duration(milliseconds: 260),
+                  ),
                   curve: Curves.easeOutCubic,
                   child: IconOrb(
                     icon: Icons.add_rounded,
@@ -477,15 +507,31 @@ class _Invitation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final media = MediaQuery.of(context);
+    final scale = media.textScaler.scale(1);
+
+    // Paragrafın ölçüsü sabit 250 pt değil: yazı büyüdükçe satır da genişler,
+    // yoksa aynı cümle altı satıra bölünüp ekranı tek başına yiyor. Tavan
+    // ekranın kendisi; okuma genişliği hiçbir zaman kenarlara dayanmıyor.
+    final bodyWidth = math.min(media.size.width - 48, 250 * scale);
+
+    // Künye üç kelime: ürünün imzası, işin kendisi değil. Erişilebilirlik
+    // boylarında ekranda kalan yer eylemlere gidiyor.
+    final showsSignature = scale < 1.5;
+
     return Padding(
       padding: const EdgeInsets.only(top: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(context.l10n.inviteTitle, style: palette.bodyStrong),
+          Text(
+            context.l10n.inviteTitle,
+            style: palette.bodyStrong,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 8),
           SizedBox(
-            width: 250,
+            width: bodyWidth,
             child: Text(
               context.l10n.inviteBody,
               textAlign: TextAlign.center,
@@ -509,13 +555,13 @@ class _Invitation extends StatelessWidget {
               _ActionPill(
                 icon: Icons.photo_library_outlined,
                 label: context.l10n.pickFromGallery,
-                semanticLabel: importing
-                    ? context.l10n.galleryPickerOpening
-                    : context.l10n.pickFromGallerySemantic,
+                semanticLabel: context.l10n.pickFromGallery,
+                busyLabel: context.l10n.galleryPickerOpening,
                 busy: importing,
                 onPressed: onImport,
               ),
               _ActionPill(
+                key: const ValueKey('invite-action-text'),
                 icon: Icons.text_fields_rounded,
                 label: context.l10n.composeTextEntry,
                 semanticLabel: context.l10n.composeTextEntry,
@@ -523,6 +569,7 @@ class _Invitation extends StatelessWidget {
               ),
               if (onOpenSettings != null)
                 IconOrb(
+                  key: const ValueKey('invite-action-settings'),
                   icon: Icons.tune_rounded,
                   semanticLabel: context.l10n.settingsAction,
                   onPressed: onOpenSettings,
@@ -533,8 +580,10 @@ class _Invitation extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 32),
-          const _ManifestoSignature(),
+          if (showsSignature) ...[
+            const SizedBox(height: 32),
+            const _ManifestoSignature(),
+          ],
         ],
       ),
     );
@@ -802,11 +851,13 @@ class _LimitCounter extends StatelessWidget {
 /// orada keskin bir alt çizgiye dönüşüyor.
 class _ActionPill extends StatelessWidget {
   const _ActionPill({
+    super.key,
     required this.icon,
     required this.label,
     required this.semanticLabel,
     required this.onPressed,
     this.busy = false,
+    this.busyLabel,
   });
 
   final IconData icon;
@@ -816,14 +867,18 @@ class _ActionPill extends StatelessWidget {
 
   /// Eylem sürüyor: simge yerine çalışma imi döner.
   final bool busy;
+  final String? busyLabel;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     return Pressable(
-      onPressed: onPressed,
+      onPressed: busy ? null : onPressed,
       semanticLabel: semanticLabel,
+      semanticValue: busy ? busyLabel : null,
       scale: 0.985,
+      // Hap 37 pt yüksekliğinde çiziliyor; dokunma alanı 44'e tamamlanıyor.
+      minimumTarget: const Size.fromHeight(44),
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: palette.canvasLift,
@@ -867,7 +922,16 @@ class _ActionPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(label, style: palette.label),
+              // Erişilebilirlik boylarında ad hapı taşırıyordu. Esneme payı
+              // hapın kendisinde: kelime kırılır, satır büyür, kap uyar.
+              Flexible(
+                child: Text(
+                  label,
+                  style: palette.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),

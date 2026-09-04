@@ -152,7 +152,7 @@ void main() {
     final original = repository.originalOf(note)!;
     expect(original.existsSync(), isTrue);
 
-    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
+    expect(await repository.purgeExpired(), 1);
     expect(original.existsSync(), isFalse);
   });
 
@@ -197,23 +197,25 @@ void main() {
 
   /// Etiket yalnızca ekranda yaşıyor. Kareye basılsaydı paylaşılan ve dışa
   /// aktarılan dosyaya da işlenmiş olurdu — geri alınamaz biçimde.
-  test('paylaşılan dosya karenin kendisi, üstüne hiçbir şey basılmıyor',
-      () async {
-    final source = File('${sandbox.path}/j.jpg')
-      ..writeAsBytesSync(List<int>.filled(700000, 9));
-    await repository.create(
-      capture: XFile(source.path),
-      body: 'Anı',
-      retention: const RetentionChoice(Retention.off),
-      keepOriginal: true,
-    );
+  test(
+    'paylaşılan dosya karenin kendisi, üstüne hiçbir şey basılmıyor',
+    () async {
+      final source = File('${sandbox.path}/j.jpg')
+        ..writeAsBytesSync(List<int>.filled(700000, 9));
+      await repository.create(
+        capture: XFile(source.path),
+        body: 'Anı',
+        retention: const RetentionChoice(Retention.off),
+        keepOriginal: true,
+      );
 
-    final note = await only();
-    final shared = repository.fullImageOf(note);
+      final note = await only();
+      final shared = repository.fullImageOf(note);
 
-    // Paylaşıma giden dosya, kaydedilen orijinalin **birebir aynısı**.
-    expect(shared.path, repository.originalOf(note)!.path);
-    expect(shared.lengthSync(), 700000);
-    expect(shared.readAsBytesSync(), source.readAsBytesSync());
-  });
+      // Paylaşıma giden dosya, kaydedilen orijinalin **birebir aynısı**.
+      expect(shared.path, repository.originalOf(note)!.path);
+      expect(shared.lengthSync(), 700000);
+      expect(shared.readAsBytesSync(), source.readAsBytesSync());
+    },
+  );
 }

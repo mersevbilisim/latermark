@@ -94,12 +94,10 @@ struct AddReminderNoteIntent: AppIntent {
     // Anahtar hic yoksa (eski surumden yeni gelen ayna) eski davranisa,
     // yani Pro kapisina duselim: bilinmeyen bir sayiyi "hak var" saymak,
     // olmayan bir hakki vaat etmek olurdu.
-    let freeRemindersLeft = SharedImportStore.freeRemindersLeft
-    let allowsReminder =
-      SharedImportStore.proUnlocked || (freeRemindersLeft ?? 0) > 0
-    guard allowsReminder else {
+    let availability = SharedImportStore.reminderAvailability
+    guard availability.allowsReminder else {
       return .result(
-        dialog: freeRemindersLeft == nil
+        dialog: availability.freeRemindersLeft == nil
           ? "Reminders from Siri require Latermark Pro. Nothing was saved."
           : "You have used all your free reminders. Latermark Pro removes the limit. Nothing was saved."
       )
@@ -154,11 +152,18 @@ struct AddReminderNoteIntent: AppIntent {
       }
     }
 
-    let importId: String
+    let queued: SharedImportStore.ReminderEnqueueResult
     do {
-      importId = try SharedImportStore.enqueue(
+      // Kota kontrolü bu noktada **yeniden ve atomik** yapılır. Yukarıdaki
+      // okuma yalnız erken diyalog içindir; iki eşzamanlı intent son slotu
+      // birlikte görmüş olabilir.
+      queued = try SharedImportStore.enqueueReminder(
         text: normalizedText,
         remindAt: requestedReminder
+      )
+    } catch SharedImportStore.StoreError.noFreeReminders {
+      return .result(
+        dialog: "You have used all your free reminders. Latermark Pro removes the limit. Nothing was saved."
       )
     } catch {
       return .result(
@@ -166,19 +171,21 @@ struct AddReminderNoteIntent: AppIntent {
       )
     }
 
-    // Hak yerel aynadan dusuluyor: uygulama acilmadan art arda soylenen
-    // istekler ayni son hakki birlikte gormemeli. Uygulama bir sonraki
-    // yayinda gercek degeri yaziyor.
-    if !SharedImportStore.proUnlocked {
-      SharedImportStore.consumeFreeReminder()
-    }
-
     do {
       try await QueuedReminder.schedule(
-        importId: importId,
+        importId: queued.id,
         body: normalizedText,
-        at: requestedReminder
+        at: requestedReminder,
+        proUnlocked: queued.proUnlocked
       )
+      guard SharedImportStore.markQueuedReminderScheduled(id: queued.id) else {
+        // Alarm kuruldu ama dayanıklı kanıt yazılamadı. İzsiz bırakmak, vadesi
+        // geçince kotayı doğru kapatmayı imkânsız kılardı.
+        QueuedReminder.cancel(importId: queued.id)
+        return .result(
+          dialog: "Added to Latermark, but the reminder couldn't be set. Open Latermark to finish it."
+        )
+      }
     } catch {
       // Not duruyor ve Runner açıldığında hatırlatmayı kendisi kuracak. Söz
       // verilmeyen tek şey uygulama hiç açılmazsa alarmın çalması.

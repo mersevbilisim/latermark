@@ -12,6 +12,7 @@ import '../../../data/notes_repository.dart';
 import '../../../domain/note_kind.dart';
 import '../../../data/photo_aspect.dart';
 import '../../../domain/note_age_group.dart';
+import '../../../../../shared/widgets/collapsible_sliver.dart';
 import 'home_header.dart';
 import 'note_card.dart';
 
@@ -146,14 +147,18 @@ class NotesFeed extends StatelessWidget {
               ),
             ),
             // Kapalı bölümün kayıtları ağaca hiç girmiyor: gizlemek yerine
-            // çizmemek, uzun bir arşivde asıl kazancın kendisi.
-            if (!collapsedGroups.contains(section.group))
-              SliverPadding(
+            // çizmemek, uzun bir arşivde asıl kazancın kendisi. Sarmalayıcı o
+            // kazancı koruyor ve yalnızca geçişe bir perde ekliyor.
+            CollapsibleSliver(
+              key: ValueKey('age-body-${section.group.name}'),
+              collapsed: collapsedGroups.contains(section.group),
+              sliver: SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: gridded
                     ? _Grid(notes: section.notes, feed: this)
                     : _ColumnSection(section: section, feed: this),
               ),
+            ),
           ],
         SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
       ],
@@ -435,16 +440,16 @@ class DensityCrossfade extends StatelessWidget {
         ],
       ),
       transitionBuilder: (child, animation) {
+        final faded = FadeTransition(opacity: animation, child: child);
+        // Akış düzeni değişirken sahne ölçeklenmiyor, yalnız değişiyor.
+        if (MediaQuery.disableAnimationsOf(context)) return faded;
         final entering = animation.status != AnimationStatus.reverse;
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(
-              begin: entering ? 0.94 : 1.06,
-              end: 1,
-            ).animate(animation),
-            child: child,
-          ),
+        return ScaleTransition(
+          scale: Tween<double>(
+            begin: entering ? 0.94 : 1.06,
+            end: 1,
+          ).animate(animation),
+          child: faded,
         );
       },
       child: KeyedSubtree(key: ValueKey(density), child: child),

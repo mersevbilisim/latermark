@@ -55,10 +55,11 @@ final class ShareViewController: SLComposeServiceViewController {
   }
 
   override func configurationItems() -> [Any]! {
-    // Reminder Latermark'ta Pro özelliği. Extension mağaza/Drift açmaz; ana
-    // uygulamanın App Group'a aynaladığı son bilinen hakkı kullanır ve Runner
-    // kaydederken hakkı yeniden doğrular.
-    guard SharedImportStore.proUnlocked else { return [] }
+    // Extension mağaza/Drift açmaz; ana uygulamanın App Group'a aynaladığı son
+    // bilinen Pro/kota durumunu kullanır ve Runner kaydederken yeniden doğrular.
+    // Anahtar hiç yoksa eski sürüm aynasıdır ve güvenli biçimde Pro'ya düşer.
+    let availability = SharedImportStore.reminderAvailability
+    guard availability.allowsReminder else { return [] }
 
     guard let reminder = SLComposeSheetConfigurationItem() else { return [] }
     reminder.title = text("share.reminder.title")

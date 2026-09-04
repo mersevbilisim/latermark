@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Latermark — Photo notes that delete themselves</title>
+  <meta name="description"
+    content="Take a photo, add two words, move on. Latermark keeps short-lived notes that delete themselves — in 3 days, a week, or a moment you choose. iPhone and Android." />
+  <link rel="canonical" href="https://www.mersev.com/latermark-app/" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="author" content="Mersev" />
+  <!-- Smart App Banner: uncomment once the App Store id exists
+    <meta name="apple-itunes-app" content="app-id=0000000000" /> -->
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Latermark" />
+  <meta property="og:url" content="https://www.mersev.com/latermark-app/" />
+  <meta property="og:title" content="Latermark — Photo notes that delete themselves" />
+  <meta property="og:description"
+    content="A camera for the things you only need to remember for a while. Every frame carries its own lifespan, and clears itself out." />
+  <meta property="og:image" content="https://www.mersev.com/latermark-app/assets/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="The Latermark aperture mark on a dark background" />
+  <meta property="og:locale" content="en" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Latermark — Photo notes that delete themselves" />
+  <meta name="twitter:description"
+    content="A camera for the things you only need to remember for a while. Every frame carries its own lifespan, and clears itself out." />
+  <meta name="twitter:image" content="https://www.mersev.com/latermark-app/assets/og.png" />
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="theme-color" content="#f7f5f1" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0a0a0c" media="(prefers-color-scheme: dark)" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=Inter:wght@400;500;600&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=Inter:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="assets/latermark.css" />
+  <script>
+    // reveal-on-scroll only exists when scripting does; otherwise everything
+    // is simply visible from the start
+    document.documentElement.className += " js";
+  </script>
+
+  <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.mersev.com/latermark-app/#app",
+            "name": "Latermark",
+            "applicationCategory": "ProductivityApplication",
+            "operatingSystem": "iOS, Android",
+            "url": "https://www.mersev.com/latermark-app/",
+            "image": "https://www.mersev.com/latermark-app/assets/og.png",
+            "description": "A camera for short-lived notes. Photograph something, add a few words, and give the frame a lifespan — it deletes itself in 3 days, a week, or any duration you choose. Everything is processed on the device.",
+            "featureList": [
+              "Photo notes with automatic deletion",
+              "Reminders with repeat, snoozed from the notification",
+              "Share a photo straight from the system photo picker",
+              "Text-only notes",
+              "Home and Lock Screen widgets",
+              "Encrypted local backup",
+              "No account, no server, no analytics"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "description": "Free to use. Latermark Pro is a one-time in-app purchase."
+            },
+            "author": { "@id": "https://www.mersev.com/latermark-app/#org" },
+            "publisher": { "@id": "https://www.mersev.com/latermark-app/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://www.mersev.com/latermark-app/#org",
+            "name": "Mersev Bilişim Yazılım Ltd. Şti.",
+            "url": "https://www.mersev.com/",
+            "email": "bilgi@mersev.com.tr",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.mersev.com/latermark-app/logo.png",
+              "width": 500,
+              "height": 500
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.mersev.com/latermark-app/#site",
+            "url": "https://www.mersev.com/latermark-app/",
+            "name": "Latermark",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://www.mersev.com/latermark-app/#org" }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://www.mersev.com/latermark-app/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does Latermark upload my photos?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Notes, photos and location tags are processed entirely on your device. There is no account and no sync server, and nothing is sent anywhere unless you share it yourself."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What happens when a frame expires?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The note and its photo are deleted together, on the device. The clock starts at the moment of capture, so editing a note later does not extend its life."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it change the photos in my library?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. When you pick an existing photo, Latermark copies it into its own storage and leaves the original in your library exactly where it was."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do reminders work if notifications are off?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The frame is still saved and the reminder is still stored, but it cannot ring. It starts working the moment you allow notifications."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is Latermark Pro a subscription?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Pro is a one-time purchase with no renewal, and it stays yours."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+</head>
+
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="Latermark, home">
+        <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <mask id="nav-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+            <rect width="100" height="100" fill="#fff" />
+            <path d="M39.40 67.93H60.60V98.38L50.00 88.70L39.40 98.38Z" fill="#000" stroke="#000" stroke-width="3.40"
+              stroke-linejoin="round" />
+          </mask>
+          <g mask="url(#nav-cut)">
+            <path
+              d="M61.82 67.08L86.24 24.78A44.15 44.15 0 0 1 90.71 67.08ZM41.12 68.78L89.96 68.78A44.15 44.15 0 0 1 55.57 93.80ZM29.30 51.70L53.72 93.99A44.15 44.15 0 0 1 14.85 76.72ZM38.18 32.92L13.76 75.22A44.15 44.15 0 0 1 9.29 32.92ZM58.88 31.22L10.04 31.22A44.15 44.15 0 0 1 44.43 6.20ZM70.70 48.30L46.28 6.01A44.15 44.15 0 0 1 85.15 23.28Z"
+              fill="var(--blade)" />
+          </g>
+          <path d="M39.40 67.93H60.60V98.38L50.00 88.70L39.40 98.38Z" fill="var(--ember)" />
+        </svg>
+        Latermark
+      </a>
+
+      <nav class="nav" aria-label="Sections">
+        <a href="#lifespan">Lifespan</a>
+        <a href="#features">Features</a>
+        <a href="#privacy">Your data</a>
+        <a href="#pro">Pro</a>
+      </nav>
+
+      <a class="btn primary" href="https://www.mersev.com.tr/apps/latermark?ref=mersevcom">Get the app</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap">
+        <div>
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>Photo notes that
+            expire
+          </p>
+          <h1>Take a photo.<br />Add two words.<br />Forget it.</h1>
+          <p class="lead">
+            Latermark is a small camera for things you only need to remember
+            for a while — the parking level, the receipt, the part number on
+            the back of the boiler. Every frame carries its own lifespan and
+            clears itself out.
+          </p>
+
+          <div class="actions" id="get">
+            <a class="btn primary" href="https://apps.apple.com/app/latermark-photo-reminders/id6798743003"
+              rel="noopener noreferrer" target="_blank">Download on the App Store</a>
+            <a class="btn ghost" href="https://play.google.com/store/apps/details?id=com.mersev.latermark"
+              rel="noopener noreferrer" target="_blank">Get it on Google Play</a>
+          </div>
+          <p class="fine">
+            Free to start. Pro is a one-time purchase — no subscription.
+          </p>
+        </div>
+
+        <figure class="rise">
+          <div class="phone">
+            <div class="screen">
+              <div class="island" aria-hidden="true"></div>
+
+              <div class="app-head">
+                <div class="row">
+                  <span class="app-title">Notes</span>
+                  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                    stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6.4" />
+                    <path d="M15.7 15.7 20 20" />
+                  </svg>
+                  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                    aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.6" />
+                    <circle cx="12" cy="12" r="2.6" />
+                  </svg>
+                </div>
+                <span class="app-tally">12 notes</span>
+              </div>
+
+              <div class="feed">
+                <article class="frame">
+                  <img src="assets/frame-parking.jpg" width="760" height="950"
+                    alt="A yellow painted band on a concrete parking pillar, stencilled P3" loading="lazy"
+                    decoding="async" />
+                  <p class="note">Level P3 — right of the lift lobby</p>
+                  <p class="meta num">
+                    <span>09:48</span>
+                    <span>2d</span>
+                    <span class="rule" style="--left: 66%"><i></i></span>
+                  </p>
+                </article>
+
+                <article class="frame small">
+                  <img src="assets/frame-receipt.jpg" width="900" height="680"
+                    alt="A paper receipt lying on a dark wooden table" loading="lazy" decoding="async" />
+                  <p class="note">Send this to accounting</p>
+                  <p class="meta num">
+                    <span>Yesterday 18:20</span>
+                    <span><em>6h</em></span>
+                    <span class="rule" style="--left: 9%"><i></i></span>
+                  </p>
+                </article>
+              </div>
+
+              <div class="dock">
+                <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                  aria-hidden="true">
+                  <rect x="3" y="6" width="15" height="13" rx="2" />
+                  <path d="M6.5 3.5h13a2 2 0 0 1 2 2v10" opacity=".5" />
+                  <path d="m3 15.5 3.6-3.2 4 3.4 3-2.6L18 16" />
+                </svg>
+
+                <svg class="shutter" viewBox="0 0 100 100" aria-hidden="true">
+                  <path
+                    d="M66.56 60.99L77.06 14.99A44.25 44.25 0 0 1 94.19 47.69ZM51.73 69.80L94.24 49.33A44.25 44.25 0 0 1 79.36 83.11ZM35.60 63.70L78.11 84.17A44.25 44.25 0 0 1 42.42 93.60ZM30.31 47.28L40.81 93.29A44.25 44.25 0 0 1 11.19 71.26ZM39.85 32.91L10.43 69.81A44.25 44.25 0 0 1 9.18 32.91ZM57.03 31.41L9.84 31.41A44.25 44.25 0 0 1 37.91 7.43ZM68.92 43.91L39.50 7.01A44.25 44.25 0 0 1 75.74 14.01Z"
+                    fill="currentColor" />
+                </svg>
+
+                <span class="word">Select</span>
+              </div>
+            </div>
+          </div>
+          <figcaption>
+            The feed. The photograph is never covered — the note lives
+            underneath it, on the app's own ground.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band" id="lifespan">
+      <div class="wrap split">
+        <div class="rise">
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>Auto-delete
+          </p>
+          <h2>Every frame knows when to leave.</h2>
+          <p class="lead">
+            Pick a lifespan as you capture. The clock starts at the shutter,
+            not at the last edit, and when it runs out the note and its
+            photograph go together — no archive, no bin, nothing to tidy up
+            later.
+          </p>
+          <p class="fine">
+            Cleanup runs when the app opens, when it returns to the front, and
+            once a minute while you are in it. A frame is never left sitting
+            past its time.
+          </p>
+        </div>
+
+        <div class="rise">
+          <p class="gauge-head">
+            <span>Captured 09:48</span>
+            <b class="num">2 days 4 hours left</b>
+          </p>
+          <span class="rule" style="--left: 34%"><i></i></span>
+
+          <ol class="stops">
+            <li>
+              <b>3 days</b><span>The default. Most things need no longer.</span>
+            </li>
+            <li>
+              <b>1 week</b><span>For the ones you might come back to twice.</span>
+            </li>
+            <li>
+              <b>Any</b><span>Hours, days or weeks — set the number yourself.</span>
+            </li>
+            <li>
+              <b>Off</b><span>It stays until you delete it, like an ordinary note.</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="features">
+      <div class="wrap">
+        <div class="section-head rise">
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>What it does
+          </p>
+          <h2>Small app. Few screens. Nothing left to configure.</h2>
+        </div>
+
+        <ul class="features">
+          <li class="rise">
+            <span class="idx">01</span>
+            <h3>Reminders</h3>
+            <p>
+              Ask a frame to come back on the day it matters — once, or every
+              day, week, month or year.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">02</span>
+            <h3>Answered from the notification</h3>
+            <p>
+              Done, Tomorrow, Next week. A reminder can be dealt with from the
+              Lock Screen without opening the app.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">03</span>
+            <h3>Share → Latermark</h3>
+            <p>
+              Send a picture straight from Photos and write the note in the
+              share sheet. The original in your library is never touched.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">04</span>
+            <h3>Notes without a photograph</h3>
+            <p>
+              Some things are one sentence. Text notes get the same lifespan
+              and the same reminders as a frame.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">05</span>
+            <h3>Home and Lock Screen widgets<span class="pro">Pro</span></h3>
+            <p>
+              Your latest frame, one glance away, with the time it has left
+              counted on the widget itself.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">06</span>
+            <h3>A place, only when you ask</h3>
+            <p>
+              Tag a single frame with where it was taken. One reading, saved
+              with that entry only — there is no background tracking.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">07</span>
+            <h3>Search that isn't a search bar</h3>
+            <p>
+              Tap the magnifier and the title becomes the field, in the same
+              place and the same size. Nothing permanent takes up the room.
+            </p>
+          </li>
+          <li class="rise">
+            <span class="idx">08</span>
+            <h3>Encrypted backup<span class="pro">Pro</span></h3>
+            <p>
+              Everything in one file, locked with a password you choose, so a
+              new phone doesn't cost you the archive.
+            </p>
+          </li>
+        </ul>
+
+        <p class="coda rise">
+          Also: seven accent colours and one you mix yourself, a light theme
+          that was designed rather than inverted, 12- or 24-hour time, a grid
+          or a large single column, and nine languages.
+        </p>
+      </div>
+    </section>
+
+    <section class="band" id="privacy">
+      <div class="wrap">
+        <div class="rise">
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>Your data
+          </p>
+          <h2 class="claim">It never <em>leaves</em> the phone.</h2>
+          <p class="lead" style="margin-top: 24px">
+            Latermark processes your notes, photographs and location tags
+            entirely on your device. There is no account to create, no server
+            to sync with, and no analytics — nothing is uploaded, not for
+            backup and not for "improving the product".
+          </p>
+        </div>
+
+        <ul class="points">
+          <li class="rise">
+            <b>Nothing to sign up for</b>
+            There is no login, no profile and no email address. The app opens
+            on your notes.
+          </li>
+          <li class="rise">
+            <b>Reminders come from your device</b>
+            They are scheduled and shown by the operating system. No external
+            service sends or triggers them.
+          </li>
+          <li class="rise">
+            <b>Deleting the app deletes the notes</b>
+            Its frames and location tags go with it. Your photo library and
+            other apps are untouched.
+          </li>
+        </ul>
+
+        <p class="coda rise">
+          Backups are encrypted on the device with a password only you know.
+          Lose it and the file cannot be opened again — not by us either.
+        </p>
+
+        <p class="rise" style="margin-top: 22px">
+          <a class="pull" href="privacy-en.html" data-policy>Read the full privacy policy<span
+              aria-hidden="true">→</span></a>
+        </p>
+      </div>
+    </section>
+
+    <section class="band" id="pro">
+      <div class="wrap">
+        <div class="section-head rise">
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>Pricing
+          </p>
+          <h2>Free for as long as you like. Pro once.</h2>
+        </div>
+
+        <table class="plans rise">
+          <caption class="fine" style="text-align: left; padding-block: 14px">
+            The free tier is not a countdown: it holds five frames at a time,
+            and deleting one makes room for the next.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col"><span class="visually-hidden">Feature</span></th>
+              <th scope="col">Free</th>
+              <th scope="col">Pro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Frames kept at a time</th>
+              <td>5</td>
+              <td>Unlimited</td>
+            </tr>
+            <tr>
+              <th scope="row">Auto-delete</th>
+              <td>3 days or 1 week</td>
+              <td>Any duration, or off</td>
+            </tr>
+            <tr>
+              <th scope="row">Reminders</th>
+              <td>2, to try it out</td>
+              <td>Unlimited, with repeats</td>
+            </tr>
+            <tr>
+              <th scope="row">Home and Lock Screen widgets</th>
+              <td class="dim">—</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <th scope="row">Encrypted backup and restore</th>
+              <td class="dim">—</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <th scope="row">Photos, notes and reminders on device</th>
+              <td>Yes</td>
+              <td>Yes</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Price</th>
+              <td class="price">Free</td>
+              <td class="price">One-time</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="pro-cta rise">
+          <a class="btn primary" href="https://www.mersev.com.tr/apps/latermark?ref=mersevcom">Download on the Store</a>
+          <p class="fine" style="margin: 0">
+            Nothing you have made is deleted or hidden behind the paywall. The
+            limit applies to new frames only.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="faq">
+      <div class="wrap">
+        <div class="section-head rise">
+          <p class="overline">
+            <span class="tick" aria-hidden="true"></span>Questions
+          </p>
+          <h2>The ones worth asking.</h2>
+        </div>
+
+        <dl class="faq">
+          <div class="rise">
+            <dt>Does Latermark upload my photos?</dt>
+            <dd>
+              No. Notes, photographs and location tags are processed entirely
+              on your device. There is no account and no sync server, and
+              nothing is sent anywhere unless you share it yourself.
+            </dd>
+          </div>
+          <div class="rise">
+            <dt>What happens when a frame expires?</dt>
+            <dd>
+              The note and its photograph are deleted together, on the device.
+              The clock starts at the moment of capture, so editing a note
+              later does not extend its life.
+            </dd>
+          </div>
+          <div class="rise">
+            <dt>Does it change the photos in my library?</dt>
+            <dd>
+              No. When you pick an existing photo, Latermark copies it into
+              its own storage and leaves the original in your library exactly
+              where it was.
+            </dd>
+          </div>
+          <div class="rise">
+            <dt>Do reminders work if notifications are off?</dt>
+            <dd>
+              The frame is still saved and the reminder is still stored, but it
+              cannot ring. It starts working the moment you allow
+              notifications.
+            </dd>
+          </div>
+          <div class="rise">
+            <dt>Is Latermark Pro a subscription?</dt>
+            <dd>
+              No. Pro is a one-time purchase with no renewal, and it stays
+              yours.
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap closing rise">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <mask id="end-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+            <rect width="100" height="100" fill="#fff" />
+            <path d="M39.40 67.93H60.60V98.38L50.00 88.70L39.40 98.38Z" fill="#000" stroke="#000" stroke-width="3.40"
+              stroke-linejoin="round" />
+          </mask>
+          <g mask="url(#end-cut)">
+            <path
+              d="M61.82 67.08L86.24 24.78A44.15 44.15 0 0 1 90.71 67.08ZM41.12 68.78L89.96 68.78A44.15 44.15 0 0 1 55.57 93.80ZM29.30 51.70L53.72 93.99A44.15 44.15 0 0 1 14.85 76.72ZM38.18 32.92L13.76 75.22A44.15 44.15 0 0 1 9.29 32.92ZM58.88 31.22L10.04 31.22A44.15 44.15 0 0 1 44.43 6.20ZM70.70 48.30L46.28 6.01A44.15 44.15 0 0 1 85.15 23.28Z"
+              fill="var(--blade)" />
+          </g>
+          <path d="M39.40 67.93H60.60V98.38L50.00 88.70L39.40 98.38Z" fill="var(--ember)" />
+        </svg>
+        <h2>Photograph it. Then stop thinking about it.</h2>
+        <div class="actions" style="justify-content: center">
+          <a class="btn primary" href="https://apps.apple.com/app/latermark-photo-reminders/id6798743003"
+            target="_blank" rel="noopener noreferrer">Download on the App Store</a>
+          <a class="btn ghost" href="https://play.google.com/store/apps/details?id=com.mersev.latermark" target="_blank"
+            rel="noopener noreferrer">Get it on Google Play</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <nav class="colophon" aria-label="Legal and contact">
+        <a href="privacy-en.html" data-policy>Privacy</a>
+        <span class="tick" aria-hidden="true"></span>
+        <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Terms of Use</a>
+        <span class="tick" aria-hidden="true"></span>
+        <a href="mailto:bilgi@mersev.com.tr">Contact</a>
+        <span class="tick" aria-hidden="true"></span>
+        <a href="https://www.mersev.com/">mersev.com</a>
+      </nav>
+      <p class="fine">
+        © 2026 Mersev Bilişim Yazılım Ltd. Şti. · Latermark for iPhone and
+        Android
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      // the app opens the policy in the interface language (LegalLinks);
+      // the page follows the same rule when the visitor has one of the nine
+      var policy = ["tr", "en", "de", "es", "fr", "it", "ja", "ko", "pt"];
+      var pick = (navigator.languages || [navigator.language || "en"])
+        .map(function (tag) {
+          return String(tag).toLowerCase().split("-")[0];
+        })
+        .filter(function (code) {
+          return policy.indexOf(code) > -1;
+        })[0];
+      if (pick && pick !== "en") {
+        document.querySelectorAll("[data-policy]").forEach(function (a) {
+          a.setAttribute("href", "privacy-" + pick + ".html");
+          a.setAttribute("hreflang", pick);
+        });
+      }
+
+      var head = document.querySelector(".site");
+      var onScroll = function () {
+        head.classList.toggle("scrolled", window.scrollY > 8);
+      };
+      onScroll();
+      addEventListener("scroll", onScroll, { passive: true });
+
+      var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var items = document.querySelectorAll(".rise");
+      if (reduced || !("IntersectionObserver" in window)) {
+        items.forEach(function (el) {
+          el.classList.add("in");
+        });
+        return;
+      }
+      var seen = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add("in");
+            seen.unobserve(entry.target);
+          });
+        },
+        { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+      );
+      items.forEach(function (el, i) {
+        el.style.transitionDelay = Math.min(i % 4, 3) * 60 + "ms";
+        seen.observe(el);
+      });
+    })();
+  </script>
+</body>
+
+</html>

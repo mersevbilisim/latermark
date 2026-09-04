@@ -27,6 +27,12 @@ class ChoiceRail<T> extends StatelessWidget {
   final String Function(T) labelOf;
   final bool enabled;
 
+  void _select(T option) {
+    if (option == value) return;
+    HapticFeedback.selectionClick();
+    onChanged(option);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -69,7 +75,7 @@ class ChoiceRail<T> extends StatelessWidget {
               child: Stack(
                 children: [
                   AnimatedPositioned(
-                    duration: AppMotion.medium,
+                    duration: AppMotion.travel(context, AppMotion.medium),
                     curve: Curves.easeOutQuart,
                     left: segment * (index < 0 ? 0 : index),
                     top: 0,
@@ -113,34 +119,49 @@ class ChoiceRail<T> extends StatelessWidget {
                     children: [
                       for (final option in options)
                         Expanded(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              if (option == value) return;
-                              HapticFeedback.selectionClick();
-                              onChanged(option);
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              child: Center(
-                                child: AnimatedDefaultTextStyle(
-                                  duration: AppMotion.medium,
-                                  curve: AppMotion.ease,
-                                  style: palette.label.copyWith(
-                                    color: option == value
-                                        ? palette.ink
-                                        : palette.inkSoft,
-                                    fontWeight: option == value
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
-                                  child: Text(
-                                    labelOf(option),
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
+                          // Seçili hücre görsel olarak yükselen pille
+                          // anlatılıyor; ekran okuyucuda o pil yok. Durum
+                          // burada söyleniyor: düğme, seçili, ve tek seçimli
+                          // bir kümenin parçası. `excludeSemantics` de içteki
+                          // yazının aynı adı ikinci kez okutmasını engelliyor.
+                          child: Semantics(
+                            button: true,
+                            enabled: enabled,
+                            selected: option == value,
+                            inMutuallyExclusiveGroup: true,
+                            label: labelOf(option),
+                            // Eylem düğümün **kendisinde**: `excludeSemantics`
+                            // altındaki GestureDetector'ın dokunma eylemini de
+                            // siliyor ve geriye çalıştırılamayan bir düğme
+                            // kalıyor — VoiceOver okur, çift dokunuş hiçbir şey
+                            // yapmaz.
+                            onTap: enabled ? () => _select(option) : null,
+                            excludeSemantics: true,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _select(option),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                child: Center(
+                                  child: AnimatedDefaultTextStyle(
+                                    duration: AppMotion.medium,
+                                    curve: AppMotion.ease,
+                                    style: palette.label.copyWith(
+                                      color: option == value
+                                          ? palette.ink
+                                          : palette.inkSoft,
+                                      fontWeight: option == value
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                    ),
+                                    child: Text(
+                                      labelOf(option),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
                                 ),
                               ),

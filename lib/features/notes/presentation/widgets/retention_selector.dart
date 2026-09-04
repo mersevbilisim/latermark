@@ -127,7 +127,7 @@ class RetentionSelector extends StatelessWidget {
                 child: Stack(
                   children: [
                     AnimatedPositioned(
-                      duration: AppMotion.medium,
+                      duration: AppMotion.travel(context, AppMotion.medium),
                       curve: Curves.easeOutQuart,
                       left: segmentWidth * (index % columns),
                       top: cellHeight * (index ~/ columns),
@@ -173,6 +173,11 @@ class RetentionSelector extends StatelessWidget {
                           SizedBox(
                             height: cellHeight,
                             child: Row(
+                              // Esneme olmadan hücreler yazının boyuna
+                              // iniyordu: 46 pt'lik kutunun ortasında 13 pt'lik
+                              // bir şerit dışında hiçbir yer dokunulabilir
+                              // değildi. Ölçüldü.
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 for (var column = 0; column < columns; column++)
                                   Expanded(
@@ -294,6 +299,10 @@ class _Segment extends StatelessWidget {
       button: true,
       selected: selected,
       label: locked ? '$label, ${context.l10n.proBadge}' : label,
+      // Eylem düğümün **kendisinde** duruyor: `excludeSemantics` altındaki
+      // GestureDetector'ın dokunma eylemini de siliyor ve geriye ekran
+      // okuyucunun okuyabildiği ama çalıştıramadığı bir düğme kalıyor.
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

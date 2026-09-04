@@ -15,6 +15,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.accent,
     this.customHue = AccentTone.defaultHue,
+    this.highContrast = false,
     required this.brightness,
     required this.canvas,
     required this.canvasLift,
@@ -43,6 +44,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// yeniden kuruyor ve ton orada kaybolmamalı.
   final int customHue;
 
+  /// iOS/macOS "Kontrastı Artır" tercihiyle seçilen görsel şema.
+  ///
+  /// Kullanıcı ayarı değildir ve diske yazılmaz. Sistem tercihi kapanınca
+  /// normal palet geri gelir; eski sürüm ayarlarının anlamı değişmez.
+  final bool highContrast;
+
   final Brightness brightness;
 
   /// Ana zemin.
@@ -55,8 +62,28 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color canvasSunk;
 
   final Color ink;
+
+  /// İkincil metin: açıklamalar, künye satırları, tarih.
+  ///
+  /// Hiyerarşi bir zamanlar saydamlıkla kuruluyordu — %55, %33, %14 diye inen
+  /// üç basamak. Ölçüldüğünde ikisi WCAG AA'nın (4.5) altındaydı: aydınlık
+  /// temada 3.99 ve 2.23. Sayfanın kendi tuvalinde okunamayan bir metin,
+  /// hiyerarşinin alt basamağı değil, kayıp bilgidir.
+  ///
+  /// Basamaklar duruyor ama artık tabanı eşiğin üstünde: ayrımı büyük ölçüde
+  /// **ölçü ve ağırlık** taşıyor, saydamlık yalnız ona eşlik ediyor.
+  /// Ölçümler `test/accessibility_visual_support_test.dart` içinde kilitli.
   final Color inkSoft;
+
+  /// Üçüncül metin: kalan süre, dosya boyu, küçük kapiteller.
   final Color inkFaint;
+
+  /// Yazı **taşımayan** en sessiz kat: yer tutucular, devre dışı denetimler,
+  /// boş kare zeminleri.
+  ///
+  /// AA eşiği burada aranmıyor; WCAG devre dışı öğeleri muaf tutuyor ve dolu
+  /// bir alanla boş bir alanın aynı koyulukta olması yer tutucuyu yazıya
+  /// benzetirdi. Yine de 3:1'in altına inmiyor.
   final Color inkGhost;
 
   /// Buzlu cam yüzeyler.
@@ -90,9 +117,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     canvasLift: Color(0xFF141418),
     canvasSunk: Color(0xFF050506),
     ink: Color(0xFFF3F1ED),
-    inkSoft: Color(0x8CF3F1ED),
-    inkFaint: Color(0x52F3F1ED),
-    inkGhost: Color(0x24F3F1ED),
+    inkSoft: Color(0xA6F3F1ED),
+    inkFaint: Color(0x82F3F1ED),
+    inkGhost: Color(0x60F3F1ED),
     glass: Color(0x14FFFFFF),
     glassStrong: Color(0x1FFFFFFF),
     hairline: Color(0x1AFFFFFF),
@@ -114,9 +141,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     canvasLift: Color(0xFFFFFFFF),
     canvasSunk: Color(0xFFE9E6E0),
     ink: Color(0xFF131316),
-    inkSoft: Color(0x8C131316),
-    inkFaint: Color(0x59131316),
-    inkGhost: Color(0x24131316),
+    inkSoft: Color(0xBF131316),
+    inkFaint: Color(0xA3131316),
+    inkGhost: Color(0x7A131316),
     glass: Color(0x0A000000),
     glassStrong: Color(0x14000000),
     hairline: Color(0x14000000),
@@ -133,19 +160,22 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Brightness brightness,
     AppAccent accent, {
     int customHue = AccentTone.defaultHue,
+    bool highContrast = false,
   }) {
     final base = brightness == Brightness.dark ? dark : light;
-    if (accent == AppAccent.orange) return base;
-    final color = accent.colorFor(brightness, customHue: customHue);
-    final photo = accent.onPhotoFor(customHue: customHue);
-    return base._withAccent(
-      accent,
-      customHue,
-      color,
-      color.withValues(alpha: brightness == Brightness.dark ? 0.17 : 0.15),
-      photo,
-      photo.withValues(alpha: 0.17),
-    );
+    final accented = accent == AppAccent.orange
+        ? base
+        : base._withAccent(
+            accent,
+            customHue,
+            accent.colorFor(brightness, customHue: customHue),
+            accent
+                .colorFor(brightness, customHue: customHue)
+                .withValues(alpha: brightness == Brightness.dark ? 0.17 : 0.15),
+            accent.onPhotoFor(customHue: customHue),
+            accent.onPhotoFor(customHue: customHue).withValues(alpha: 0.17),
+          );
+    return highContrast ? accented._withHighContrast() : accented;
   }
 
   AppPalette _withAccent(
@@ -158,6 +188,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   ) => AppPalette(
     accent: accent,
     customHue: customHue,
+    highContrast: highContrast,
     brightness: brightness,
     canvas: canvas,
     canvasLift: canvasLift,
@@ -177,11 +208,50 @@ class AppPalette extends ThemeExtension<AppPalette> {
     danger: danger,
   );
 
+  /// Sistem yüksek kontrast görünümü.
+  ///
+  /// Tuval ve kullanıcının seçtiği vurgu rengi değişmez. Yalnız ikincil
+  /// metinler, kontrol sınırları ve yarı saydam yüzeyler güçlenir; böylece
+  /// tema değişimi içerik hiyerarşisini ya da kullanıcının renk seçimini
+  /// başka bir şeye dönüştürmez.
+  AppPalette _withHighContrast() => AppPalette(
+    accent: accent,
+    customHue: customHue,
+    highContrast: true,
+    brightness: brightness,
+    canvas: canvas,
+    canvasLift: canvasLift,
+    canvasSunk: canvasSunk,
+    ink: ink,
+    inkSoft: isDark ? const Color(0xD8F3F1ED) : const Color(0xD8131316),
+    inkFaint: isDark ? const Color(0x9AF3F1ED) : const Color(0xB0131316),
+    inkGhost: isDark ? const Color(0x70F3F1ED) : const Color(0x88131316),
+    glass: isDark ? const Color(0x33FFFFFF) : const Color(0x26000000),
+    glassStrong: isDark ? const Color(0x4DFFFFFF) : const Color(0x3D000000),
+    hairline: isDark ? const Color(0x73FFFFFF) : const Color(0x78000000),
+    hairlineBright: isDark ? const Color(0x99FFFFFF) : const Color(0x99000000),
+    ember: ember,
+    emberGlow: ember.withValues(alpha: isDark ? 0.28 : 0.24),
+    onPhotoAccent: onPhotoAccent,
+    onPhotoAccentGlow: onPhotoAccent.withValues(alpha: 0.28),
+    danger: danger,
+  );
+
   @override
-  AppPalette copyWith({Brightness? brightness}) =>
-      brightness == null || brightness == this.brightness
-      ? this
-      : AppPalette.forAccent(brightness, accent, customHue: customHue);
+  AppPalette copyWith({Brightness? brightness, bool? highContrast}) {
+    final nextBrightness = brightness ?? this.brightness;
+    final nextContrast = highContrast ?? this.highContrast;
+    if (nextBrightness == this.brightness &&
+        nextContrast == this.highContrast) {
+      return this;
+    }
+    return AppPalette.forAccent(
+      nextBrightness,
+      accent,
+      customHue: customHue,
+      highContrast: nextContrast,
+    );
+  }
 
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
@@ -189,6 +259,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     return AppPalette(
       accent: t < 0.5 ? accent : other.accent,
       customHue: t < 0.5 ? customHue : other.customHue,
+      highContrast: t < 0.5 ? highContrast : other.highContrast,
       brightness: t < 0.5 ? brightness : other.brightness,
       canvas: Color.lerp(canvas, other.canvas, t)!,
       canvasLift: Color.lerp(canvasLift, other.canvasLift, t)!,
@@ -221,8 +292,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
 /// Kamera vizörü ve tam ekran fotoğraf görünümü de her zaman koyudur.
 abstract final class OnPhoto {
   static const ink = Color(0xFFF3F1ED);
-  static const inkSoft = Color(0x8CF3F1ED);
-  static const inkFaint = Color(0x52F3F1ED);
+  static const inkSoft = Color(0xD8F3F1ED);
+  static const inkFaint = Color(0x9AF3F1ED);
   static const inkGhost = Color(0x24F3F1ED);
   static const glass = Color(0x14FFFFFF);
   static const glassStrong = Color(0x1FFFFFFF);

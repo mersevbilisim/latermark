@@ -662,6 +662,41 @@ class L10nKo extends L10n {
   String get settingsTitle => '설정';
 
   @override
+  String get accessibilityTitle => '손쉬운 사용';
+
+  @override
+  String get accessibilityDescription => 'Latermark에서만 대비를 높이거나 동작을 줄일 수 있습니다.';
+
+  @override
+  String get accessibilityIntro =>
+      'Latermark는 기기의 손쉬운 사용 설정을 항상 따릅니다. 이 옵션은 앱 안에서 해당 설정을 더 강화할 수만 있습니다.';
+
+  @override
+  String get accessibilityContrastTitle => '항상 대비 증가';
+
+  @override
+  String get accessibilityContrastDescription =>
+      '보조 텍스트, 컨트롤, 사진 위 표시를 더 선명하게 만듭니다.';
+
+  @override
+  String get accessibilityMotionTitle => '항상 동작 줄이기';
+
+  @override
+  String get accessibilityMotionDescription =>
+      '장식 동작을 멈추고 깊이 전환을 부드러운 페이드로 바꿉니다.';
+
+  @override
+  String get accessibilitySystemNote =>
+      '기기 설정이 우선합니다. 시스템에서 대비 증가 또는 동작 줄이기가 켜져 있으면 이 스위치가 꺼져 있어도 Latermark가 따릅니다.';
+
+  @override
+  String get accessibilityTextSizeTitle => '글자 크기';
+
+  @override
+  String get accessibilityTextSizeBody =>
+      '글자 크기는 기기 설정이며 Latermark는 두 배까지 따릅니다. 설정 › 손쉬운 사용 › 디스플레이 및 텍스트 크기 › 더 큰 텍스트. Latermark에서만 키우려면 설정 › 손쉬운 사용 › 앱별 설정.';
+
+  @override
   String get sectionAppearance => '화면';
 
   @override
@@ -720,6 +755,9 @@ class L10nKo extends L10n {
 
   @override
   String get accentGold => '골드';
+
+  @override
+  String get accentSilver => '실버';
 
   @override
   String get accentCustom => '사용자 지정';

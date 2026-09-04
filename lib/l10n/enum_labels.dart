@@ -59,6 +59,7 @@ extension AccentLabels on AppAccent {
     AppAccent.pink => l10n.accentPink,
     AppAccent.green => l10n.accentGreen,
     AppAccent.gold => l10n.accentGold,
+    AppAccent.silver => l10n.accentSilver,
     AppAccent.custom => l10n.accentCustom,
   };
 }

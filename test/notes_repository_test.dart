@@ -160,7 +160,7 @@ void main() {
     final before = await repository.watchNotes().first;
     final doomed = before.firstWhere((note) => note.body == 'eski');
 
-    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
+    expect(await repository.purgeExpired(), 1);
 
     final after = await repository.watchNotes().first;
     expect(after.map((note) => note.body), unorderedEquals(['taze', 'kalıcı']));
@@ -418,7 +418,10 @@ void main() {
       body: 'dördüncü',
       retention: RetentionChoice(Retention.off),
     );
-    await repository.setReminder(blocked, ReminderChoice(at: at));
+    expect(
+      await repository.setReminder(blocked, ReminderChoice(at: at)),
+      isFalse,
+    );
     final note = (await repository.watchNotes().first).firstWhere(
       (note) => note.id == blocked,
     );
@@ -564,6 +567,45 @@ void main() {
     expect(moved.expiresAt, DateTime(2026, 8, 21, 9).add(kReminderExpiryGrace));
   });
 
+  test(
+    'Free bildirim aksiyonu teslimatı yakar ve ertelemeyi uygular',
+    () async {
+      final at = DateTime(2026, 8, 20, 9);
+      final id = await repository.create(
+        capture: await fakeCapture(),
+        body: 'free ertelenecek',
+        retention: const RetentionChoice.off(),
+        reminder: ReminderChoice(at: at),
+        createdAt: DateTime(2026, 8, 8, 12),
+      );
+
+      final moved = await repository.applyReminderAction(
+        id,
+        ReminderAction.tomorrow,
+        firedAt: at,
+        now: at.add(const Duration(minutes: 3)),
+        eventId: 'free-action-$id',
+      );
+
+      expect(moved, isNotNull);
+      expect(moved!.remindAt, DateTime(2026, 8, 21, 9));
+      expect(moved.remindEveryDays, 0);
+      expect((await settings.read()).freeReminderNotes, {id});
+
+      // Aynı native olay iki isolate'a düşse de ikinci kez işlenmez.
+      expect(
+        await repository.applyReminderAction(
+          id,
+          ReminderAction.tomorrow,
+          firedAt: at,
+          now: at.add(const Duration(minutes: 3)),
+          eventId: 'free-action-$id',
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('"tamam" silme sözünü olduğu gibi bırakır', () async {
     await settings.setProUnlocked(true);
     final at = DateTime(2026, 8, 20, 9);
@@ -608,7 +650,7 @@ void main() {
     final photo = repository.imageOf(note);
     expect(photo.existsSync(), isTrue);
 
-    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
+    expect(await repository.purgeExpired(), 1);
     expect(await repository.watchNotes().first, isEmpty);
     expect(photo.existsSync(), isFalse);
   });

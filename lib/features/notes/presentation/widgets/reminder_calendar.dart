@@ -215,16 +215,18 @@ class _MonthBar extends StatelessWidget {
           child: AnimatedSwitcher(
             duration: AppMotion.fast,
             switchInCurve: AppMotion.ease,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
+            transitionBuilder: (child, animation) {
+              final faded = FadeTransition(opacity: animation, child: child);
+              // Hareket azaltıldığında ay adı yana kaymadan soluyor.
+              if (MediaQuery.disableAnimationsOf(context)) return faded;
+              return SlideTransition(
                 position: Tween(
                   begin: Offset(0.12 * direction, 0),
                   end: Offset.zero,
                 ).animate(animation),
-                child: child,
-              ),
-            ),
+                child: faded,
+              );
+            },
             child: Text(
               l10n.upper(title),
               key: ValueKey(title),
@@ -274,6 +276,7 @@ class _MonthArrow extends StatelessWidget {
       onPressed: enabled ? onPressed : null,
       scale: 0.9,
       semanticLabel: semanticLabel,
+      minimumTarget: const Size.square(44),
       child: SizedBox(
         width: 44,
         height: 40,
@@ -343,7 +346,7 @@ class _MonthGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scaler = MediaQuery.textScalerOf(context);
-    final cellHeight = math.max(40.0, scaler.scale(15) + 24);
+    final cellHeight = math.max(44.0, scaler.scale(15) + 24);
     final firstOfMonth = DateTime(month.year, month.month, 1);
     final dayCount = DateTime(month.year, month.month + 1, 0).day;
     final firstWeekday = MaterialLocalizations.of(context).firstDayOfWeekIndex;
@@ -353,16 +356,17 @@ class _MonthGrid extends StatelessWidget {
     return AnimatedSwitcher(
       duration: AppMotion.fast,
       switchInCurve: AppMotion.ease,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
+      transitionBuilder: (child, animation) {
+        final faded = FadeTransition(opacity: animation, child: child);
+        if (MediaQuery.disableAnimationsOf(context)) return faded;
+        return SlideTransition(
           position: Tween(
             begin: Offset(0.06 * direction, 0),
             end: Offset.zero,
           ).animate(animation),
-          child: child,
-        ),
-      ),
+          child: faded,
+        );
+      },
       child: Column(
         key: ValueKey(month),
         mainAxisSize: MainAxisSize.min,
@@ -431,6 +435,9 @@ class _DayCell extends StatelessWidget {
       onPressed: enabled ? onPressed : null,
       scale: 0.9,
       semanticLabel: context.l10n.calendarDate(day),
+      semanticHint: isToday ? context.l10n.dayToday : null,
+      selected: selected,
+      minimumTarget: const Size.square(44),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

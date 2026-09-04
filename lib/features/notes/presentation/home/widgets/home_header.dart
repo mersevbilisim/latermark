@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../../../../core/theme/app_motion.dart';
 import '../../../../../core/theme/app_palette.dart';
@@ -94,82 +95,103 @@ class HomeHeader extends SliverPersistentHeaderDelegate {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sayaç, başlık küçüldükçe onun altından kayıp gider.
-                      ClipRect(
-                        child: Align(
-                          heightFactor: (1 - eased * 1.4).clamp(0.0, 1.0),
-                          alignment: Alignment.bottomLeft,
-                          child: Opacity(
-                            opacity: (1 - eased * 2).clamp(0.0, 1.0),
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Text(
-                                context.l10n.upper(_tally(context)),
-                                // Arama ve seçimde sayaç kor rengine döner:
-                                // kullanıcı bir alt kümeye baktığını, sayının
-                                // toplam kayıt olmadığını görmeli.
-                                style: palette.overline.copyWith(
-                                  color: searching || selecting
-                                      ? palette.ember
-                                      : palette.inkFaint,
+                  child: Semantics(
+                    sortKey: const OrdinalSortKey(0),
+                    container: true,
+                    explicitChildNodes: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Sayaç, başlık küçüldükçe onun altından kayıp gider.
+                        ClipRect(
+                          child: Align(
+                            heightFactor: (1 - eased * 1.4).clamp(0.0, 1.0),
+                            alignment: Alignment.bottomLeft,
+                            child: Opacity(
+                              opacity: (1 - eased * 2).clamp(0.0, 1.0),
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  context.l10n.upper(_tally(context)),
+                                  // Arama ve seçimde sayaç kor rengine döner:
+                                  // kullanıcı bir alt kümeye baktığını, sayının
+                                  // toplam kayıt olmadığını görmeli.
+                                  style: palette.overline.copyWith(
+                                    color: searching || selecting
+                                        ? palette.ember
+                                        : palette.inkFaint,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      // Başlık ve arama girdisi aynı tipografiyi paylaşıyor:
-                      // geçiş bir ekran değişimi değil, bir hâl değişimi gibi
-                      // okunuyor.
-                      _TitleOrField(
-                        searching: searching,
-                        selecting: selecting,
-                        palette: palette,
-                        controller: searchController,
-                        focus: searchFocus,
-                        onChanged: onSearchChanged,
-                        fontSize: lerpDouble(34, 19, eased)!,
-                        letterSpacing: lerpDouble(-0.9, -0.3, eased)!,
-                      ),
-                    ],
+                        // Başlık ve arama girdisi aynı tipografiyi paylaşıyor:
+                        // geçiş bir ekran değişimi değil, bir hâl değişimi gibi
+                        // okunuyor.
+                        _TitleOrField(
+                          searching: searching,
+                          selecting: selecting,
+                          palette: palette,
+                          controller: searchController,
+                          focus: searchFocus,
+                          onChanged: onSearchChanged,
+                          fontSize: lerpDouble(34, 19, eased)!,
+                          letterSpacing: lerpDouble(-0.9, -0.3, eased)!,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                if (searching)
-                  IconOrb(
-                    icon: Icons.close_rounded,
-                    semanticLabel: context.l10n.searchCancel,
-                    onPressed: onToggleSearch,
-                    size: 38,
-                    iconSize: 18,
-                    tint: palette.ink,
-                    fill: palette.glass,
-                  )
-                else if (!selecting) ...[
-                  IconOrb(
-                    icon: Icons.search_rounded,
-                    semanticLabel: context.l10n.searchHint,
-                    onPressed: onToggleSearch,
-                    size: 38,
-                    iconSize: 18,
-                    tint: palette.ink,
-                    fill: palette.glass,
+                // Denetimler ekran adından **sonra** okunuyor.
+                //
+                // Ölçüldü: sıralama konuma bırakılınca "Notlar" arama
+                // düğmesinden sonraya düşüyordu — yuvarlak düğmeler başlıkla
+                // sayacın ikisiyle birden dikey olarak örtüştüğü için.
+                Semantics(
+                  sortKey: const OrdinalSortKey(1),
+                  container: true,
+                  explicitChildNodes: true,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (searching)
+                        IconOrb(
+                          icon: Icons.close_rounded,
+                          semanticLabel: context.l10n.searchCancel,
+                          onPressed: onToggleSearch,
+                          size: 38,
+                          iconSize: 18,
+                          tint: palette.ink,
+                          fill: palette.glass,
+                        )
+                      else if (!selecting) ...[
+                        IconOrb(
+                          icon: Icons.search_rounded,
+                          semanticLabel: context.l10n.searchHint,
+                          onPressed: onToggleSearch,
+                          size: 38,
+                          iconSize: 18,
+                          tint: palette.ink,
+                          fill: palette.glass,
+                        ),
+                        const SizedBox(width: 8),
+                        IconOrb(
+                          key: const ValueKey('home-action-settings'),
+                          icon: Icons.tune_rounded,
+                          semanticLabel: context.l10n.settingsAction,
+                          onPressed: onOpenSettings,
+                          size: 38,
+                          iconSize: 18,
+                          tint: palette.ink,
+                          fill: palette.glass,
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  IconOrb(
-                    icon: Icons.tune_rounded,
-                    semanticLabel: context.l10n.settingsAction,
-                    onPressed: onOpenSettings,
-                    size: 38,
-                    iconSize: 18,
-                    tint: palette.ink,
-                    fill: palette.glass,
-                  ),
-                ],
+                ),
               ],
             ),
           ),
@@ -247,19 +269,22 @@ class _TitleOrField extends StatelessWidget {
       );
     }
 
-    return TextField(
-      controller: controller,
-      focusNode: focus,
-      onChanged: onChanged,
-      autofocus: true,
-      style: style,
-      cursorColor: palette.ember,
-      cursorWidth: 2,
-      textInputAction: TextInputAction.search,
-      keyboardAppearance: palette.isDark ? Brightness.dark : Brightness.light,
-      decoration: InputDecoration.collapsed(
-        hintText: context.l10n.searchHint,
-        hintStyle: style.copyWith(color: palette.inkGhost),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 44),
+      child: TextField(
+        controller: controller,
+        focusNode: focus,
+        onChanged: onChanged,
+        autofocus: true,
+        style: style,
+        cursorColor: palette.ember,
+        cursorWidth: 2,
+        textInputAction: TextInputAction.search,
+        keyboardAppearance: palette.isDark ? Brightness.dark : Brightness.light,
+        decoration: InputDecoration.collapsed(
+          hintText: context.l10n.searchHint,
+          hintStyle: style.copyWith(color: palette.inkGhost),
+        ),
       ),
     );
   }
@@ -368,7 +393,7 @@ class AgeSeparator extends StatelessWidget {
                   dimension: 15,
                   child: TweenAnimationBuilder<double>(
                     tween: Tween(end: collapsed ? 1 : 0),
-                    duration: AppMotion.medium,
+                    duration: AppMotion.travel(context, AppMotion.medium),
                     curve: AppMotion.ease,
                     builder: (context, t, _) => Aperture(
                       openness: lerpDouble(0.78, 0.16, t)!,
@@ -387,7 +412,12 @@ class AgeSeparator extends StatelessWidget {
         return Semantics(
           container: true,
           header: true,
-          label: label,
+          // Kapalıyken sayı ekranda görünüyor ama ayracın adının dışında
+          // kalıyordu: ekran okuyucu kullanan biri kapağın altında kaç kare
+          // olduğunu duymuyordu.
+          label: collapsed && count != null
+              ? '$label, ${context.l10n.noteCount(count!)}'
+              : label,
           button: interactive,
           expanded: interactive ? !collapsed : null,
           onTap: onToggle,

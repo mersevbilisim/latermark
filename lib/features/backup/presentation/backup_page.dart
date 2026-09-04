@@ -1162,19 +1162,43 @@ class _StageIntro extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text('LATERMARK', style: palette.overline),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ColoredBox(
-                color: palette.hairline,
-                child: const SizedBox(height: 0.5),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text('$index / 02', style: palette.overline),
-          ],
+        // Adım künyesi. Çizgi dekor: en büyük yazı boylarında iki etiket
+        // satırın tamamını istiyor ve çizgi sıfıra inse bile künye taşıyordu.
+        // Ayraçtaki (`AgeSeparator`) kuralın aynısı — orada da çizgi ilk
+        // vazgeçilen şey.
+        Builder(
+          builder: (context) {
+            final showsRule = MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+            return Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'LATERMARK',
+                    style: palette.overline,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (showsRule)
+                  Expanded(
+                    child: ColoredBox(
+                      color: palette.hairline,
+                      child: const SizedBox(height: 0.5),
+                    ),
+                  )
+                else
+                  const Spacer(),
+                const SizedBox(width: 12),
+                Text(
+                  '$index / 02',
+                  style: palette.overline,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 24),
         Text(
@@ -1205,49 +1229,48 @@ class _CheckLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return Semantics(
+    // Ad ve işaret durumu **tek** düğümde: dıştaki bir `Semantics` sarmalayıcı
+    // aynı etiketi ikinci kez okutuyordu.
+    return Pressable(
+      onPressed: () => onChanged(!value),
+      scale: 0.995,
+      semanticLabel: label,
       checked: value,
-      label: label,
-      child: Pressable(
-        onPressed: () => onChanged(!value),
-        scale: 0.995,
-        semanticLabel: label,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                key: const Key('backup-square-check'),
-                width: 18,
-                height: 18,
-                margin: const EdgeInsets.only(top: 1),
-                decoration: BoxDecoration(
-                  color: value ? palette.ember : Colors.transparent,
-                  border: Border.all(
-                    color: value ? palette.ember : palette.hairlineBright,
-                  ),
-                ),
-                child: value
-                    ? const Icon(
-                        Icons.check_rounded,
-                        size: 13,
-                        color: Colors.white,
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  label,
-                  style: palette.label.copyWith(
-                    color: palette.inkSoft,
-                    height: 1.4,
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: const Key('backup-square-check'),
+              width: 18,
+              height: 18,
+              margin: const EdgeInsets.only(top: 1),
+              decoration: BoxDecoration(
+                color: value ? palette.ember : Colors.transparent,
+                border: Border.all(
+                  color: value ? palette.ember : palette.hairlineBright,
                 ),
               ),
-            ],
-          ),
+              child: value
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Text(
+                label,
+                style: palette.label.copyWith(
+                  color: palette.inkSoft,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

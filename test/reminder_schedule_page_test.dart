@@ -16,6 +16,7 @@ import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/notes/presentation/reminder/reminder_schedule_page.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
 import 'package:latermark/l10n/app_localizations.dart';
@@ -285,6 +286,22 @@ void main() {
     await close(tester);
   });
 
+  testWidgets('geçersiz saat yalnız renkle anlatılmaz', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await open(tester);
+
+    await tester.enterText(find.byKey(const Key('reminder-time-minute')), '99');
+    await _settle(tester);
+
+    expect(find.byKey(const Key('reminder-time-invalid-mark')), findsOneWidget);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Geçerli bir saat girin')),
+      isSemantics(label: 'Geçerli bir saat girin', isLiveRegion: true),
+    );
+    await close(tester);
+    semantics.dispose();
+  });
+
   testWidgets('günlük ritim native ilk oluşuma hizalanır', (tester) async {
     // Native günlük kayıt gelecekteki başlangıç gününü taşıyamaz; yalnız
     // saati eşleştirir. Ekranın kaydettiği ilk halka da bu yüzden o saatin
@@ -329,7 +346,10 @@ void main() {
     await open(tester);
 
     expect(find.byKey(const Key('reminder-delete-after-row')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    final deleteAfter = find.byKey(const Key('reminder-delete-after-switch'));
+    await tester.ensureVisible(deleteAfter);
+    await _settle(tester);
+    await tester.tap(deleteAfter);
     await _settle(tester);
     await saveAndClose(tester);
 
@@ -438,6 +458,7 @@ void main() {
   testWidgets('kendi saklama süresi olan notta sözün ne yaptığı yazıyor', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     // Söz o süreyi kısaltabilir de uzatabilir de; sessiz kalırsa kullanıcı
     // seçtiği ömrün yerine başka bir şey geçtiğini hiç öğrenmez. Sözün
     // gerçekten yerine geçtiğini `notes_repository_test.dart` doğruluyor,
@@ -454,11 +475,14 @@ void main() {
     );
     expect(overrideOpacity(tester), 0);
 
-    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    tester.semantics.tap(
+      find.semantics.byLabel(RegExp('Hatırlattıktan 30 dakika sonra sil')),
+    );
     await _settle(tester);
 
     expect(overrideOpacity(tester), 1);
     await close(tester);
+    semantics.dispose();
   });
 
   testWidgets('kendi saklama süresi olmayan notta o satır hiç yok', (
@@ -487,6 +511,32 @@ void main() {
     expect(note.remindAt, isNull);
     expect(note.body, 'Kışlık lastikleri sormayı unutma.');
     expect(find.byType(ReminderSchedulePage), findsNothing);
+    await close(tester);
+  });
+
+  testWidgets('son ücretsiz slot yarışta dolarsa sahte başarı vermez', (
+    tester,
+  ) async {
+    // Sayfa açılmadan hemen önce başka bir giriş (Share/Siri) son slotları
+    // almış olabilir. Depodaki ikinci kapı başarısızlığı görünür kılmalı ve
+    // sayfa, kullanıcı sonucu görmeden kapanmamalı.
+    await settings.setProUnlocked(false);
+    final at = DateTime.now().add(const Duration(days: 30));
+    for (var i = 0; i < ProLimits.freeReminders; i++) {
+      await repository.createText(
+        body: 'slot $i',
+        retention: const RetentionChoice.off(),
+        reminder: ReminderChoice(at: at.add(Duration(days: i))),
+      );
+    }
+
+    await open(tester);
+    await tester.tap(find.byKey(const ValueKey('reminder-schedule-save')));
+    await _settle(tester);
+
+    expect(find.byType(ReminderSchedulePage), findsOneWidget);
+    expect(find.text('Ücretsiz hatırlatma hakkın doldu'), findsOneWidget);
+    expect((await readNote()).remindAt, isNull);
     await close(tester);
   });
 

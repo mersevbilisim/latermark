@@ -12,13 +12,40 @@ abstract final class AppTheme {
   static ThemeData dark([
     AppAccent accent = AppAccent.orange,
     int customHue = AccentTone.defaultHue,
-  ]) => _build(AppPalette.forAccent(Brightness.dark, accent, customHue: customHue));
+  ]) => _build(
+    AppPalette.forAccent(Brightness.dark, accent, customHue: customHue),
+  );
 
   static ThemeData light([
     AppAccent accent = AppAccent.orange,
     int customHue = AccentTone.defaultHue,
   ]) => _build(
     AppPalette.forAccent(Brightness.light, accent, customHue: customHue),
+  );
+
+  /// Sistem "Kontrastı Artır" açıkken MaterialApp'in otomatik seçtiği tema.
+  static ThemeData darkHighContrast([
+    AppAccent accent = AppAccent.orange,
+    int customHue = AccentTone.defaultHue,
+  ]) => _build(
+    AppPalette.forAccent(
+      Brightness.dark,
+      accent,
+      customHue: customHue,
+      highContrast: true,
+    ),
+  );
+
+  static ThemeData lightHighContrast([
+    AppAccent accent = AppAccent.orange,
+    int customHue = AccentTone.defaultHue,
+  ]) => _build(
+    AppPalette.forAccent(
+      Brightness.light,
+      accent,
+      customHue: customHue,
+      highContrast: true,
+    ),
   );
 
   static ThemeData _build(AppPalette palette) {

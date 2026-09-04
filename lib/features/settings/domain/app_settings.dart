@@ -48,6 +48,8 @@ class AppSettings {
     this.defaultCustomMinutes = 0,
     this.locale = AppLocale.system,
     this.shareSignature = true,
+    this.alwaysHighContrast = false,
+    this.alwaysReduceMotion = false,
     this.proUnlocked = false,
     this.collapsedGroups = const {},
     this.freeReminderNotes = const {},
@@ -90,6 +92,14 @@ class AppSettings {
   /// Paylaşılan notun sonuna Latermark satırı eklensin mi. Varsayılan açık.
   final bool shareSignature;
 
+  /// Sistem tercihi kapalı olsa da Latermark içinde yüksek kontrast kullan.
+  /// Sistem yüksek kontrastı açıksa uygulama bunu geri kapatamaz.
+  final bool alwaysHighContrast;
+
+  /// Sistem tercihi kapalı olsa da Latermark içindeki hareketi azalt.
+  /// Sistem hareketi azaltmışsa uygulama bunu geri açamaz.
+  final bool alwaysReduceMotion;
+
   /// Ana akışta kapatılmış zaman bölümlerinin adları.
   ///
   /// Ad taşınıyor, `enum` değil: `NoteAgeGroup` bu katmanın altında ve
@@ -115,6 +125,8 @@ class AppSettings {
     int? defaultCustomMinutes,
     AppLocale? locale,
     bool? shareSignature,
+    bool? alwaysHighContrast,
+    bool? alwaysReduceMotion,
     Set<String>? collapsedGroups,
     Set<int>? freeReminderNotes,
     bool? proUnlocked,
@@ -130,6 +142,8 @@ class AppSettings {
     defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
     locale: locale ?? this.locale,
     shareSignature: shareSignature ?? this.shareSignature,
+    alwaysHighContrast: alwaysHighContrast ?? this.alwaysHighContrast,
+    alwaysReduceMotion: alwaysReduceMotion ?? this.alwaysReduceMotion,
     collapsedGroups: collapsedGroups ?? this.collapsedGroups,
     freeReminderNotes: freeReminderNotes ?? this.freeReminderNotes,
     proUnlocked: proUnlocked ?? this.proUnlocked,
@@ -147,6 +161,8 @@ class AppSettings {
       other.defaultCustomMinutes == defaultCustomMinutes &&
       other.locale == locale &&
       other.shareSignature == shareSignature &&
+      other.alwaysHighContrast == alwaysHighContrast &&
+      other.alwaysReduceMotion == alwaysReduceMotion &&
       // Küme eşitliği Dart'ta kimlik üzerinden: içerik karşılaştırılmazsa
       // her ayar yayını "değişti" sayılır ve ana ekran boşuna yeniden kurulur.
       setEquals(other.collapsedGroups, collapsedGroups) &&
@@ -164,6 +180,8 @@ class AppSettings {
     defaultCustomMinutes,
     locale,
     shareSignature,
+    alwaysHighContrast,
+    alwaysReduceMotion,
     Object.hashAllUnordered(collapsedGroups),
     Object.hashAllUnordered(freeReminderNotes),
     proUnlocked,

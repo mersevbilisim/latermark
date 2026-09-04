@@ -1288,6 +1288,66 @@ abstract class L10n {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @accessibilityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessibility'**
+  String get accessibilityTitle;
+
+  /// No description provided for @accessibilityDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Make contrast stronger or reduce motion just for Latermark.'**
+  String get accessibilityDescription;
+
+  /// No description provided for @accessibilityIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Latermark always follows your device accessibility settings. These controls can make them stricter only inside the app.'**
+  String get accessibilityIntro;
+
+  /// No description provided for @accessibilityContrastTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Always increase contrast'**
+  String get accessibilityContrastTitle;
+
+  /// No description provided for @accessibilityContrastDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Strengthens secondary text, controls, and overlays on photos.'**
+  String get accessibilityContrastDescription;
+
+  /// No description provided for @accessibilityMotionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Always reduce motion'**
+  String get accessibilityMotionTitle;
+
+  /// No description provided for @accessibilityMotionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops decorative movement and replaces depth transitions with gentle fades.'**
+  String get accessibilityMotionDescription;
+
+  /// No description provided for @accessibilitySystemNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device stays in control. If Increase Contrast or Reduce Motion is enabled in system settings, Latermark follows it even when these switches are off.'**
+  String get accessibilitySystemNote;
+
+  /// No description provided for @accessibilityTextSizeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get accessibilityTextSizeTitle;
+
+  /// No description provided for @accessibilityTextSizeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size is a device setting, and Latermark follows it up to twice the default. Settings › Accessibility › Display & Text Size › Larger Text. To enlarge it only inside Latermark, use Settings › Accessibility › Per-App Settings.'**
+  String get accessibilityTextSizeBody;
+
   /// No description provided for @sectionAppearance.
   ///
   /// In en, this message translates to:
@@ -1401,6 +1461,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Gold'**
   String get accentGold;
+
+  /// No description provided for @accentSilver.
+  ///
+  /// In en, this message translates to:
+  /// **'Silver'**
+  String get accentSilver;
 
   /// No description provided for @accentCustom.
   ///

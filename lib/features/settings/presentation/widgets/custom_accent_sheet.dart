@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -94,9 +95,7 @@ class _CustomAccentSheetState extends State<_CustomAccentSheet> {
     final media = MediaQuery.of(context);
     final maxHeight = media.size.height - media.padding.top - 12;
     final compact = maxHeight < 640;
-    final color = palette.isDark
-        ? _darkWheel[_hue]
-        : _lightWheel[_hue];
+    final color = palette.isDark ? _darkWheel[_hue] : _lightWheel[_hue];
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -206,6 +205,10 @@ class _HueDial extends StatelessWidget {
   static const _ring = 16.0;
   static const _gap = 18.0;
 
+  /// Ekran okuyucunun tek adımı. Bir derece, dokunmadan çeviren için
+  /// anlamsız derecede ince; 10° çemberi 36 durakta dolaşıyor.
+  static const _semanticStep = 10;
+
   void _emit(Offset local, Size size) {
     final center = size.center(Offset.zero);
     final delta = local - center;
@@ -230,13 +233,41 @@ class _HueDial extends StatelessWidget {
 
         return Semantics(
           slider: true,
+          // Adı olmadan ekran okuyucuda yalnız "36 derece" diye duruyordu:
+          // neyin derecesi olduğu kayıptı.
+          label: context.l10n.accentCustomTitle,
           value: '$hue°',
-          child: GestureDetector(
+          increasedValue: '${AccentTone.normalizeHue(hue + _semanticStep)}°',
+          decreasedValue: '${AccentTone.normalizeHue(hue - _semanticStep)}°',
+          onIncrease: () => onHue(hue + _semanticStep),
+          onDecrease: () => onHue(hue - _semanticStep),
+          child: RawGestureDetector(
             behavior: HitTestBehavior.opaque,
-            onPanStart: (d) => _emit(d.localPosition, size),
-            onPanUpdate: (d) => _emit(d.localPosition, size),
-            onTapDown: (d) => _emit(d.localPosition, size),
+            // Semantiği yukarıdaki katman yazıyor; işaretçinin kendi
+            // kaydırma eylemlerini de eklemesi kadranı iki kere anlatırdı.
+            excludeFromSemantics: true,
+            gestures: <Type, GestureRecognizerFactory>{
+              _DialDragRecognizer:
+                  GestureRecognizerFactoryWithHandlers<_DialDragRecognizer>(
+                    _DialDragRecognizer.new,
+                    (recognizer) {
+                      recognizer
+                        ..center = size.center(Offset.zero)
+                        // Ortadaki deklanşör bir denetim değil, önizleme:
+                        // dokunma bandı onun dışında başlıyor. Bant çizilen
+                        // halkadan kalın, parmak kıl payı ıskalamasın.
+                        ..deadZone = inner / 2
+                        ..onStart = (d) {
+                          _emit(d.localPosition, size);
+                        }
+                        ..onUpdate = (d) {
+                          _emit(d.localPosition, size);
+                        };
+                    },
+                  ),
+            },
             child: SizedBox.square(
+              key: const Key('custom-accent-dial'),
               dimension: diameter,
               child: CustomPaint(
                 painter: _HueRingPainter(
@@ -271,6 +302,35 @@ class _HueDial extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// Kadranın kendi sürükleme işaretçisi.
+///
+/// Panel iki jest daha taşıyor: kendi aşağı çekip kapatması ve içindeki
+/// kaydırma. İkisinin de eşiği [kTouchSlop], sürüklemeninki [kPanSlop] —
+/// yani iki katı. Dikey bileşeni olan her el hareketinde arenayı onlar
+/// kazanıyordu: kullanıcı halkanın solunu ya da sağını çevirmeye kalkınca
+/// tutamak yerinde kalıyor, bunun yerine panel kayıp kapanıyordu.
+///
+/// Halkaya dokunmak tek bir şey demek olduğu için işaretçi parmak daha
+/// kımıldamadan arenayı alıyor. Ortadaki deklanşör bandın dışında: oradan
+/// başlayan sürükleme hâlâ paneli kapatabiliyor.
+class _DialDragRecognizer extends PanGestureRecognizer {
+  /// Kadranın merkezi ve el hareketinin sahiplenilmediği orta bölgenin
+  /// yarıçapı — ikisi de her yerleşimde tazeleniyor.
+  Offset center = Offset.zero;
+  double deadZone = 0;
+
+  @override
+  bool isPointerAllowed(PointerEvent event) =>
+      (event.localPosition - center).distance >= deadZone &&
+      super.isPointerAllowed(event);
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    resolve(GestureDisposition.accepted);
   }
 }
 

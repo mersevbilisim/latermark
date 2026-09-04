@@ -136,7 +136,9 @@ void main() {
     scrollable.position.jumpTo(600);
     await tester.pump();
 
-    expect(tester.getTopLeft(back).dy, moreOrLessEquals(34));
+    // 38 pt'lik cam, 44 pt erişilebilir dokunma alanında ortalandığı için
+    // ikon eski konumundan üç puan aşağıda kalır.
+    expect(tester.getTopLeft(back).dy, moreOrLessEquals(37));
     expect(
       tester.widget<Text>(find.text('Réglages')).style?.fontSize,
       moreOrLessEquals(19),

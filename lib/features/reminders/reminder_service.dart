@@ -16,6 +16,7 @@ import '../notes/data/notes_database.dart';
 import '../notes/domain/note_kind.dart';
 import '../notes/domain/note_reminder.dart';
 import '../notes/domain/reminder_action.dart';
+import '../paywall/domain/pro_limits.dart';
 import '../settings/domain/app_settings.dart';
 import 'reminder_action_handler.dart';
 
@@ -616,8 +617,41 @@ class ReminderService {
 
   Directory? _artDir;
 
-  Future<void> sync(List<Note> notes, AppSettings settings, L10n l10n) async {
-    if (!_supported) return;
+  /// Native tepside gerçekten teslim edilmiş Latermark bildirimlerinin notları.
+  ///
+  /// Zamanı geçmiş bir veritabanı alanı teslimat kanıtı değildir: programlama
+  /// başarısız olmuş, izin kapanmış veya istek daha önce iptal edilmiş olabilir.
+  /// Aktif tepsi kaydı ise işletim sisteminin bildirimi ürettiğine dair doğrudan
+  /// kanıttır. Kullanıcının dokunması ve aksiyon vermesi ayrıca kendi giriş
+  /// noktalarında hesaba katılır.
+  Future<Set<int>> deliveredReminderNoteIds() async {
+    if (!_supported || _disposed) return const {};
+    try {
+      await initialize();
+      return {
+        for (final notification in await _plugin.getActiveNotifications())
+          ?_noteIdOf(notification),
+      };
+    } on MissingPluginException {
+      return const {};
+    } on PlatformException catch (error) {
+      debugPrint('Teslim edilmiş hatırlatmalar okunamadı: $error');
+      return const {};
+    }
+  }
+
+  /// Turun sonunda **kurulu** ve **tepside görülmüş** kayıtları döner.
+  ///
+  /// İkisi ayrı kümede: kurulum ücretsiz hakkın dayanıklı defteri, tepsi ise
+  /// yalnız erken kapanış için ek kanıt. Tek küme hâlinde birleştirildiklerinde
+  /// çağıran "artık kurulu değil" bilgisini hiç göremiyordu — ana şalteri
+  /// kapatan kullanıcının alarmı kalkıyor, defteri kalıyordu.
+  Future<ReminderSyncResult> sync(
+    List<Note> notes,
+    AppSettings settings,
+    L10n l10n,
+  ) async {
+    if (!_supported) return const ReminderSyncResult();
     await initialize();
     // Bölge yalnız `initialize` içinde çözülüyordu ve `initialize` ömürde bir
     // kez koşuyor: soğuk açılışta native kanal bir kare geç hazır olduysa
@@ -630,8 +664,13 @@ class ReminderService {
     await _configureTimeZone();
     await _syncCategoryLanguage(l10n);
 
+    final delivered = await deliveredReminderNoteIds();
+    // İşletim sistemine gerçekten kurulan kayıtlar. Çağıran bunları kalıcı
+    // olarak "kurulu" yazıyor; hesap zamanı geldiğinde oradan kapanıyor.
+    final armed = <int>{};
     try {
-      if (!settings.proUnlocked || !settings.reminderEnabled) {
+      if (!ProLimits.remindersAvailable(isPro: settings.proUnlocked) ||
+          !settings.reminderEnabled) {
         await _plugin.cancelAll();
         // Program tümden kalktığına göre bildirime iliştirilen kareler de
         // sahipsiz kaldı. Süpürme normalde aşağıda, hedef küme belliyken
@@ -639,7 +678,10 @@ class ReminderService {
         // onları toplayan başka bir yol yok (`sweepOrphanFiles` yalnız notun
         // kendi fotoğraf deposuna bakıyor).
         await _sweepAttachments(const {});
-        return;
+        // `cancelAll` her şeyi kaldırdı: program **bilinen** biçimde boş.
+        // Çağıran defteri bununla uzlaştırıp çalmamış kayıtların hakkını
+        // kullanıcıya geri veriyor.
+        return ReminderSyncResult(delivered: delivered, scheduleKnown: true);
       }
 
       final now = tz.TZDateTime.now(tz.UTC);
@@ -708,7 +750,11 @@ class ReminderService {
       // alarmı silmek geri dönüşsüzdür: yenisi aynı turda kurulamaz. Kesin
       // bir OS cevabı gelmeden bekleyen/teslim edilmiş duruma dokunma.
       final permission = await refreshPermission();
-      if (permission == ReminderPermissionState.unknown) return;
+      // Program okunmadan dönülüyor: eksik bir fotoğrafla uzlaşmak, hâlâ
+      // kurulu duran kayıtları defterden düşürürdü.
+      if (permission == ReminderPermissionState.unknown) {
+        return ReminderSyncResult(delivered: delivered);
+      }
 
       // Hatırlatması kapatılan ve silinen notların tepsiye ulaşmış satırları
       // da gider. Tek atışını teslim etmiş, hâlâ açık bir not korunur.
@@ -759,15 +805,27 @@ class ReminderService {
 
       // İzin kapalıyken yalnız eski/hayalet kayıtlar yukarıda temizlenir.
       // Kullanıcı sistem ayarından dönünce mismatch kayıtlar güvenle yenilenir.
-      if (permission == ReminderPermissionState.denied) return;
+      if (permission == ReminderPermissionState.denied) {
+        // İzin kapalıyken istenen kayıtlara dokunulmadı; program bu turda
+        // eksiksiz okunmuş sayılmaz.
+        return ReminderSyncResult(delivered: delivered);
+      }
 
       await _sweepAttachments(desired.keys.toSet());
+
+      // Kurulmuş sayılan kayıtlar. Kanıt tepsi değil **kurulum**: tepsi anlık
+      // bir fotoğraf ve kullanıcı bildirimi silince geriye iz kalmıyor.
+      // `existing` zaten kurulu olanlar, döngü de yeni kurulanlar.
+      for (final entry in desired.entries) {
+        if (existing.contains(entry.key)) armed.add(entry.value.note.id);
+      }
 
       var installed = 0;
       for (final entry in desired.entries) {
         if (existing.contains(entry.key)) continue;
         try {
           await _schedule(entry.value, l10n);
+          armed.add(entry.value.note.id);
           installed++;
         } on PlatformException catch (error) {
           // Tek bir bozuk native kayıt, aynı senkrondaki diğer notların
@@ -808,9 +866,16 @@ class ReminderService {
         }
         return true;
       }());
+      return ReminderSyncResult(
+        delivered: delivered,
+        scheduled: armed,
+        scheduleKnown: true,
+      );
     } on PlatformException catch (error) {
       // İzin yoksa veya tam zamanlı alarm hakkı verilmemişse sessizce geç.
+      // Tur yarıda kaldı: elde kalan liste programın tamamı değil.
       debugPrint('Hatırlatmalar kurulamadı: $error');
+      return ReminderSyncResult(delivered: delivered, scheduled: armed);
     }
   }
 
@@ -1069,20 +1134,24 @@ class ReminderService {
   /// notu bir kez açmak tekrarı bitirmemeli.
   ///
   /// Teslim edilmiş birden çok oluşum tepside birikmiş olabilir; hepsi kapanır.
-  Future<void> dismissNote(int noteId) async {
-    if (!_supported || _disposed || noteId <= 0) return;
+  Future<bool> dismissNote(int noteId) async {
+    if (!_supported || _disposed || noteId <= 0) return false;
     await initialize();
 
     try {
+      var delivered = false;
       final active = await _plugin.getActiveNotifications();
       for (final notification in active) {
         final id = notification.id;
         if (id != null && _noteIdOf(notification) == noteId) {
+          delivered = true;
           await _plugin.cancel(id: id);
         }
       }
+      return delivered;
     } on PlatformException catch (error) {
       debugPrint('Not bildirimi kapatılamadı: $error');
+      return false;
     }
   }
 
@@ -1403,4 +1472,26 @@ DateTime? reminderFiredAt(String? payload, {required DateTime now}) {
   }
 
   return null;
+}
+
+/// [ReminderService.sync] turunun sonucu.
+final class ReminderSyncResult {
+  const ReminderSyncResult({
+    this.delivered = const {},
+    this.scheduled = const {},
+    this.scheduleKnown = false,
+  });
+
+  /// Tepside görülmüş kayıtlar — teslimatın anlık fotoğrafı.
+  final Set<int> delivered;
+
+  /// Turun sonunda işletim sisteminde **gerçekten programlı** olan kayıtlar.
+  final Set<int> scheduled;
+
+  /// [scheduled] güvenilir mi?
+  ///
+  /// Tur programı okuyamadan döndüyse `false`. Çağıran o zaman ücretsiz hak
+  /// defterini uzlaştırmamalı: eksik bir fotoğraf, hâlâ kurulu duran kayıtları
+  /// düşürür.
+  final bool scheduleKnown;
 }

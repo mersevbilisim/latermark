@@ -28,6 +28,11 @@ dependencies:
   package_info_plus: ^10.2.1
   image_picker: ^1.2.3
   in_app_purchase: ^3.3.0
+  # Doğrudan bağımlılık, çünkü Android'de hakkın **gerçek** durumu yalnız
+  # buradaki `PurchaseWrapper.purchaseState` üzerinden okunabiliyor:
+  # `restorePurchases()` sorgudan dönen her kaydın durumunu toplu olarak
+  # `restored`'a eziyor ve ödenmemiş (PENDING) bir satın alma da öyle geliyor.
+  in_app_purchase_android: ^0.5.3
   in_app_review: ^2.0.12
   url_launcher: ^6.3.2
   share_plus: ^13.3.0

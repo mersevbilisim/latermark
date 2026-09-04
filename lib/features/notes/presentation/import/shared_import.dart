@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/services.dart';
 
+enum QueuedReminderState { none, reserved, scheduled }
+
 /// Uygulamanın dışından gelen bir teslim.
 ///
 /// İki kaynağı var ve ikisi de aynı gelen kutusundan geçiyor:
@@ -20,6 +22,9 @@ class SharedImport {
     required this.saveImmediately,
     required this.remindAfterDays,
     this.remindAt,
+    this.freeReminderReserved = false,
+    this.freeReminderClaimed = false,
+    this.queuedReminderState = QueuedReminderState.none,
   });
 
   final String id;
@@ -45,6 +50,19 @@ class SharedImport {
   /// Uzantı bu anı beklerken bildirimi de kendisi kurdu; ana uygulama kaydı
   /// oluşturduğunda o geçici alarmı kaldırıp kendi programına alıyor.
   final DateTime? remindAt;
+
+  /// Siri isteği Free katmanında alınırken App Group'ta ayrılan slot.
+  /// 1.0.3 metadata'sında alan yoktur ve `false` çözülür.
+  final bool freeReminderReserved;
+
+  /// Rezervasyonun artık Drift'teki not tarafından sayıldığını gösterir.
+  final bool freeReminderClaimed;
+
+  /// Geçici `import/<id>` alarmının kalıcı devir durumu.
+  final QueuedReminderState queuedReminderState;
+
+  bool get queuedReminderWasScheduled =>
+      queuedReminderState == QueuedReminderState.scheduled;
 
   bool get isText => image == null;
 }
@@ -109,6 +127,12 @@ abstract final class SharedImportBridge {
           ),
           _ => null,
         },
+        freeReminderReserved: raw['freeReminderReserved'] == true,
+        freeReminderClaimed: raw['freeReminderClaimed'] == true,
+        queuedReminderState: QueuedReminderState.values.firstWhere(
+          (value) => value.name == raw['queuedReminderState'],
+          orElse: () => QueuedReminderState.none,
+        ),
       );
     } on MissingPluginException {
       // Widget testleri ve desteklenmeyen masaüstü platformları.
@@ -141,14 +165,44 @@ abstract final class SharedImportBridge {
   /// Kayıt artık veritabanında olduğu için hatırlatmayı `ReminderService`
   /// devralıyor. Çağrı kaydın oluşmasından **sonra** yapılmalı: aksi hâlde
   /// arada bir hata olursa kullanıcı hem kaydı hem alarmı kaybeder.
-  static Future<void> cancelQueuedReminder(String id) async {
+  static Future<bool> cancelQueuedReminder(String id) async {
     _ensureInitialized();
     try {
-      await _channel.invokeMethod<bool>('cancelQueuedReminder', {'id': id});
+      return await _channel.invokeMethod<bool>('cancelQueuedReminder', {
+            'id': id,
+          }) ??
+          false;
     } on MissingPluginException {
       // Android ve widget testlerinde uzantı alarmı yoktur.
+      return true;
     } on PlatformException {
-      // En kötü ihtimalle geçici alarm da çalar; dokunmak notu açar.
+      // Geçici alarm kaldırılmadıysa metadata da silinmemeli. Sonraki
+      // foreground turu iptali idempotent biçimde yeniden dener.
+      return false;
+    }
+  }
+
+  /// App Group'taki Free rezervasyonunu artık kotayı taşıyan Drift notuna
+  /// devreder. [databaseRemaining] aynı native kilit altında yazılır; aksi
+  /// hâlde kısa bir yarışta slot iki kez veya hiç sayılabilirdi.
+  static Future<bool> claimFreeReminderReservation(
+    String id, {
+    required int? databaseRemaining,
+  }) async {
+    _ensureInitialized();
+    try {
+      return await _channel.invokeMethod<bool>('claimFreeReminderReservation', {
+            'id': id,
+            'databaseRemaining': databaseRemaining,
+          }) ??
+          false;
+    } on MissingPluginException {
+      // Yalnız iOS uzantı teslimlerinde gerçek rezervasyon vardır.
+      return true;
+    } on PlatformException {
+      // Devir kanıtı yazılmadan metadata temizlenmemeli; sonraki foreground
+      // turu aynı import kimliğiyle güvenle yeniden dener.
+      return false;
     }
   }
 

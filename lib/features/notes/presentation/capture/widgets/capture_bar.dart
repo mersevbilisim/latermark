@@ -77,10 +77,11 @@ class CaptureBar extends StatelessWidget {
   };
 }
 
-/// Deklanşöre basıldığında ekranı bir an dolduran beyaz patlama.
+/// Deklanşöre basıldığında ekranı bir an örten koyu perde.
 ///
-/// [animation] 0'dan 1'e sürüldüğünde parlaklık 0.92'den 0'a düşer; yani
-/// dinlenme konumu 1'dir. Sürücü denetleyici bu yüzden `value: 1` ile kurulur.
+/// Beyaz tam ekran flaşı koyu arayüzü bir kareliğine bozuyor ve ışığa duyarlı
+/// kullanıcıyı rahatsız edebiliyordu. Mekanik geri bildirim aynı ritimde koyu
+/// bir örtü ve haptikle veriliyor; Reduce Motion açıkken görsel darbe yok.
 class ShutterFlash extends StatelessWidget {
   const ShutterFlash({super.key, required this.animation});
 
@@ -88,12 +89,16 @@ class ShutterFlash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduced = MediaQuery.disableAnimationsOf(context);
     return IgnorePointer(
       child: FadeTransition(
-        opacity: Tween<double>(begin: 0.92, end: 0.0).animate(
+        opacity: Tween<double>(begin: reduced ? 0 : 0.48, end: 0.0).animate(
           CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
         ),
-        child: const ColoredBox(color: OnPhoto.flash, child: SizedBox.expand()),
+        child: const ColoredBox(
+          color: OnPhoto.canvasDeep,
+          child: SizedBox.expand(),
+        ),
       ),
     );
   }

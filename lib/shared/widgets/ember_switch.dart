@@ -36,8 +36,15 @@ class EmberSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final enabled = onChanged != null;
+    // Düğmenin ray boyunca kayması hareket; rengin dönüşmesi değil.
+    final slide = AppMotion.travel(context, AppMotion.medium);
 
+    // Kendi düğümünü kuruyor: `container` verilmezse anahtarın adı ve durumu
+    // çevresindeki başlık ve açıklamayla tek bir düğümde birleşiyor. O zaman
+    // hem ad iki kez okunuyor hem de anahtar ayrıca odaklanamıyor —
+    // VoiceOver kullanan biri bütün bölümü tek bir öğe olarak duyuyordu.
     return Semantics(
+      container: true,
       toggled: value,
       enabled: enabled,
       label: semanticLabel,
@@ -51,100 +58,110 @@ class EmberSwitch extends StatelessWidget {
             : null,
         child: Opacity(
           opacity: enabled ? 1 : 0.4,
-          child: AnimatedContainer(
-            duration: AppMotion.medium,
-            curve: Curves.easeOutQuart,
-            width: _width,
-            height: _height,
-            decoration: ShapeDecoration(
-              color: value ? palette.ember : palette.canvasSunk,
-              shape: RoundedSuperellipseBorder(
-                borderRadius: AppShape.all(9),
-                side: BorderSide(
-                  color: value ? Colors.transparent : palette.hairlineBright,
-                  width: 0.5,
+          // Anahtar 30 pt yüksekliğinde çiziliyor; dokunma alanı 44.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: AnimatedContainer(
+                duration: slide,
+                curve: Curves.easeOutQuart,
+                width: _width,
+                height: _height,
+                decoration: ShapeDecoration(
+                  color: value ? palette.ember : palette.canvasSunk,
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: AppShape.all(9),
+                    side: BorderSide(
+                      color: value
+                          ? Colors.transparent
+                          : palette.hairlineBright,
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Boşalan yandaki künye çizgisi. Yalnız açıkken var: kapalı
+                    // rayda ikinci bir işaret, anahtarı okunur kılmak yerine
+                    // kalabalık yapardı.
+                    Positioned.fill(
+                      child: Align(
+                        alignment: value
+                            ? AlignmentDirectional.centerStart
+                            : AlignmentDirectional.centerEnd,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          child: AnimatedOpacity(
+                            duration: AppMotion.fast,
+                            opacity: value ? 1 : 0,
+                            child: SizedBox(
+                              width: 10,
+                              height: 1,
+                              child: ColoredBox(
+                                color: palette.canvas.withValues(alpha: 0.45),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    AnimatedAlign(
+                      duration: slide,
+                      curve: Curves.easeOutQuart,
+                      alignment: value
+                          ? AlignmentDirectional.centerEnd
+                          : AlignmentDirectional.centerStart,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: AnimatedContainer(
+                          duration: slide,
+                          curve: Curves.easeOutQuart,
+                          width: _knob,
+                          height: _knob,
+                          alignment: Alignment.center,
+                          decoration: ShapeDecoration(
+                            color: value ? palette.canvas : palette.canvasLift,
+                            shape: RoundedSuperellipseBorder(
+                              borderRadius: AppShape.all(7),
+                              side: BorderSide(
+                                color: value
+                                    ? Colors.transparent
+                                    : palette.hairlineBright,
+                                width: 0.5,
+                              ),
+                            ),
+                            shadows: value
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: palette.isDark ? 0.24 : 0.10,
+                                      ),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
+                          child: AnimatedOpacity(
+                            duration: AppMotion.fast,
+                            opacity: value ? 1 : 0,
+                            child: Container(
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: palette.ember,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            child: Stack(
-              children: [
-                // Boşalan yandaki künye çizgisi. Yalnız açıkken var: kapalı
-                // rayda ikinci bir işaret, anahtarı okunur kılmak yerine
-                // kalabalık yapardı.
-                Positioned.fill(
-                  child: Align(
-                    alignment: value
-                        ? AlignmentDirectional.centerStart
-                        : AlignmentDirectional.centerEnd,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 7),
-                      child: AnimatedOpacity(
-                        duration: AppMotion.fast,
-                        opacity: value ? 1 : 0,
-                        child: SizedBox(
-                          width: 10,
-                          height: 1,
-                          child: ColoredBox(
-                            color: palette.canvas.withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                AnimatedAlign(
-                  duration: AppMotion.medium,
-                  curve: Curves.easeOutQuart,
-                  alignment: value
-                      ? AlignmentDirectional.centerEnd
-                      : AlignmentDirectional.centerStart,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: AnimatedContainer(
-                      duration: AppMotion.medium,
-                      curve: Curves.easeOutQuart,
-                      width: _knob,
-                      height: _knob,
-                      alignment: Alignment.center,
-                      decoration: ShapeDecoration(
-                        color: value ? palette.canvas : palette.canvasLift,
-                        shape: RoundedSuperellipseBorder(
-                          borderRadius: AppShape.all(7),
-                          side: BorderSide(
-                            color: value
-                                ? Colors.transparent
-                                : palette.hairlineBright,
-                            width: 0.5,
-                          ),
-                        ),
-                        shadows: value
-                            ? null
-                            : [
-                                BoxShadow(
-                                  color: Colors.black.withValues(
-                                    alpha: palette.isDark ? 0.24 : 0.10,
-                                  ),
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                      ),
-                      child: AnimatedOpacity(
-                        duration: AppMotion.fast,
-                        opacity: value ? 1 : 0,
-                        child: Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: palette.ember,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ),

@@ -33,32 +33,36 @@ class SettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 34, 4, 16),
-          child: LayoutBuilder(
-            builder: (context, constraints) => Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    // Çizgi çok dar ekranda da görünür kalsın; başlık kalan
-                    // alanda gerektiği kadar satıra açılır.
-                    maxWidth: math.max(0.0, constraints.maxWidth - 36),
-                  ),
-                  child: Text(
-                    context.l10n.upper(title),
-                    style: palette.overline,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    child: ColoredBox(
-                      color: palette.hairline,
-                      child: const SizedBox(height: 0.5),
+          child: Semantics(
+            container: true,
+            header: true,
+            child: LayoutBuilder(
+              builder: (context, constraints) => Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // Çizgi çok dar ekranda da görünür kalsın; başlık kalan
+                      // alanda gerektiği kadar satıra açılır.
+                      maxWidth: math.max(0.0, constraints.maxWidth - 36),
+                    ),
+                    child: Text(
+                      context.l10n.upper(title),
+                      style: palette.overline,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: ColoredBox(
+                        color: palette.hairline,
+                        child: const SizedBox(height: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -105,12 +109,14 @@ class SettingsRow extends StatelessWidget {
     super.key,
     required this.title,
     this.description,
+    this.semanticValue,
     this.trailing,
     this.below,
   });
 
   final String title;
   final String? description;
+  final String? semanticValue;
   final Widget? trailing;
 
   /// Satırın altına açılan denetim (ör. süre seçici).
@@ -119,23 +125,31 @@ class SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final copy = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: palette.bodyStrong),
-        if (description != null) ...[
-          const SizedBox(height: 4),
-          // Açıklamalar okunacak kadar belirgin olmalı; en soluk ton yalnızca
-          // imza ve yer tutucular için.
-          Text(
-            description!,
-            style: palette.caption.copyWith(
-              color: palette.inkSoft,
-              height: 1.4,
+    // Altındaki özel denetimler semantik sınır oluşturduğunda düz metin
+    // kardeşleri onların adına karışıp kaybolabiliyor. Kopya kendi sınırında
+    // kalır; VoiceOver ayarın adını ve açıklamasını seçeneklerden önce okur.
+    final copy = Semantics(
+      container: true,
+      label: [title, ?description, ?semanticValue].join('. '),
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: palette.bodyStrong),
+          if (description != null) ...[
+            const SizedBox(height: 4),
+            // Açıklamalar okunacak kadar belirgin olmalı; en soluk ton yalnızca
+            // imza ve yer tutucular için.
+            Text(
+              description!,
+              style: palette.caption.copyWith(
+                color: palette.inkSoft,
+                height: 1.4,
+              ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
 
     return Padding(
@@ -216,8 +230,52 @@ class AccentRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final accents = AppAccent.strip;
 
-    return SizedBox(
+    Widget option(AppAccent accent) => Expanded(
+      child: Semantics(
+        button: true,
+        selected: accent == value,
+        inMutuallyExclusiveGroup: true,
+        label: labelOf(accent),
+        child: GestureDetector(
+          key: ValueKey('app-accent-${accent.name}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            // Özel yuva seçiliyken de dokunulabilir: kullanıcı tonunu
+            // değiştirmek için paneli yeniden açabilmeli.
+            if (accent == AppAccent.custom) {
+              onCustom();
+              return;
+            }
+            if (accent == value) return;
+            onChanged(accent);
+          },
+          child: Center(
+            child: accent == AppAccent.custom
+                ? _AccentSwatch(
+                    color: accent.colorFor(
+                      palette.brightness,
+                      customHue: customHue,
+                    ),
+                    selected: accent == value,
+                    canvas: palette.canvasLift,
+                    ink: palette.ink,
+                    wheel: accent != value,
+                  )
+                : _AccentSwatch(
+                    color: accent.colorFor(palette.brightness),
+                    selected: accent == value,
+                    canvas: palette.canvasLift,
+                    ink: palette.ink,
+                  ),
+          ),
+        ),
+      ),
+    );
+
+    Widget row(List<AppAccent> rowAccents) => SizedBox(
       height: 44,
       child: Stack(
         alignment: Alignment.center,
@@ -230,59 +288,28 @@ class AccentRail extends StatelessWidget {
               child: const SizedBox(height: 0.5),
             ),
           ),
-          Row(
-            children: [
-              for (final accent in AppAccent.values)
-                Expanded(
-                  child: Semantics(
-                    button: true,
-                    selected: accent == value,
-                    label: labelOf(accent),
-                    child: GestureDetector(
-                      key: ValueKey('app-accent-${accent.name}'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        // Özel yuva seçiliyken de dokunulabilir: kullanıcı
-                        // tonunu değiştirmek için paneli yeniden açabilmeli.
-                        if (accent == AppAccent.custom) {
-                          onCustom();
-                          return;
-                        }
-                        if (accent == value) return;
-                        onChanged(accent);
-                      },
-                      child: Center(
-                        child: accent == AppAccent.custom
-                            ? _AccentSwatch(
-                                color: accent.colorFor(
-                                  palette.brightness,
-                                  customHue: customHue,
-                                ),
-                                selected: accent == value,
-                                canvas: palette.canvasLift,
-                                ink: palette.ink,
-                                // Henüz seçilmemişken yuva tek bir renk
-                                // göstermiyor: seçilecek olan **ton
-                                // çemberinin kendisi**. Şeritteki diğer
-                                // altısıyla aynı dilde, ama ne yaptığı
-                                // etiketsiz anlaşılıyor.
-                                wheel: accent != value,
-                              )
-                            : _AccentSwatch(
-                                color: accent.colorFor(palette.brightness),
-                                selected: accent == value,
-                                canvas: palette.canvasLift,
-                                ink: palette.ink,
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          Row(children: [for (final accent in rowAccents) option(accent)]),
         ],
       ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Sekiz yuva dar telefonda tek sıraya sıkışınca 39 pt'ye düşüyordu.
+        // İki dengeli sıra her seçeneği en az 44 pt yapar; geniş yüzeylerde
+        // özgün tek şerit korunur.
+        if (constraints.maxWidth >= accents.length * 44) {
+          return row(accents);
+        }
+        final midpoint = (accents.length / 2).ceil();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            row(accents.sublist(0, midpoint)),
+            row(accents.sublist(midpoint)),
+          ],
+        );
+      },
     );
   }
 }
@@ -311,7 +338,7 @@ class _AccentSwatch extends StatelessWidget {
         : const Color(0xF2FFFFFF);
 
     return AnimatedContainer(
-      duration: AppMotion.medium,
+      duration: AppMotion.travel(context, AppMotion.medium),
       curve: Curves.easeOutQuart,
       width: selected ? 34 : 28,
       height: selected ? 34 : 28,
@@ -371,8 +398,16 @@ class InkSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppMotion.medium;
 
+    // Kendi düğümünü kuruyor: `container` verilmezse anahtarın adı ve durumu
+    // çevresindeki başlık ve açıklamayla tek bir düğümde birleşiyor. O zaman
+    // hem ad iki kez okunuyor hem de anahtar ayrıca odaklanamıyor —
+    // VoiceOver kullanan biri bütün bölümü tek bir öğe olarak duyuyordu.
     return Semantics(
+      container: true,
       toggled: value,
       label: semanticLabel,
       child: GestureDetector(
@@ -381,43 +416,46 @@ class InkSwitch extends StatelessWidget {
           HapticFeedback.selectionClick();
           onChanged(!value);
         },
-        child: AnimatedContainer(
-          duration: AppMotion.medium,
-          curve: Curves.easeOutQuart,
-          width: _width,
-          height: _height,
-          decoration: BoxDecoration(
-            color: value ? palette.ember : palette.canvasSunk,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: value ? Colors.transparent : palette.hairlineBright,
-              width: 0.5,
+        // Ray 30 pt yüksekliğinde çiziliyor; dokunma alanı 44.
+        child: _TapTarget(
+          child: AnimatedContainer(
+            duration: duration,
+            curve: Curves.easeOutQuart,
+            width: _width,
+            height: _height,
+            decoration: BoxDecoration(
+              color: value ? palette.ember : palette.canvasSunk,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: value ? Colors.transparent : palette.hairlineBright,
+                width: 0.5,
+              ),
             ),
-          ),
-          child: AnimatedAlign(
-            duration: AppMotion.medium,
-            curve: Curves.easeOutBack,
-            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: Container(
-                width: _knob,
-                height: _knob,
-                decoration: BoxDecoration(
-                  color: value ? Colors.white : palette.canvasLift,
-                  shape: BoxShape.circle,
-                  border: value
-                      ? null
-                      : Border.all(color: palette.hairlineBright, width: 0.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: palette.isDark ? 0.22 : 0.10,
+            child: AnimatedAlign(
+              duration: duration,
+              curve: Curves.easeOutBack,
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Container(
+                  width: _knob,
+                  height: _knob,
+                  decoration: BoxDecoration(
+                    color: value ? Colors.white : palette.canvasLift,
+                    shape: BoxShape.circle,
+                    border: value
+                        ? null
+                        : Border.all(color: palette.hairlineBright, width: 0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: palette.isDark ? 0.22 : 0.10,
+                        ),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
                       ),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -426,4 +464,17 @@ class InkSwitch extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Çizimi büyütmeden dokunma alanını Apple'ın 44 pt sınırına çıkarır.
+class _TapTarget extends StatelessWidget {
+  const _TapTarget({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    child: Center(widthFactor: 1, heightFactor: 1, child: child),
+  );
 }
