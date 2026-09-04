@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../../core/theme/app_accent.dart';
+
 import '../notes/data/notes_database.dart';
 import '../notes/data/notes_repository.dart';
 import '../notes/domain/note_kind.dart';
@@ -22,16 +23,39 @@ import 'widget_keys.dart';
 /// üretir. Hazır metin göndermek, widget saatte bir tazelense bile aynı
 /// donmuş yazıyı yeniden okuduğu için "dün kaydedilmiş nota bugün hâlâ
 /// BUGÜN demek" ile sonuçlanıyordu.
+///
+/// Metni native taraf ürettiği için **dili de o bilmek zorunda**. Uzantı kendi
+/// başına yalnızca sistem dilini görür; uygulama içi seçim buradan geçer.
 class HomeWidgetBridge {
-  HomeWidgetBridge(this._repository);
+  HomeWidgetBridge(
+    this._repository, {
+    @visibleForTesting bool? supported,
+    @visibleForTesting DateTime Function()? now,
+  }) : _supportedOverride = supported,
+       _now = now ?? DateTime.now;
 
   final NotesRepository _repository;
+
+  /// Testte platform kontrolünü atlamak için. Üretimde `null`.
+  final bool? _supportedOverride;
+
+  /// Seçim zamana bağlı olduğu için saat dışarıdan verilebiliyor.
+  final DateTime Function() _now;
   StreamSubscription<List<Note>>? _subscription;
 
   /// Pro hakkı. [AppScope] değiştikçe veriyor.
   bool _pro = false;
   int _entitlementRevision = 0;
-  AppAccent _accent = AppAccent.orange;
+
+  /// Native widget'ın fotoğraf üstünde kullanacağı vurgu rengi.
+  ///
+  /// Enum değil **çözülmüş renk** taşınıyor: özel ton seçildiğinde köprünün
+  /// tonu yeniden renge çevirmesi, aynı hesabı iki yerde tutmak olurdu.
+  ui.Color _accent = AppAccent.defaultDark;
+
+  /// Widget metinlerinin dili. Ayarlar akışı gelene kadar `null`; o aralıkta
+  /// native taraf kendi sistem çözümlemesini kullanır.
+  ui.Locale? _locale;
   List<Note>? _lastNotes;
 
   /// Drift, dil ve satın alma akışları aynı anda değişebilir. Native depoya
@@ -46,10 +70,74 @@ class HomeWidgetBridge {
     _invalidate();
   }
 
-  set accent(AppAccent value) {
+  set accent(ui.Color value) {
     if (_accent == value) return;
     _accent = value;
     _invalidate();
+  }
+
+  /// Kullanıcının uygulama içinden seçtiği (ya da sistemden çözülmüş) dil.
+  ///
+  /// Not listesi değişmeden de değişebilen bir alan: yayını imza engeline
+  /// takılmadan zorlamak için [_invalidate] üzerinden geçiyor.
+  set locale(ui.Locale value) {
+    if (_locale == value) return;
+    _locale = value;
+    _invalidate();
+  }
+
+  /// Bir kaydın "yakında gidiyor" sayılması için kalan en uzun süre.
+  ///
+  /// Bir gün, kullanıcının bu notu bir daha eline alacağı en yakın doğal an:
+  /// bu akşam ya da yarın sabah. Daha uzun bir pencere aciliyeti anlatmaz —
+  /// altı gün sonra silinecek bir kaydı bugün göstermek, widget'ı kalıcı
+  /// olarak aynı nota kilitler ve "yakında gidiyor" sözünü değersizleştirir.
+  static const _urgencyHorizon = Duration(hours: 24);
+
+  /// Widget'ta duracak kayıt.
+  ///
+  /// Ölçüt tazelik **değil**, aciliyet.
+  ///
+  /// Eskiden burası `notes.first` idi, yani en son kaydedilen. Ama uygulamanın
+  /// bütün sözü "yaz ve **unut**" üzerine kurulu; en son kayıt da kullanıcının
+  /// hâlâ hatırladığı tek kayıt. Ana ekranın en görünür yerinde ona bakmak,
+  /// bakışın cevaplayabileceği tek soruyu ("şu an bilmem gereken ne?") boşa
+  /// harcıyordu.
+  ///
+  /// Bu uygulamada geri dönüşü olmayan tek şey kaydın silinmesi. Hatırlatma
+  /// zaten kendi başına gelip kullanıcıyı dürtüyor; süresi dolan bir kaydınsa
+  /// hiçbir uyarısı yok, sessizce gidiyor. Widget'ın hak ettiği iş bu.
+  ///
+  /// Gerekçe ekranda **görünür** kalıyor: kartın rozeti zaten "2sa" diyor.
+  /// Gizli bir kurala göre içerik değiştiren widget keyfî hissettirir; burada
+  /// kaydın neden orada olduğu kartın kendi üstünde yazılı.
+  ///
+  /// Süresi dolmak üzere kayıt yoksa en son kayda dönülüyor: dinlenme hâli
+  /// eskisi gibi.
+  static Note? _featured(List<Note> notes, DateTime now) {
+    if (notes.isEmpty) return null;
+
+    final horizon = now.add(_urgencyHorizon);
+    Note? soonest;
+    DateTime? soonestAt;
+    for (final note in notes) {
+      final expiresAt = note.expiresAt;
+      if (expiresAt == null) continue;
+      // Süresi çoktan dolmuş kayıt süpürmeyi bekliyor; onu öne çıkarmak
+      // kullanıcıya artık yapabileceği bir şey sunmuyor.
+      if (!expiresAt.isAfter(now)) continue;
+      if (expiresAt.isAfter(horizon)) continue;
+      // Eşitlikte küçük kimlik: sıralama her yayında aynı olmalı, yoksa iki
+      // kayıt widget'ta sırayla yer değiştirirdi.
+      if (soonestAt == null ||
+          expiresAt.isBefore(soonestAt) ||
+          (expiresAt == soonestAt && note.id < soonest!.id)) {
+        soonest = note;
+        soonestAt = expiresAt;
+      }
+    }
+
+    return soonest ?? notes.first;
   }
 
   void _invalidate() {
@@ -94,7 +182,8 @@ class HomeWidgetBridge {
     await _publishQueue;
   }
 
-  static bool get _isSupported => Platform.isIOS || Platform.isAndroid;
+  bool get _isSupported =>
+      _supportedOverride ?? (Platform.isIOS || Platform.isAndroid);
 
   void _schedulePublish(List<Note> notes) {
     final snapshot = List<Note>.unmodifiable(notes);
@@ -110,15 +199,19 @@ class HomeWidgetBridge {
     // not metnini/fotoğrafı yanlışlıkla yeniden gösteremez.
     final isPro = _pro;
     final entitlementRevision = _entitlementRevision;
-    final latest = isPro && notes.isNotEmpty ? notes.first : null;
+    final featured = isPro ? _featured(notes, _now()) : null;
     final publishedCount = isPro ? notes.length : 0;
 
+    // Dil imzada: not hiç değişmeden yalnızca dil seçimi değiştiğinde de
+    // native tarafın metinleri yeniden üretmesi gerekiyor.
+    final localeTag = _locale?.toLanguageTag() ?? '';
+
     // Fotoğraf yolu imzaya dahil: not aynı kalsa da kare değişmiş olabilir.
-    final signature = latest == null
-        ? 'empty:$publishedCount:$isPro:${_accent.name}'
-        : '${latest.id}|${latest.body}|${latest.imageName}|'
-              '${latest.createdAt}|${latest.expiresAt}|$publishedCount|'
-              '$isPro|${_accent.name}';
+    final signature = featured == null
+        ? 'empty:$publishedCount:$isPro:${_accent.toARGB32()}:$localeTag'
+        : '${featured.id}|${featured.body}|${featured.imageName}|'
+              '${featured.createdAt}|${featured.expiresAt}|$publishedCount|'
+              '$isPro|${_accent.toARGB32()}|$localeTag';
     if (signature == _lastSignature) return;
 
     try {
@@ -134,31 +227,38 @@ class HomeWidgetBridge {
       }
 
       await Future.wait([
-        HomeWidget.saveWidgetData<bool>(WidgetKeys.hasNote, latest != null),
+        HomeWidget.saveWidgetData<bool>(WidgetKeys.hasNote, featured != null),
         HomeWidget.saveWidgetData<int>(WidgetKeys.count, publishedCount),
         HomeWidget.saveWidgetData<String>(
           WidgetKeys.accent,
-          _accent.onPhoto.toARGB32().toRadixString(16).padLeft(8, '0'),
+          _accent.toARGB32().toRadixString(16).padLeft(8, '0'),
         ),
-        HomeWidget.saveWidgetData<int>(WidgetKeys.noteId, latest?.id ?? 0),
-        HomeWidget.saveWidgetData<String>(WidgetKeys.body, latest?.body ?? ''),
+        // Boş etiket "henüz bilinmiyor" demek; native taraf o hâlde sisteme
+        // düşer. Kilitli yayında bile yazılıyor: kilit ekranındaki
+        // "Latermark Pro gerekli" metni de kullanıcının dilinde olmalı.
+        HomeWidget.saveWidgetData<String>(WidgetKeys.locale, localeTag),
+        HomeWidget.saveWidgetData<int>(WidgetKeys.noteId, featured?.id ?? 0),
+        HomeWidget.saveWidgetData<String>(
+          WidgetKeys.body,
+          featured?.body ?? '',
+        ),
         HomeWidget.saveWidgetData<int>(
           WidgetKeys.expiresAt,
-          (latest?.expiresAt?.millisecondsSinceEpoch ?? 0) ~/ 1000,
+          (featured?.expiresAt?.millisecondsSinceEpoch ?? 0) ~/ 1000,
         ),
         HomeWidget.saveWidgetData<int>(
           WidgetKeys.createdAt,
-          (latest?.createdAt.millisecondsSinceEpoch ?? 0) ~/ 1000,
+          (featured?.createdAt.millisecondsSinceEpoch ?? 0) ~/ 1000,
         ),
       ]);
 
-      if (latest != null) {
+      if (featured != null) {
         // Küçük kopya varsa ondan üretiliyor: her not değişiminde 2048'lik
         // kareyi çözmek, widget'ın gösterdiği boyutun kat kat üstünde bir iş.
         // Karesiz kayıtta üretilecek küçük görsel yok; native taraf zaten
         // fotoğrafsız hâl için kendi diyaframlı kompozisyonunu çiziyor.
-        final thumbnail = latest.hasPhoto
-            ? await _thumbnail(_repository.gridImageOf(latest))
+        final thumbnail = featured.hasPhoto
+            ? await _thumbnail(_repository.gridImageOf(featured))
             : null;
         if (thumbnail != null) {
           await HomeWidget.saveFile(

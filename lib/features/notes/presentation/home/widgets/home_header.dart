@@ -2,9 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../core/theme/app_motion.dart';
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/utils/app_format.dart';
 import '../../../../../l10n/l10n_context.dart';
+import '../../../../../shared/widgets/aperture.dart';
 import '../../../../../shared/widgets/icon_orb.dart';
 
 /// Kaydırıldıkça büyük başlıktan ince bir çubuğa dönüşen üstlük.
@@ -269,50 +271,136 @@ class _TitleOrField extends StatelessWidget {
 /// omurga üzerinde çalışır; böylece uzun bir arşiv rahatça taranabilir ve
 /// fotoğraflarla yarışmaz.
 class AgeSeparator extends StatelessWidget {
-  const AgeSeparator({super.key, required this.label});
+  const AgeSeparator({
+    super.key,
+    required this.label,
+    this.collapsed = false,
+    this.count,
+    this.onToggle,
+  });
 
   final String label;
+
+  /// Bölüm kapalı mı. [onToggle] verilmediyse anlamsız.
+  final bool collapsed;
+
+  /// Kapalıyken saklanan kayıt sayısı.
+  ///
+  /// Yalnız kapalıyken okunuyor: açıkken kayıtlar zaten ekranda ve sayıyı
+  /// ayrıca yazmak aynı şeyi iki kez söylemek olurdu. Kapalıyken ise bölüm
+  /// bir kutu; içinde ne olduğunu söylemeyen bir kapak kapatılmaya değmez.
+  final int? count;
+
+  /// Bölümü açıp kapatır. `null` ise ayraç eskisi gibi hareketsiz.
+  ///
+  /// Seçim kipinde bilinçli olarak `null` geliyor: görünmeyen kayıtları
+  /// silinecekler arasında tutmak, kullanıcının göremediği bir şeyi silmesi
+  /// demek olurdu.
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final interactive = onToggle != null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final showRule = constraints.maxWidth >= 330 && textScale <= 1.3;
 
+        // Etiket esnek bir çocuk olursa çizgiyle **boş alanı paylaşıyor** ve
+        // çizgi sağa kadar uzanmıyor: iris ortaya doğru kayıyor. Bu yüzden
+        // esneyen tek çocuk çizgi; etiketin taşmaması da genişliğini burada
+        // sınırlayarak sağlanıyor.
+        final labelWidth = (constraints.maxWidth - 44) * 0.42;
+
+        final row = Padding(
+          padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
+          child: Row(
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: labelWidth),
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: palette.overline.copyWith(
+                    // Kapalı bölüm sönmüyor, tersine: saklanan şeyin izi
+                    // kalmalı, yoksa arşivin bir parçası yok olmuş gibi durur.
+                    color: collapsed ? palette.ink : palette.inkSoft,
+                  ),
+                ),
+              ),
+              if (showRule) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ColoredBox(
+                    color: palette.hairline,
+                    child: const SizedBox(height: 0.5),
+                  ),
+                ),
+              ] else
+                const Spacer(),
+              if (interactive) ...[
+                const SizedBox(width: 12),
+                // Sayı çizginin ucunda, irisin hemen solunda: göz çizgiyi
+                // takip edip kapağın üstünde duruyor.
+                AnimatedOpacity(
+                  duration: AppMotion.fast,
+                  opacity: collapsed ? 1 : 0,
+                  child: Text(
+                    count == null ? '' : '$count',
+                    style: palette.overline.copyWith(
+                      color: palette.inkFaint,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // İşaret artı değil, uygulamanın kendi irisi: bölüm
+                // kapandığında o da kapanıyor. Aynı iris kalan ömrü, silme
+                // onayını ve hatırlatma sözünü de anlatıyor.
+                //
+                // Bıçaklar tek bir `t` ile sürülüyor; açıklık, burulma ve
+                // kenar rengi birlikte hareket ediyor, yani kapanma bir durum
+                // değişimi değil bir **hareket** olarak okunuyor.
+                SizedBox.square(
+                  dimension: 15,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: collapsed ? 1 : 0),
+                    duration: AppMotion.medium,
+                    curve: AppMotion.ease,
+                    builder: (context, t, _) => Aperture(
+                      openness: lerpDouble(0.78, 0.16, t)!,
+                      twist: lerpDouble(0, -0.38, t)!,
+                      bladeCount: 7,
+                      edgeTint: Color.lerp(palette.inkFaint, palette.ember, t),
+                      bladeBase: palette.canvas,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+
         return Semantics(
           container: true,
           header: true,
           label: label,
+          button: interactive,
+          expanded: interactive ? !collapsed : null,
+          onTap: onToggle,
           child: ExcludeSemantics(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: palette.overline.copyWith(color: palette.inkSoft),
-                    ),
-                  ),
-                  if (showRule) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 3,
-                      child: ColoredBox(
-                        color: palette.hairline,
-                        child: const SizedBox(height: 0.5),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            child: interactive
+                // Hedef bütün satır: 15 puanlık irise nişan almak, telefonu
+                // tek elle tutan birinden gereksiz bir hassasiyet ister.
+                ? GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onToggle,
+                    child: row,
+                  )
+                : row,
           ),
         );
       },

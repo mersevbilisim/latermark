@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../../../core/theme/accent_tone.dart';
 import '../../../core/theme/app_accent.dart';
 import '../../settings/domain/app_locale.dart';
 import '../../settings/domain/app_settings.dart';
@@ -181,6 +182,14 @@ class SettingsTable extends Table {
   /// Küratörlü uygulama vurgu rengi. Turuncu (index 0) eski görünümü korur.
   IntColumn get accent => intEnum<AppAccent>().withDefault(const Constant(0))();
 
+  /// [AppAccent.custom] seçildiğinde kullanıcının tonu (0–359).
+  ///
+  /// Renk değil **ton** saklanıyor. Parlaklık ve renkliliği uygulama üretiyor
+  /// (bkz. `AccentTone`); hazır bir ARGB yazsaydık o hedefler ileride
+  /// ayarlandığında eski seçimler eski değerlerinde donup kalırdı.
+  IntColumn get accentHue =>
+      integer().withDefault(const Constant(AccentTone.defaultHue))();
+
   /// Varsayılan ızgara (index 1): uygulama ilk açıldığında daha çok kayıt
   /// tek bakışta görünsün.
   IntColumn get density =>
@@ -224,6 +233,36 @@ class SettingsTable extends Table {
   /// cevabı gelene kadar ödemiş bir kullanıcıya paywall göstermemek için var.
   BoolColumn get proUnlocked => boolean().withDefault(const Constant(false))();
 
+  /// Ana akışta kapatılmış zaman bölümleri, virgülle ayrılmış adlarıyla.
+  ///
+  /// Görünüm tercihi ama oturumdan uzun yaşıyor: uzun bir arşivi tarayan
+  /// kullanıcı eski bölümleri her açılışta yeniden kapatmak zorunda kalmasın.
+  /// Ayrı bir tablo yerine tek bir metin: küme en fazla yedi ad taşıyor ve
+  /// hiçbir sorgu içine bakmıyor.
+  ///
+  /// Tanınmayan ad okunurken sessizce atılıyor; bölüm adları değişirse eski
+  /// kayıt açılışı bozmaz.
+  TextColumn get collapsedGroups => text().withDefault(const Constant(''))();
+
+  /// Ücretsiz hatırlatma hakkını **harcamış** kayıtların kimlikleri,
+  /// virgülle ayrılmış.
+  ///
+  /// Sayaç değil **liste** tutuluyor, çünkü sorulan soru "kaç tane kuruldu"
+  /// değil "bu kayıt hakkını daha önce aldı mı". Sayaçla, kurulmuş bir
+  /// hatırlatmayı kapatıp yeniden açmak ya da saatini değiştirmek ikinci bir
+  /// hak yerdi — kullanıcının kendi kurduğu şeyi düzenlemesi cezalandırılamaz.
+  ///
+  /// Kayıt silinse de kimliği listede kalır: hak ömürlük. `AUTOINCREMENT`
+  /// kimlikleri yeniden kullanmadığı için eski bir kimlik yeni bir kayda
+  /// denk gelemez.
+  ///
+  /// Pro'yken kurulan hatırlatmalar buraya **hiç yazılmaz**; iade sonrası
+  /// kullanıcı kaldığı yerden devam eder.
+  ///
+  /// Yedekten dönüşte bu sütuna dokunulmuyor (bkz. `BackupRepository`): aksi
+  /// hâlde eski bir yedeği geri yüklemek hakkı sıfırlamanın yolu olurdu.
+  TextColumn get freeReminderNotes => text().withDefault(const Constant(''))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -236,7 +275,7 @@ class NotesDatabase extends _$NotesDatabase {
   NotesDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 13;
 
   /// Taranmayı bekleyen kayıtların kısmi indeksi.
   ///
@@ -269,24 +308,92 @@ class NotesDatabase extends _$NotesDatabase {
     );
   ''';
 
+  bool _createdFresh = false;
+
+  /// Bu açılışta veritabanı **sıfırdan** kuruldu mu.
+  ///
+  /// "Boş arşiv" iki bambaşka durumun aynı görüntüsü: kullanıcı her şeyi
+  /// silmiş olabilir ya da veritabanı dosyası kaybolmuş/değişmiş olabilirken
+  /// fotoğraflar diskte duruyor olabilir (kısmi bir cihaz yedeği, bozulan bir
+  /// dosyanın yerine geçen yenisi). İkisi tablodan ayırt edilemiyor ama
+  /// **dosyanın yaşı** ayırt ediyor: her şeyi silen kullanıcının veritabanı
+  /// eskidir, o açılışta yeniden kurulmaz.
+  ///
+  /// Fark hayati, çünkü yetim toplayıcı kaydı olmayan kareyi siliyor.
+  bool get createdFresh => _createdFresh;
+
+  /// Sütun tabloda hâlihazırda var mı.
+  ///
+  /// Göç zinciri "kayıtlı sürüm neyse oradan devam et" varsayımıyla yazılmış
+  /// ama SQLite'ın `user_version`'ı bu varsayımı her zaman taşımıyor: cihaza
+  /// yeni bir sürüm kurulup **sonra eskisine dönülürse** tablo yeni sütunu
+  /// taşımaya devam ederken sürüm numarası geriye yazılıyor. Bir sonraki
+  /// yükseltmede zincir o sütunu ikinci kez eklemeye kalkıyor ve SQLite
+  /// `duplicate column name` diyor — açılış yolunda, `runApp`'ten önce.
+  /// Kullanıcının gördüğü tek şey hiç geçmeyen açılış ekranı oluyor.
+  ///
+  /// Bu yüzden ölçüt sürüm numarası değil, **tablonun kendisi**.
+  Future<bool> _hasColumn(String table, String column) async {
+    final rows = await customSelect('PRAGMA table_info("$table")').get();
+    return rows.any((row) => row.read<String>('name') == column);
+  }
+
+  /// Yalnızca gerçekten eksikse ekler; eklediyse `true` döner. Gerekçe
+  /// [_hasColumn]'da. Dönen değer, sütunla birlikte gelen geri doldurmanın
+  /// da atlanabilmesi için: sütun zaten duruyorsa içi de doludur.
+  Future<bool> _addColumnOnce(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    if (await _hasColumn(table.actualTableName, column.name)) return false;
+    await m.addColumn(table, column);
+    return true;
+  }
+
+  /// Ham `ALTER TABLE` ile eklenen sütunlar için aynısı.
+  ///
+  /// Bu iki sütun bugünkü tablo tanımında yok — v8'de yeniden kaldırıldılar —
+  /// o yüzden [_addColumnOnce] onları ifade edemiyor.
+  Future<void> _addRawColumnOnce(
+    String table,
+    String column,
+    String definition,
+  ) async {
+    if (await _hasColumn(table, column)) return;
+    await customStatement('ALTER TABLE $table ADD COLUMN $definition');
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await customStatement(_pendingIndex);
+      _createdFresh = true;
     },
     // `latermark_db` v1 zaten not, arama ve ayar tablolarının güncel temelini
     // içeriyor. Önceki `not_app` sürüm zincirini burada tekrar yürütmek v1
     // sütunlarını ikinci kez eklerdi. Bu veritabanının ilk ve tek yükseltmesi
     // seçilen rengi, mevcut satırı ve varsayılan turuncuyu koruyarak ekler.
     onUpgrade: (m, from, to) async {
-      if (from < 2) await m.addColumn(settingsTable, settingsTable.accent);
+      // v5–v8 arası hatırlatma dönüşümü **tek bir zincir**: iki geçici sütun
+      // açılıyor, okunuyor ve sonunda düşürülüyor. Adımları tek tek korumak
+      // yetmiyor, çünkü v8 yalnızca sütun eklemiyor — bir sütunu yeniden
+      // adlandırıyor ve ikisini düşürüyor. Tablo mutlak ana çoktan geçtiyse
+      // zincirin hiçbir adımının karşılığı yok: geçici sütunları geri açıp
+      // yeniden düşürmek boş iş, `remind_after_days`'i yeniden adlandırmak ise
+      // doğrudan hata. Ölçüt yine sürüm numarası değil, tablonun kendisi.
+      final legacyReminderShape = !await _hasColumn('notes', 'remind_at');
+
+      if (from < 2) {
+        await _addColumnOnce(m, settingsTable, settingsTable.accent);
+      }
       // Sütun nullable ve geri doldurulmuyor: mevcut kayıtlar düzenlenmedi.
-      if (from < 3) await m.addColumn(notes, notes.updatedAt);
+      if (from < 3) await _addColumnOnce(m, notes, notes.updatedAt);
       if (from < 4) {
-        await m.addColumn(notes, notes.latitude);
-        await m.addColumn(notes, notes.longitude);
-        await m.addColumn(settingsTable, settingsTable.locationEnabled);
+        await _addColumnOnce(m, notes, notes.latitude);
+        await _addColumnOnce(m, notes, notes.longitude);
+        await _addColumnOnce(m, settingsTable, settingsTable.locationEnabled);
       }
       // v5 ve v6'nın eklediği iki sütun v8'de yeniden kaldırılıyor; buradaki
       // adımlar yine de duruyor ve ham SQL'e çevrildi. Drift'in tablo tanımı
@@ -295,15 +402,18 @@ class NotesDatabase extends _$NotesDatabase {
       //
       // Varsayılan `false`: o sürümdeki hatırlatmaların hepsi tek atışlıktı ve
       // öyle kalır. Tekrar, kullanıcının açıkça isteyeceği yeni bir şeydi.
-      if (from < 5) {
-        await customStatement(
-          'ALTER TABLE notes ADD COLUMN remind_repeats '
-          'INTEGER NOT NULL DEFAULT 0',
+      if (from < 5 && legacyReminderShape) {
+        await _addRawColumnOnce(
+          'notes',
+          'remind_repeats',
+          'remind_repeats INTEGER NOT NULL DEFAULT 0',
         );
       }
-      if (from < 6) {
-        await customStatement(
-          'ALTER TABLE notes ADD COLUMN reminder_anchor_at INTEGER NULL',
+      if (from < 6 && legacyReminderShape) {
+        await _addRawColumnOnce(
+          'notes',
+          'reminder_anchor_at',
+          'reminder_anchor_at INTEGER NULL',
         );
         // v5'in dörtlü pencere programı native, kalıcı tekrara dönüşüyor.
         // O programın kesin başlangıç damgası yoktu; mevcut tekrarlı
@@ -316,8 +426,10 @@ class NotesDatabase extends _$NotesDatabase {
           updates: {notes},
         );
       }
-      if (from < 7) {
-        await m.addColumn(noteSearch, noteSearch.photoFingerprint);
+      // Geri doldurma sütunla birlikte gidiyor: sütun zaten duruyorsa imzalar
+      // da hesaplanmış demektir ve bütün arşivi boşuna taramanın anlamı yok.
+      if (from < 7 &&
+          await _addColumnOnce(m, noteSearch, noteSearch.photoFingerprint)) {
         const page = 200;
         for (var offset = 0; ; offset += page) {
           final rows = await customSelect(
@@ -341,7 +453,7 @@ class NotesDatabase extends _$NotesDatabase {
           if (rows.length < page) break;
         }
       }
-      if (from < 8) {
+      if (from < 8 && legacyReminderShape) {
         // Hatırlatma "çıpa + gün sayısı" olmaktan çıkıp mutlak ana dönüyor.
         // Gün sütunu kaybolmuyor, anlamı daralıyor: artık yalnızca tekrar
         // aralığı.
@@ -388,12 +500,27 @@ class NotesDatabase extends _$NotesDatabase {
         // Sütunun varsayılanı açık; mevcut satırlar da öyle doluyor. İmza yeni
         // bir davranış ama kullanıcının metnine ekleniyor, o yüzden anahtar
         // Ayarlar'da görünür yerde duruyor.
-        await m.addColumn(settingsTable, settingsTable.shareSignature);
+        await _addColumnOnce(m, settingsTable, settingsTable.shareSignature);
       }
       // Sütun nullable ve geri doldurulmuyor: yükseltmeden gelen her kayıt
       // "orijinali yok" durumunda kalıyor ve bu doğru hâl. Kimsenin karesi
       // değişmiyor, hiçbir dosya taşınmıyor.
-      if (from < 10) await m.addColumn(notes, notes.originalName);
+      if (from < 10) await _addColumnOnce(m, notes, notes.originalName);
+      // Görünüm tercihi; varsayılanı boş metin, yani yükseltmeden gelen
+      // herkeste bütün bölümler açık.
+      if (from < 11) {
+        await _addColumnOnce(m, settingsTable, settingsTable.collapsedGroups);
+      }
+      // Ton sütunu varsayılanıyla doluyor; hiçbir mevcut kullanıcı özel renge
+      // geçmiş olamayacağı için geri doldurmaya gerek yok.
+      if (from < 12) {
+        await _addColumnOnce(m, settingsTable, settingsTable.accentHue);
+      }
+      // Ücretsiz hatırlatma hakkı. Varsayılanı boş liste: yükseltmeden gelen
+      // herkes üç hakkının tamamıyla başlıyor. Pro kullanıcıda hiç okunmuyor.
+      if (from < 13) {
+        await _addColumnOnce(m, settingsTable, settingsTable.freeReminderNotes);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

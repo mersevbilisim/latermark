@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_label">Latermark</string>
+    <string name="widget_label">Latermark Pro</string>
     <string name="widget_description">Mostra a captura mais recente e a respetiva nota.</string>
     <string name="widget_empty_title">Toque para fotografar</string>
     <string name="widget_empty_subtitle">A sua primeira nota aparecerá aqui</string>
     <string name="widget_photo_description">Fotografia da captura mais recente</string>
     <string name="widget_note_without_body">Sem nota</string>
+    <string name="widget_pro_subtitle">Desbloqueie o seu vestígio mais recente</string>
     <string name="widget_remaining_now">agora</string>
     <string name="widget_remaining_days">%1$d d</string>
     <string name="widget_remaining_hours">%1$d h</string>

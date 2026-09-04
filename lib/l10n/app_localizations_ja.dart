@@ -625,7 +625,7 @@ class L10nJa extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermarkは、ノートや写真、位置情報をすべて端末内で処理します。自分で共有しない限り、データが端末の外へ出ることはありません。分析、クラッシュレポート、利用統計のために送信されることもありません。広告効果の測定のためにMetaへ送られるのは、アプリがインストールされたことと購入が行われたことの2点だけです。どちらにも、書いた内容や写真、位置情報は含まれません。';
+      'Latermarkは、ノートや写真、位置情報をすべて端末内で処理します。自分で共有しない限り、データが端末の外へ出ることはありません。分析、クラッシュレポート、利用統計、広告のいずれのためにも送信されません。第三者のトラッキングSDKや広告SDKは一切含まれていません。ネットワーク通信は、購入を処理するApp Storeのみです。';
 
   @override
   String get yourDataLocationQuestion => 'なぜ位置情報へのアクセスが必要ですか？';
@@ -720,6 +720,19 @@ class L10nJa extends L10n {
 
   @override
   String get accentGold => 'ゴールド';
+
+  @override
+  String get accentCustom => 'カスタム';
+
+  @override
+  String get accentCustomTitle => 'カスタムカラー';
+
+  @override
+  String get accentCustomHint =>
+      'リングをドラッグして色相を選びます。明るさは Latermark が調整し、明るい背景でも暗い背景でも写真の上でも読みやすさを保ちます。';
+
+  @override
+  String get accentCustomApply => 'この色を使う';
 
   @override
   String get retentionTitle => '自動削除';
@@ -955,6 +968,22 @@ class L10nJa extends L10n {
   String get notificationBodyNoBody => 'この写真を思い出す時間です。';
 
   @override
+  String get notificationBodyNoFrame => 'このメモをリマインドするよう設定しました。';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '無料プラン：残り$count件のリマインダー',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => '無料のリマインダーを使い切りました';
+
+  @override
   String get notificationChannelName => 'リマインダー';
 
   @override
@@ -1045,13 +1074,24 @@ class L10nJa extends L10n {
   String get reminderSkip => '今はしない';
 
   @override
-  String get reminderDeleteAfterLabel => '通知の1時間後に削除';
+  String get reminderDeleteAfterLabel => '通知の30分後に削除';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · その後削除';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride => 'このメモの保存期間より優先されます。';
 
   @override
   String get reminderAfterExpiry => 'リマインダーはこのノートが削除される前に設定してください。';
 
   @override
   String get keepOriginalLabel => 'オリジナルのまま保存';
+
+  @override
+  String get composeOptionsLabel => 'オプション';
 
   @override
   String get keepOriginalDetail => '画質はそのまま、容量は増えます。';
@@ -1061,6 +1101,30 @@ class L10nJa extends L10n {
 
   @override
   String get composeLocationFailed => '位置情報を取得できませんでした';
+
+  @override
+  String get archiveUnavailableTitle => 'アーカイブを開けませんでした';
+
+  @override
+  String get archiveUnavailableBody =>
+      '写真はこの端末に残っています。アプリを削除しないでください — 一緒に消えてしまいます。';
+
+  @override
+  String get archiveRepairAction => '修復';
+
+  @override
+  String archiveRepairCount(int count) {
+    return '復元できる写真: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'メモ、リマインダー、保存期間は復元できません — それらは記録の中だけにありました。壊れたファイルは削除せず、脇に移します。';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '$count枚の写真を復元しました';
+  }
 
   @override
   String get locationFixFailed => '現在地を特定できませんでした。場所なしで保存されます。';

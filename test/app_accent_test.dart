@@ -24,7 +24,7 @@ void main() {
       for (final accent in AppAccent.values) {
         final palette = AppPalette.forAccent(Brightness.light, accent);
         expect(palette.ember, accent.colorFor(Brightness.light));
-        expect(palette.onPhotoAccent, accent.onPhoto);
+        expect(palette.onPhotoAccent, accent.onPhotoFor());
         expect(palette.canvas, AppPalette.light.canvas);
         expect(palette.ink, AppPalette.light.ink);
         expect(palette.danger, AppPalette.light.danger);
@@ -40,6 +40,7 @@ void main() {
     'renk prova seridi secimi erisilebilir bir dokunusla degistirir',
     (tester) async {
       var selected = AppAccent.orange;
+      var customTaps = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -53,6 +54,8 @@ void main() {
                     value: selected,
                     labelOf: (accent) => accent.name,
                     onChanged: (accent) => setState(() => selected = accent),
+                    customHue: 210,
+                    onCustom: () => customTaps++,
                   ),
                 ),
               ),
@@ -65,6 +68,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selected, AppAccent.violet);
+
+      // Özel yuva seçimi doğrudan değiştirmiyor: ton görülmeden "özel"e
+      // geçmek anlamsız bir ara durum olurdu, panel açılıyor.
+      await tester.tap(find.byKey(const ValueKey('app-accent-custom')));
+      await tester.pumpAndSettle();
+      expect(selected, AppAccent.violet);
+      expect(customTaps, 1);
       expect(
         tester.getSemantics(find.byKey(const ValueKey('app-accent-violet'))),
         matchesSemantics(

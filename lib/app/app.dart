@@ -20,12 +20,21 @@ class LatermarkApp extends StatelessWidget {
     required this.settings,
     this.backups,
     this.reviewPrompts,
+    this.countRecoverableFrames,
+    this.onRepairArchive,
   });
 
   final NotesRepository notes;
   final SettingsRepository settings;
   final BackupService? backups;
   final ReviewPromptService? reviewPrompts;
+
+  /// Arşiv okunamadığında diskte kaç karenin kurtarılabileceği.
+  final Future<int> Function()? countRecoverableFrames;
+
+  /// Onarımı yürütür ve kurtarılan kare sayısını döner. Yığını tazelemek
+  /// gerektiği için sahibi [LatermarkBoot]; buradan yalnızca geçiyor.
+  final Future<int> Function()? onRepairArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +46,8 @@ class LatermarkApp extends StatelessWidget {
       settings: settings,
       backups: backups,
       reviewPrompts: reviewPrompts,
+      countRecoverableFrames: countRecoverableFrames,
+      onRepairArchive: onRepairArchive,
       child: Builder(
         builder: (context) {
           final preferences = AppScope.preferences(context);
@@ -44,8 +55,8 @@ class LatermarkApp extends StatelessWidget {
           return MaterialApp(
             onGenerateTitle: (context) => context.l10n.appTitle,
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(preferences.accent),
-            darkTheme: AppTheme.dark(preferences.accent),
+            theme: AppTheme.light(preferences.accent, preferences.accentHue),
+            darkTheme: AppTheme.dark(preferences.accent, preferences.accentHue),
             themeMode: preferences.themeMode.flutterMode,
             // `null` ise Flutter telefonun dilini kullanır ve eşleşme yoksa
             // aşağıdaki çözümleyici devreye girer.

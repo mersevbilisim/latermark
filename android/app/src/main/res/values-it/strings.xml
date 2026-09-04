@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_label">Latermark</string>
+    <string name="widget_label">Latermark Pro</string>
     <string name="widget_description">Mostra il tuo ultimo scatto e la relativa nota.</string>
     <string name="widget_empty_title">Tocca per scattare</string>
     <string name="widget_empty_subtitle">La tua prima nota apparirà qui</string>
     <string name="widget_photo_description">Foto del tuo ultimo scatto</string>
     <string name="widget_note_without_body">Senza nota</string>
+    <string name="widget_pro_subtitle">Sblocca la tua ultima traccia</string>
     <string name="widget_remaining_now">ora</string>
     <string name="widget_remaining_days">%1$d g</string>
     <string name="widget_remaining_hours">%1$d h</string>

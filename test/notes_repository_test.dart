@@ -11,6 +11,7 @@ import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/notes/domain/note_reminder.dart';
 import 'package:latermark/features/notes/domain/reminder_action.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
+import 'package:latermark/features/paywall/domain/pro_limits.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 
 void main() {
@@ -159,7 +160,7 @@ void main() {
     final before = await repository.watchNotes().first;
     final doomed = before.firstWhere((note) => note.body == 'eski');
 
-    expect(await repository.purgeExpired(), 1);
+    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
 
     final after = await repository.watchNotes().first;
     expect(after.map((note) => note.body), unorderedEquals(['taze', 'kalıcı']));
@@ -266,18 +267,24 @@ void main() {
         createdAt: DateTime(2026, 8, 8, 12),
       );
 
+      // Özel süre Pro'ya kilitli: free katmanda veri kaybı yaratmayan en
+      // yakın hazır süreye taşınıyor.
       var note = (await repository.watchNotes().first).single;
       expect(note.retention, Retention.oneWeek);
       expect(note.customMinutes, 0);
-      expect(note.remindAt, isNull);
 
+      // Hatırlatma **artık Pro alanı değil**; ücretsiz katmanın kendi sayılı
+      // hakkı var (bkz. `text_note_test.dart`). Bu testin konusu saklama
+      // süresi, o yüzden buradaki iddia da ona indirgendi: gecikmiş bir sheet
+      // custom süreyi geri yazamıyor.
       await repository.update(
         note,
         body: note.body,
-        reminder: ReminderChoice(at: DateTime(2026, 8, 17, 12)),
+        reminder: ReminderChoice(at: DateTime(2026, 8, 14, 12)),
       );
       note = (await repository.watchNotes().first).single;
-      expect(note.remindAt, isNull);
+      expect(note.retention, Retention.oneWeek);
+      expect(note.customMinutes, 0);
     },
   );
 
@@ -339,6 +346,39 @@ void main() {
     );
   });
 
+  test('silme sözü notun kendi saklama süresinin yerine geçer', () async {
+    // Aynı kurulum bir önceki testte reddediliyor: hatırlatma, notun silinme
+    // anından sonraya düşüyor. Söz açıkken çelişki kalmıyor — kullanıcı
+    // "hatırlatana kadar dursun, sonra gitsin" diyerek daha yeni ve daha özel
+    // bir talimat vermiş oluyor. Üç günlük not on gün bir saat yaşıyor.
+    await settings.setProUnlocked(true);
+    final created = DateTime(2026, 8, 8, 12);
+    final at = DateTime(2026, 8, 18, 9);
+    final id = await repository.create(
+      capture: await fakeCapture(),
+      body: 'kısa ömürlü',
+      retention: const RetentionChoice(Retention.threeDays),
+      createdAt: created,
+    );
+
+    await repository.setReminder(
+      id,
+      ReminderChoice(at: at),
+      deleteAfterReminder: true,
+    );
+
+    final note = (await repository.noteById(id))!;
+    expect(note.remindAt, at);
+    expect(note.expiresAt, reminderExpiryFor(at));
+    // Söz kalktığında not eski üç gününe dönmüyor, süresiz kalıyor: geri
+    // döndürülecek bir ömür saklanmıyor ve kısa olanı varsaymak, kullanıcının
+    // hiç istemediği bir anda notu silerdi.
+    await repository.setReminder(id, const ReminderChoice.off());
+    final cleared = (await repository.noteById(id))!;
+    expect(cleared.remindAt, isNull);
+    expect(cleared.expiresAt, isNull);
+  });
+
   test('oluştururken de silinme sonrası hatırlatma reddedilir', () async {
     await settings.setProUnlocked(true);
     final created = DateTime(2026, 8, 8, 12);
@@ -356,16 +396,33 @@ void main() {
     expect(await repository.watchNotes().first, isEmpty);
   });
 
-  test('hak kapalıyken planlama ekranı hatırlatma yazamaz', () async {
-    final id = await repository.create(
+  test('planlama ekranı ücretsiz hakkı tüketince yazamaz', () async {
+    // Ücretsiz katmanda hatırlatma sayılı; planlama ekranı da aynı kapıdan
+    // geçiyor. İlk üç kayıt kurabiliyor, dördüncü sessizce düşüyor.
+    final at = DateTime.now().add(const Duration(days: 1));
+    for (var i = 0; i < ProLimits.freeReminders; i++) {
+      final id = await repository.create(
+        capture: await fakeCapture(),
+        body: 'ücretsiz $i',
+        retention: RetentionChoice(Retention.off),
+      );
+      await repository.setReminder(id, ReminderChoice(at: at));
+      final note = (await repository.watchNotes().first).firstWhere(
+        (note) => note.id == id,
+      );
+      expect(note.remindAt, isNotNull, reason: 'kayıt $id');
+    }
+
+    final blocked = await repository.create(
       capture: await fakeCapture(),
-      body: 'ücretsiz katman',
+      body: 'dördüncü',
       retention: RetentionChoice(Retention.off),
     );
-
-    await repository.setReminder(id, ReminderChoice(at: DateTime(2026, 9, 1)));
-
-    expect((await repository.watchNotes().first).single.remindAt, isNull);
+    await repository.setReminder(blocked, ReminderChoice(at: at));
+    final note = (await repository.watchNotes().first).firstWhere(
+      (note) => note.id == blocked,
+    );
+    expect(note.remindAt, isNull);
   });
 
   test('tek atış planlandığında tekrar aralığı sıfırlanır', () async {
@@ -551,7 +608,7 @@ void main() {
     final photo = repository.imageOf(note);
     expect(photo.existsSync(), isTrue);
 
-    expect(await repository.purgeExpired(), 1);
+    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
     expect(await repository.watchNotes().first, isEmpty);
     expect(photo.existsSync(), isFalse);
   });

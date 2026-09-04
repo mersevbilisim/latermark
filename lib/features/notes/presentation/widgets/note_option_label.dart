@@ -9,20 +9,42 @@ import '../../../../core/theme/app_palette.dart';
 class NoteOptionLabel extends StatelessWidget {
   const NoteOptionLabel({
     super.key,
-    required this.icon,
+    this.icon,
+    this.leading,
     required this.title,
     required this.active,
     this.detail,
+    this.detailVisible = true,
     this.busy = false,
-  });
+  }) : assert(
+         (icon == null) != (leading == null),
+         'Yuvayı ya ikon ya da çizim doldurur.',
+       );
 
-  final IconData icon;
+  /// Yuvadaki ince ikon. [leading] verildiyse boş kalır.
+  final IconData? icon;
+
+  /// İkonun yerine geçen çizim.
+  ///
+  /// Hatırlatma planlamasındaki silme sözü böyle: oradaki işaret bir ikon
+  /// değil, uygulamanın kendi irisi — söz verildiğinde kapanmaya başlıyor.
+  /// Yuvanın ölçüsü ve satırın tipografisi ortak kalsın diye ayrı bir satır
+  /// yazılmıyor; değişen yalnız yuvanın içi.
+  final Widget? leading;
+
   final String title;
 
   /// Altındaki açıklama satırı. Boş bırakılabilir: bir anahtarın ne yaptığı
   /// adından anlaşılıyorsa, altına bir cümle daha koymak satırı iki kata
   /// çıkarıp hiçbir şey söylemiyor.
   final String? detail;
+
+  /// Açıklama okunuyor mu.
+  ///
+  /// Yeri her hâlde ayrılıyor, yalnız görünürlüğü değişiyor: metni dokunuşla
+  /// var edip yok etmek satırı büyütüp küçültür, üstündeki içeriği de
+  /// oynatırdı.
+  final bool detailVisible;
 
   final bool active;
 
@@ -69,7 +91,8 @@ class NoteOptionLabel extends StatelessWidget {
                         ),
                       ),
                     )
-                  : Icon(icon, key: ValueKey(icon), size: 18, color: color),
+                  : leading ??
+                        Icon(icon, key: ValueKey(icon), size: 18, color: color),
             ),
           ),
         ),
@@ -88,15 +111,20 @@ class NoteOptionLabel extends StatelessWidget {
               ),
               if (detail != null) ...[
                 const SizedBox(height: 3),
-                AnimatedSwitcher(
+                AnimatedOpacity(
+                  key: const Key('note-option-detail'),
                   duration: const Duration(milliseconds: 180),
-                  child: Text(
-                    detail,
-                    key: ValueKey(detail),
-                    style: palette.caption.copyWith(
-                      color: palette.inkFaint,
-                      fontSize: 12.5,
-                      height: 1.32,
+                  opacity: detailVisible ? 1 : 0,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Text(
+                      detail,
+                      key: ValueKey(detail),
+                      style: palette.caption.copyWith(
+                        color: palette.inkFaint,
+                        fontSize: 12.5,
+                        height: 1.32,
+                      ),
                     ),
                   ),
                 ),

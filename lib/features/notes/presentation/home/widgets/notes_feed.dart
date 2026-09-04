@@ -43,6 +43,8 @@ class NotesFeed extends StatelessWidget {
     required this.selecting,
     required this.selectedIds,
     required this.onToggleSelection,
+    this.collapsedGroups = const {},
+    this.onToggleGroup,
   });
 
   final List<Note> notes;
@@ -79,6 +81,17 @@ class NotesFeed extends StatelessWidget {
   final bool selecting;
   final Set<int> selectedIds;
   final ValueChanged<Note> onToggleSelection;
+
+  /// Kapatılmış zaman bölümleri.
+  ///
+  /// Durum akışın kendisinde değil ana ekranda duruyor: liste her veri
+  /// yayınında yeniden kuruluyor ve burada tutulan bir küme her yeni kayıtta
+  /// sıfırlanırdı. Seçimin (`selectedIds`) izlediği yol da aynı.
+  final Set<NoteAgeGroup> collapsedGroups;
+
+  /// Bölümü açıp kapatır. `null` ise ayraçlar hareketsiz — seçim kipinde
+  /// böyle geliyor.
+  final ValueChanged<NoteAgeGroup>? onToggleGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -122,14 +135,25 @@ class NotesFeed extends StatelessWidget {
         else
           for (final section in sections) ...[
             SliverToBoxAdapter(
-              child: AgeSeparator(label: _labelFor(context, section.group)),
+              child: AgeSeparator(
+                key: ValueKey('age-separator-${section.group.name}'),
+                label: _labelFor(context, section.group),
+                collapsed: collapsedGroups.contains(section.group),
+                count: section.notes.length,
+                onToggle: onToggleGroup == null
+                    ? null
+                    : () => onToggleGroup!(section.group),
+              ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: gridded
-                  ? _Grid(notes: section.notes, feed: this)
-                  : _ColumnSection(section: section, feed: this),
-            ),
+            // Kapalı bölümün kayıtları ağaca hiç girmiyor: gizlemek yerine
+            // çizmemek, uzun bir arşivde asıl kazancın kendisi.
+            if (!collapsedGroups.contains(section.group))
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: gridded
+                    ? _Grid(notes: section.notes, feed: this)
+                    : _ColumnSection(section: section, feed: this),
+              ),
           ],
         SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
       ],

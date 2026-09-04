@@ -177,6 +177,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_empty_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
@@ -185,6 +186,7 @@
                 android:textSize="14sp" />
 
             <TextView
+                android:id="@+id/widget_empty_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
@@ -219,6 +221,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_locked_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
@@ -227,6 +230,7 @@
                 android:textSize="14sp" />
 
             <TextView
+                android:id="@+id/widget_locked_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"

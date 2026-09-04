@@ -2,16 +2,24 @@ import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'accent_tone.dart';
 import 'app_accent.dart';
 import 'app_palette.dart';
 import 'app_typography.dart';
 
 /// Açık ve koyu tema aynı iskeletten, yalnızca palet değiştirilerek üretilir.
 abstract final class AppTheme {
-  static ThemeData dark([AppAccent accent = AppAccent.orange]) =>
-      _build(AppPalette.forAccent(Brightness.dark, accent));
-  static ThemeData light([AppAccent accent = AppAccent.orange]) =>
-      _build(AppPalette.forAccent(Brightness.light, accent));
+  static ThemeData dark([
+    AppAccent accent = AppAccent.orange,
+    int customHue = AccentTone.defaultHue,
+  ]) => _build(AppPalette.forAccent(Brightness.dark, accent, customHue: customHue));
+
+  static ThemeData light([
+    AppAccent accent = AppAccent.orange,
+    int customHue = AccentTone.defaultHue,
+  ]) => _build(
+    AppPalette.forAccent(Brightness.light, accent, customHue: customHue),
+  );
 
   static ThemeData _build(AppPalette palette) {
     final base = ThemeData(

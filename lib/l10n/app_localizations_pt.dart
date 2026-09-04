@@ -683,7 +683,7 @@ class L10nPt extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'O Latermark funciona inteiramente no seu dispositivo. As suas notas e memórias não são enviadas para análise, relatórios de erros ou estatísticas. Só saem do dispositivo quando decide partilhá-las. Para medição publicitária, são comunicadas à Meta apenas duas coisas: que a aplicação foi instalada e que foi feita uma compra. Nenhuma delas inclui o que escreve, fotografa ou etiqueta.';
+      'O Latermark processa as suas notas, fotos e localizações inteiramente no seu dispositivo. A menos que opte por partilhá-los, os seus conteúdos nunca saem dele — nem para análises, relatórios de erros, estatísticas de utilização ou publicidade. A app não inclui qualquer SDK de rastreio ou publicidade de terceiros. O único tráfego de rede é o da App Store a processar a sua compra.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -783,6 +783,19 @@ class L10nPt extends L10n {
 
   @override
   String get accentGold => 'Dourado';
+
+  @override
+  String get accentCustom => 'Personalizada';
+
+  @override
+  String get accentCustomTitle => 'Cor personalizada';
+
+  @override
+  String get accentCustomHint =>
+      'Arraste o anel para escolher um tom. O Latermark define o brilho para a cor continuar legível em fundos claros, escuros e sobre fotos.';
+
+  @override
+  String get accentCustomApply => 'Usar esta cor';
 
   @override
   String get retentionTitle => 'Eliminação automática';
@@ -1095,6 +1108,24 @@ class L10nPt extends L10n {
   String get notificationBodyNoBody => 'Pediu para ser lembrado desta captura.';
 
   @override
+  String get notificationBodyNoFrame =>
+      'Pediste ao Latermark para te lembrar desta nota.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Plano gratuito: restam $count lembretes',
+      one: 'Plano gratuito: resta 1 lembrete',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Esgotaste os lembretes gratuitos';
+
+  @override
   String get notificationChannelName => 'Lembretes';
 
   @override
@@ -1191,7 +1222,16 @@ class L10nPt extends L10n {
   String get reminderSkip => 'Agora não';
 
   @override
-  String get reminderDeleteAfterLabel => 'Apagar 1 hora depois de lembrar';
+  String get reminderDeleteAfterLabel => 'Apagar 30 minutos depois de lembrar';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · depois apagada';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Substitui a retenção própria desta nota.';
 
   @override
   String get reminderAfterExpiry =>
@@ -1199,6 +1239,9 @@ class L10nPt extends L10n {
 
   @override
   String get keepOriginalLabel => 'Guardar o original';
+
+  @override
+  String get composeOptionsLabel => 'Opções';
 
   @override
   String get keepOriginalDetail =>
@@ -1209,6 +1252,30 @@ class L10nPt extends L10n {
 
   @override
   String get composeLocationFailed => 'Não foi possível obter a localização';
+
+  @override
+  String get archiveUnavailableTitle => 'Não foi possível abrir o teu arquivo';
+
+  @override
+  String get archiveUnavailableBody =>
+      'As tuas fotos continuam neste telemóvel. Não apagues a app — isso levá-las-ia.';
+
+  @override
+  String get archiveRepairAction => 'Reparar';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Fotos recuperáveis: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'As notas, os lembretes e os tempos de retenção não podem ser recuperados — estavam apenas no registo. O ficheiro danificado não é apagado, apenas posto de lado.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '$count fotos recuperadas';
+  }
 
   @override
   String get locationFixFailed =>
@@ -1901,7 +1968,7 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get yourDataSafetyAnswer =>
-      'O Latermark funciona totalmente no seu dispositivo. Suas notas e memórias não são enviadas para análises, relatórios de erros ou estatísticas. Elas só saem do dispositivo quando você decide compartilhá-las. Para medição de anúncios, só duas coisas são informadas à Meta: que o app foi instalado e que uma compra foi feita. Nenhuma delas inclui o que você escreve, fotografa ou marca.';
+      'O Latermark processa suas notas, fotos e localizações inteiramente no seu dispositivo. A menos que você escolha compartilhá-los, seus conteúdos nunca saem dele — nem para análises, relatórios de erros, estatísticas de uso ou publicidade. O app não inclui nenhum SDK de rastreamento ou publicidade de terceiros. O único tráfego de rede é o da App Store processando sua compra.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -2000,6 +2067,19 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get accentGold => 'Dourado';
+
+  @override
+  String get accentCustom => 'Personalizada';
+
+  @override
+  String get accentCustomTitle => 'Cor personalizada';
+
+  @override
+  String get accentCustomHint =>
+      'Arraste o anel para escolher um tom. O Latermark define o brilho para a cor continuar legível em fundos claros, escuros e sobre fotos.';
+
+  @override
+  String get accentCustomApply => 'Usar esta cor';
 
   @override
   String get retentionTitle => 'Apagar automaticamente';
@@ -2313,6 +2393,24 @@ class L10nPtBr extends L10nPt {
       'Você pediu para lembrar deste registro.';
 
   @override
+  String get notificationBodyNoFrame =>
+      'Você pediu ao Latermark para lembrar desta nota.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Plano gratuito: restam $count lembretes',
+      one: 'Plano gratuito: resta 1 lembrete',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Você usou todos os lembretes gratuitos';
+
+  @override
   String get notificationChannelName => 'Lembretes';
 
   @override
@@ -2408,7 +2506,16 @@ class L10nPtBr extends L10nPt {
   String get reminderSkip => 'Agora não';
 
   @override
-  String get reminderDeleteAfterLabel => 'Apagar 1 hora depois de lembrar';
+  String get reminderDeleteAfterLabel => 'Apagar 30 minutos depois de lembrar';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · depois excluída';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Substitui a retenção própria desta nota.';
 
   @override
   String get reminderAfterExpiry =>
@@ -2416,6 +2523,9 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get keepOriginalLabel => 'Guardar o original';
+
+  @override
+  String get composeOptionsLabel => 'Opções';
 
   @override
   String get keepOriginalDetail =>
@@ -2426,6 +2536,30 @@ class L10nPtBr extends L10nPt {
 
   @override
   String get composeLocationFailed => 'Não foi possível obter a localização';
+
+  @override
+  String get archiveUnavailableTitle => 'Não foi possível abrir seu arquivo';
+
+  @override
+  String get archiveUnavailableBody =>
+      'Suas fotos continuam neste telefone. Não exclua o app — isso as levaria junto.';
+
+  @override
+  String get archiveRepairAction => 'Reparar';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Fotos recuperáveis: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'As notas, os lembretes e os tempos de retenção não podem ser recuperados — estavam apenas no registro. O arquivo danificado não é excluído, apenas posto de lado.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '$count fotos recuperadas';
+  }
 
   @override
   String get locationFixFailed =>

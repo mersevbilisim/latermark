@@ -338,7 +338,7 @@
   "yourDataTitle": "Latermark & Your Data",
   "yourDataSubtitle": "We care about your privacy, and treat it with respect.",
   "yourDataSafetyQuestion": "Is my data safe?",
-  "yourDataSafetyAnswer": "Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.",
+  "yourDataSafetyAnswer": "Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, usage statistics, or advertising. The app contains no third-party tracking or advertising SDK. The only network traffic is the App Store handling your purchase.",
   "yourDataLocationQuestion": "Why does Latermark ask for location access?",
   "yourDataLocationAnswer": "Latermark asks for a one-time location only when you choose to tag where a photo was taken. The coordinates are saved only with that entry; there is no background tracking. They are passed to another app only if you choose to open the map.",
   "yourDataPhotosQuestion": "How is photo access used?",
@@ -377,6 +377,10 @@
   "accentPink": "Pink",
   "accentGreen": "Green",
   "accentGold": "Gold",
+  "accentCustom": "Custom",
+  "accentCustomTitle": "Custom color",
+  "accentCustomHint": "Drag the ring to choose a tone. Brightness is set by Latermark so the colour stays readable on light, dark and photo backgrounds.",
+  "accentCustomApply": "Use this colour",
   "retentionTitle": "Auto-Delete",
   "retentionDescription": "New frames start with this duration. You can change it for any frame from its detail view.",
   "feedTitle": "Feed",
@@ -601,6 +605,13 @@
   "notificationTitle": "Reminder",
   "notificationTitleNoBody": "A frame is waiting",
   "notificationBodyNoBody": "You asked Latermark to remind you about this frame.",
+  "notificationBodyNoFrame": "You asked Latermark to remind you about this note.",
+  "reminderFreeRemaining": "{count, plural, one{Free plan: 1 reminder left} other{Free plan: {count} reminders left}}",
+  "@reminderFreeRemaining": {
+    "description": "Ücretsiz katmanda kalan hatırlatma hakkı; hak teslimde yanar.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "reminderFreeSpent": "Free reminders used up",
   "notificationChannelName": "Reminders",
   "notificationChannelDescription": "Reminds you about frames you’ve scheduled.",
   "reminderActionDone": "Done",
@@ -661,15 +672,32 @@
   "@reminderSkip": {
     "description": "Scheduling screen: leave without setting a reminder; the note stays saved."
   },
-  "reminderDeleteAfterLabel": "Delete 1 hour after reminding",
+  "reminderDeleteAfterLabel": "Delete 30 minutes after reminding",
   "@reminderDeleteAfterLabel": {
-    "description": "Scheduling screen: after the single reminder fires, the note and its photo are deleted an hour later."
+    "description": "Scheduling screen: after the single reminder fires, the note and its photo are deleted 30 minutes later. Offered on any note with a one-off reminder."
+  },
+  "reminderDeleteAfterValue": "{when} · then deleted",
+  "@reminderDeleteAfterValue": {
+    "description": "Scheduling screen: the outcome sentence above Save when the note is deleted an hour after its single reminder.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderDeleteAfterOverride": "Replaces this note's own retention.",
+  "@reminderDeleteAfterOverride": {
+    "description": "Scheduling screen: shown under the delete-after switch when the note already carries its own retention, which the promise takes over."
   },
   "reminderAfterExpiry": "The reminder must be before this note is deleted.",
   "@reminderAfterExpiry": {
     "description": "Shown when a reminder is set at or after the note's automatic deletion time."
   },
   "keepOriginalLabel": "Save the original",
+  "composeOptionsLabel": "Options",
+  "@composeOptionsLabel": {
+    "description": "Compose screen: the collapsed options row shown while the keyboard is open. Tapping it dismisses the keyboard and reveals the switches."
+  },
   "@keepOriginalLabel": {
     "description": "Compose switch: also store the untouched photo."
   },
@@ -687,6 +715,40 @@
   },
   "@actionRetry": {
     "description": "Retries the failed attempt."
+  },
+  "archiveUnavailableTitle": "Couldn't open your archive",
+  "@archiveUnavailableTitle": {
+    "description": "Home screen: shown instead of the feed when the archive database cannot be read."
+  },
+  "archiveUnavailableBody": "Your frames are still on this phone. Don't delete the app — that would take them with it.",
+  "@archiveUnavailableBody": {
+    "description": "Home screen: reassures the user their photos are intact and warns that deleting the app would destroy them."
+  },
+  "archiveRepairAction": "Repair",
+  "@archiveRepairAction": {
+    "description": "Home screen: starts recovering photos from disk after the archive could not be opened."
+  },
+  "archiveRepairCount": "Frames that can be recovered: {count}",
+  "@archiveRepairCount": {
+    "description": "Home screen: how many photos on disk can be turned back into notes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "archiveRepairCost": "Your notes, reminders and retention settings can't be recovered — those lived only in the record. The damaged file isn't deleted, just set aside.",
+  "@archiveRepairCost": {
+    "description": "Home screen: what repairing cannot bring back, and that nothing is deleted."
+  },
+  "archiveRepairDone": "Recovered {count} frames",
+  "@archiveRepairDone": {
+    "description": "Toast after a successful repair.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "locationFixFailed": "The device could not fix a position right now. The note will be saved without a place.",
   "@locationFixFailed": {

@@ -365,6 +365,14 @@ class _Meta extends StatelessWidget {
           key: ValueKey('reminder-notch-${note.id}'),
           at: at,
           repeats: note.remindEveryDays > 0,
+          // Silinme anı hatırlatmadan türemişse kullanıcı "hatırlat, sonra
+          // sil" demiş demektir. Kart kalan ömrü zaten gösteriyor ama sebebini
+          // söylemiyordu: bu kayıt kendi saklama süresi yüzünden değil,
+          // verilen söz yüzünden gidiyor.
+          deletesAfter: isReminderExpiry(
+            remindAt: note.remindAt,
+            expiresAt: note.expiresAt,
+          ),
           reference: reference,
           compact: scale.isCompact,
         ),
@@ -384,6 +392,7 @@ class _ReminderNotch extends StatelessWidget {
     super.key,
     required this.at,
     required this.repeats,
+    required this.deletesAfter,
     required this.reference,
     required this.compact,
   });
@@ -393,6 +402,13 @@ class _ReminderNotch extends StatelessWidget {
   /// Tekrarlayan hatırlatmada çentiğin önüne küçük bir dönüş izi gelir:
   /// gösterilen an bir son değil, sıradaki uğrak.
   final bool repeats;
+
+  /// Hatırlattıktan sonra kendini silen kayıt.
+  ///
+  /// [repeats] ile **aynı yuvayı** paylaşıyor ve bu güvenli: söz yalnız tek
+  /// atışta duruyor, tekrarlı bir hatırlatmada verilemiyor. Yani ikisi hiçbir
+  /// zaman birlikte çıkmıyor ve karta üçüncü bir işaret eklenmiş olmuyor.
+  final bool deletesAfter;
 
   final DateTime reference;
   final bool compact;
@@ -405,9 +421,9 @@ class _ReminderNotch extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (repeats) ...[
+          if (repeats || deletesAfter) ...[
             Icon(
-              Icons.repeat_rounded,
+              repeats ? Icons.repeat_rounded : Icons.auto_delete_outlined,
               size: compact ? 10.5 : 11.5,
               color: palette.inkSoft,
             ),

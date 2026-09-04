@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, setEquals;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../features/home_widget/home_widget_bridge.dart';
 import '../features/backup/data/backup_service.dart';
 import '../features/notes/data/notes_database.dart';
+import '../features/paywall/domain/pro_limits.dart';
 import '../features/notes/data/notes_repository.dart';
 import '../features/notes/domain/retention.dart';
 import '../features/notes/presentation/import/shared_import.dart';
@@ -17,6 +18,7 @@ import '../features/reminders/reminder_action_handler.dart';
 import '../features/reminders/reminder_service.dart';
 import '../features/review/review_prompt_service.dart';
 import '../features/settings/data/settings_repository.dart';
+import '../features/settings/domain/app_locale.dart';
 import '../features/settings/domain/app_settings.dart';
 import '../features/spotlight/spotlight_bridge.dart';
 import '../l10n/app_localizations.dart';
@@ -41,6 +43,8 @@ class AppScope extends StatefulWidget {
     this.reviewPrompts,
     this.location,
     this.reminders,
+    this.countRecoverableFrames,
+    this.onRepairArchive,
     required this.child,
   });
 
@@ -56,7 +60,19 @@ class AppScope extends StatefulWidget {
   /// Widget/lifecycle testleri OS kanalı yerine deterministik bir izin
   /// servisi bağlayabilir. Verilmezse gerçek platform servisi kurulur.
   final ReminderService? reminders;
+
+  /// Arşiv okunamadığında diskte kaç karenin kurtarılabileceği.
+  final Future<int> Function()? countRecoverableFrames;
+
+  /// Onarımı yürütür, kurtarılan kare sayısını döner.
+  final Future<int> Function()? onRepairArchive;
+
   final Widget child;
+
+  /// Arşiv okunamadığında ana ekranın kullandığı onarım yolu. Yığını
+  /// tazelemek gerektiği için asıl sahibi kök widget.
+  static ArchiveRepair? archiveRepair(BuildContext context) =>
+      _scope(context).archiveRepair;
 
   static NotesRepository of(BuildContext context) => _scope(context).notes;
 
@@ -73,6 +89,14 @@ class AppScope extends StatefulWidget {
   /// seçimleri kaybolmadan çalışmaya devam etsin.
   static ReminderPermissionState reminderPermission(BuildContext context) =>
       _scope(context).reminderPermission;
+
+  /// Kurulu ama henüz çalmamış hatırlatmaların kayıt kimlikleri.
+  static Set<int> pendingReminderNoteIds(BuildContext context) =>
+      _scope(context).pendingReminderNoteIds;
+
+  /// Yeniden kurulumdan sonra da duran ücretsiz hatırlatma hak tabanı.
+  static int freeReminderFloor(BuildContext context) =>
+      _scope(context).freeReminderFloor;
 
   /// Not künyesinde gerçekten çalışan bir hatırlatma gösterilebilir mi?
   static bool remindersActive(BuildContext context) {
@@ -156,45 +180,80 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     );
     _purchases.unlocked.addListener(_cacheEntitlement);
 
-    _settingsSub = widget.settings.watch().listen((value) {
-      if (!mounted) return;
-      _settingsLoaded = true;
-      // Hak kapandığında native widget'ı, dil yüklemesini beklemeden kilitle.
-      // İçerik temizliği HomeWidgetBridge'in kendi sıralı yayınında yapılır.
-      _widgets?.pro = value.proUnlocked;
-      _widgets?.accent = value.accent;
-      // Uzantılar veritabanını açamıyor; Siri konuşurken doğru şeyi
-      // söyleyebilmesi için okuyabileceği tek yer bu ayna.
-      unawaited(
-        SharedImportBridge.setShareMirror(
-          proUnlocked: value.proUnlocked,
-          reminderEnabled: value.reminderEnabled,
-          retentionMinutes:
-              RetentionChoice(
-                value.defaultRetention,
-                customMinutes: value.defaultCustomMinutes,
-              ).duration?.inMinutes ??
-              0,
-        ),
-      );
-      if (value != _preferences) setState(() => _preferences = value);
-      _startReminderClock();
-      // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu
-      // sırada yeniden değişmeyeceği için yalnız listener'a güvenmek stale bir
-      // cache'i yaşatırdı; her ayar yayını son kesin hakla uzlaştırılır.
-      _cacheEntitlement();
-      _syncRemindersWhenReady();
-    });
+    _settingsSub = widget.settings.watch().listen(
+      (value) {
+        if (!mounted) return;
+        _settingsLoaded = true;
+        // Hak kapandığında native widget'ı, dil yüklemesini beklemeden kilitle.
+        // İçerik temizliği HomeWidgetBridge'in kendi sıralı yayınında yapılır.
+        _widgets?.pro = value.proUnlocked;
+        _widgets?.accent = value.accent.onPhotoFor(customHue: value.accentHue);
+        // Widget metinlerini native taraf üretiyor ve bir uzantı yalnızca
+        // sistem dilini görüyor; uygulama içi seçim ona ancak buradan ulaşır.
+        _widgets?.locale = value.locale.locale ?? _deviceLocale();
+        // Uzantılar veritabanını açamıyor; Siri konuşurken doğru şeyi
+        // söyleyebilmesi için okuyabileceği tek yer bu ayna.
+        unawaited(
+          SharedImportBridge.setShareMirror(
+            proUnlocked: value.proUnlocked,
+            reminderEnabled: value.reminderEnabled,
+            retentionMinutes:
+                RetentionChoice(
+                  value.defaultRetention,
+                  customMinutes: value.defaultCustomMinutes,
+                ).duration?.inMinutes ??
+                0,
+            // Kurulu ama çalmamış olanlar da düşülüyor: Siri'nin "hakkın var"
+            // deyip uygulamanın sonra düşürmesi en kötü sıralama olurdu.
+            //
+            // Özellik kapalıyken `null` gidiyor, sıfır değil: uzantı için
+            // "bilinmiyor" demek ve o hâlde sade Pro kapısına düşüyor. Sıfır
+            // göndermek, hiç hakkı olmamış kullanıcıya "hakkın doldu"
+            // dedirtirdi.
+            freeRemindersLeft: !ProLimits.freeRemindersEnabled
+                ? null
+                : ProLimits.remainingReminders(
+                    value.freeReminderNotes,
+                    burnedFloor: widget.notes.freeReminderFloor,
+                    inFlight: _pendingReminders
+                        .where((id) => !value.freeReminderNotes.contains(id))
+                        .length,
+                  ),
+          ),
+        );
+        if (value != _preferences) setState(() => _preferences = value);
+        _startReminderClock();
+        // İlk DB yayını, mağazanın kesin cevabından sonra gelebilir. Notifier bu
+        // sırada yeniden değişmeyeceği için yalnız listener'a güvenmek stale bir
+        // cache'i yaşatırdı; her ayar yayını son kesin hakla uzlaştırılır.
+        _cacheEntitlement();
+        _syncRemindersWhenReady();
+      },
+      onError: (Object error) {
+        // Tercihler okunamazsa uygulama varsayılan tema ve dille açılmaya devam
+        // ediyor. Yakalanmadan bırakılırsa hata bölgeye düşer ve hiçbir yerde iz
+        // bırakmaz.
+        debugPrint('Ayarlar akışı okunamadı: $error');
+      },
+    );
 
     // Hatırlatmalar not listesi her değiştiğinde baştan kurulur: yeni kayıt,
     // silme, düzenleme ve otomatik temizlik hepsi buradan geçiyor.
-    _notesSub = widget.notes.watchNotes().listen((notes) {
-      _notes = notes;
-      _notesLoaded = true;
-      _syncRemindersWhenReady();
-      unawaited(_scanPending());
-      unawaited(_fillThumbnails());
-    });
+    _notesSub = widget.notes.watchNotes().listen(
+      (notes) {
+        _notes = notes;
+        _notesLoaded = true;
+        _refreshPendingReminders();
+        _syncRemindersWhenReady();
+        unawaited(_scanPending());
+        unawaited(_fillThumbnails());
+      },
+      // Arşiv okunamıyorsa hatırlatma programına dokunulmuyor: elde doğru bir
+      // liste yokken kurulu bildirimleri yeniden kurmak, okunamayan kayıtları
+      // "silinmiş" sayıp hepsini iptal etmek olurdu. Kurulu program olduğu
+      // gibi kalsın; kullanıcı hatasını ana ekranda görüyor.
+      onError: (Object error) => debugPrint('Arşiv akışı okunamadı: $error'),
+    );
   }
 
   /// Açılışta ayarlar ve notlar iki ayrı Drift akışından gelir.
@@ -203,6 +262,28 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   /// teslim edilmiş bütün bildirimleri "silinmiş nota ait" sanabilirdi. Her
   /// iki doğruluk kaynağı da hazır olduktan sonra başlamak bu yarışı kapatır;
   /// sonraki değişiklikler yine anında senkronlanır.
+  /// Kurulu ama henüz çalmamış hatırlatmalar.
+  ///
+  /// Ücretsiz katmanda kalan hak bunları da düşüyor: kullanıcıya "2 hakkın
+  /// var" deyip ikincisini kurdurmamak olmaz.
+  ///
+  /// Not akışı bu ekranı yeniden **çizdirmiyordu** — dinleyici `_notes`'u
+  /// sessizce değiştiriyor ve `build` bir daha koşmuyordu. Değeri doğrudan
+  /// `build` içinde hesaplamak bu yüzden bayat sayı gösteriyordu; küme burada
+  /// tutulup yalnızca gerçekten değiştiğinde çizim isteniyor.
+  Set<int> _pendingReminders = const {};
+
+  void _refreshPendingReminders() {
+    final now = DateTime.now();
+    final next = {
+      for (final note in _notes)
+        if (note.remindAt case final at?)
+          if (at.isAfter(now)) note.id,
+    };
+    if (setEquals(next, _pendingReminders)) return;
+    if (mounted) setState(() => _pendingReminders = next);
+  }
+
   void _syncRemindersWhenReady() {
     if (!_settingsLoaded || !_notesLoaded) return;
 
@@ -279,10 +360,27 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /// Telefonun dili değişti.
+  ///
+  /// Arayüz `MaterialApp` üzerinden kendini yeniden çözümlüyor, ama widget
+  /// ağacının dışında metin kuran her yer — bildirimler, Spotlight ve ana
+  /// ekran widget'ı — kendi dil kopyasını taşıyor. Kullanıcı "Sistem"i
+  /// seçtiyse bu kopyalar da tazelenmeli; açıkça bir dil seçtiyse sistemin
+  /// değişmesi onları hiç ilgilendirmiyor.
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    if (_preferences.locale != AppLocale.system) return;
+    _widgets?.locale = _deviceLocale();
+    _syncRemindersWhenReady();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        // Saat dilimi ancak uygulama arkadayken değişebilir; okuma da yalnız
+        // burada tazeleniyor.
+        _reminders.invalidateTimeZone();
         _startSweeping();
         _startReminderClock(force: true);
         // Uygulama arkadayken bir bildirim düğmesine basılmış olabilir; o
@@ -314,12 +412,30 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
   Future<void> _syncReminders(List<Note> notes, AppSettings settings) async {
     final locale = settings.locale.locale ?? _deviceLocale();
     final l10n = await L10n.delegate.load(locale);
-    // Widget köprüsünün dile ihtiyacı yok: zamana bağlı her metni native
-    // taraf kendi üretiyor, köprü yalnızca ham an gönderiyor.
+    // Widget köprüsüne buradan l10n geçilmiyor: zamana bağlı her metni native
+    // taraf kendi üretiyor, köprü yalnızca ham anı ve dil etiketini gönderiyor
+    // (bkz. ayarlar dinleyicisindeki `_widgets?.locale`).
     _spotlight?.l10n = l10n;
     // Bildirime iliştirilecek kareyi depo çözüyor; servis depoyu tanımıyor.
     _reminders.photoOf = widget.notes.imageOf;
+    // Silinmeyen hak tabanı senkrondan **önce** okunuyor: kapı kararını
+    // eksik bir tabanla vermesin.
+    //
+    // Pro'da çağrı **hiç yapılmıyor**. Deponun kendi Pro kontrolü de var ama
+    // o bir veritabanı sorgusu; ayarlar zaten elimizdeyken onu her senkronda
+    // ödemenin anlamı yok.
+    if (!settings.proUnlocked) await widget.notes.loadFreeReminderFloor();
     await _reminders.sync(notes, settings, l10n);
+    // Ücretsiz hak kurulumda değil **teslimde** yanıyor. Senkron her öne
+    // dönüşte ve her kayıt değişiminde koştuğu için hesap da burada kapanıyor;
+    // ayrı bir zamanlayıcı, uygulamanın zaten yaptığı işi tekrarlardı.
+    //
+    // İzin durumu senkronun kendi okumasından geliyor: bildirim gösterilmeden
+    // hak yakılmaz.
+    await widget.notes.settleFreeReminders(
+      permissionGranted:
+          _reminders.permission.value == ReminderPermissionState.granted,
+    );
   }
 
   Locale _deviceLocale() =>
@@ -422,11 +538,25 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
 
   void _startSweeping() {
     _timer?.cancel();
-    unawaited(widget.notes.purgeExpired());
-    _timer = Timer.periodic(
-      _sweepInterval,
-      (_) => unawaited(widget.notes.purgeExpired()),
-    );
+    unawaited(_purgeExpired());
+    _timer = Timer.periodic(_sweepInterval, (_) => unawaited(_purgeExpired()));
+  }
+
+  /// Süresi dolan kayıtları temizler; başarısızlığı yutar.
+  ///
+  /// Bu bir **bakım** turu: arşiv o an okunamıyorsa yapılacak şey bir sonraki
+  /// turu beklemek. Yakalanmayan hata bölgeye düşüyor, dakikada bir
+  /// tekrarlanıyor ve gerçekten bakılması gereken hataları gürültüye
+  /// gömüyordu.
+  Future<void> _purgeExpired() async {
+    try {
+      await widget.notes.purgeExpired(
+        reminderPermissionGranted:
+            _reminders.permission.value == ReminderPermissionState.granted,
+      );
+    } on Object catch (error) {
+      debugPrint('Süresi dolan kayıtlar temizlenemedi: $error');
+    }
   }
 
   void _onReminderPermissionChanged() {
@@ -460,8 +590,18 @@ class _AppScopeState extends State<AppScope> with WidgetsBindingObserver {
       location: _location,
       purchases: _purchases,
       preferences: _preferences,
+      pendingReminderNoteIds: _pendingReminders,
+      freeReminderFloor: widget.notes.freeReminderFloor,
       reminderPermission: _reminders.permission.value,
       reminderClock: _reminderClock,
+      archiveRepair:
+          widget.onRepairArchive == null ||
+              widget.countRecoverableFrames == null
+          ? null
+          : ArchiveRepair(
+              count: widget.countRecoverableFrames!,
+              repair: widget.onRepairArchive!,
+            ),
       child: widget.child,
     );
   }
@@ -477,8 +617,11 @@ class _RepositoryScope extends InheritedWidget {
     required this.location,
     required this.purchases,
     required this.preferences,
+    required this.pendingReminderNoteIds,
+    required this.freeReminderFloor,
     required this.reminderPermission,
     required this.reminderClock,
+    required this.archiveRepair,
     required super.child,
   });
 
@@ -490,7 +633,15 @@ class _RepositoryScope extends InheritedWidget {
   final LocationService location;
   final PurchaseService purchases;
   final AppSettings preferences;
+
+  /// Kurulu ama henüz çalmamış hatırlatmaların kayıt kimlikleri.
+  final Set<int> pendingReminderNoteIds;
+
+  /// Yeniden kurulumdan sonra da duran hak tabanı.
+  final int freeReminderFloor;
+
   final ReminderPermissionState reminderPermission;
+  final ArchiveRepair? archiveRepair;
   final ValueListenable<DateTime> reminderClock;
 
   @override
@@ -498,7 +649,24 @@ class _RepositoryScope extends InheritedWidget {
       old.notes != notes ||
       old.settings != settings ||
       old.preferences != preferences ||
-      old.reminderPermission != reminderPermission;
+      old.reminderPermission != reminderPermission ||
+      !setEquals(old.pendingReminderNoteIds, pendingReminderNoteIds) ||
+      old.freeReminderFloor != freeReminderFloor ||
+      old.archiveRepair != archiveRepair;
+}
+
+/// Okunamayan arşivin onarım yolu.
+///
+/// İki parça ayrılmaz: kaç kare kurtarılacağını **önce** söylemeden onarımı
+/// başlatmak, kullanıcıdan sonucunu görmediği bir karar istemek olurdu.
+final class ArchiveRepair {
+  const ArchiveRepair({required this.count, required this.repair});
+
+  /// Diskte kurtarılabilecek kare sayısı.
+  final Future<int> Function() count;
+
+  /// Onarımı yürütür; kurtarılan kare sayısını döner.
+  final Future<int> Function() repair;
 }
 
 /// Bildirim izni istemek için servise erişim.

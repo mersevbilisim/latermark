@@ -565,6 +565,80 @@ void main() {
       await service.dispose();
     });
 
+    test('zamansız gövde karesiz kayıtta kareden söz etmiyor', () async {
+      // Yinelenen kayıt işletim sisteminde aylarca bekliyor, bu yüzden gövde
+      // notun kendi metni değil zamansız bir cümle. O cümle fotoğraflı kayıtta
+      // "kare"den söz ediyor — karesiz kayıtta ortada kare yok ve Siri'nin
+      // hatırlatmalı not akışı tam olarak o kaydı üretiyor.
+      final service = ReminderService(supported: true);
+      await service.initialize();
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      final at = shiftLocalCalendarDays(DateTime.now(), 1);
+      Note noteWith(int id, String imageName) => Note(
+        id: id,
+        imageName: imageName,
+        body: 'Her gün',
+        createdAt: DateTime.now(),
+        retention: Retention.off,
+        customMinutes: 0,
+        remindAt: at,
+        remindEveryDays: 1,
+      );
+
+      calls.clear();
+      await service.sync(
+        [noteWith(41, '41.jpg'), noteWith(42, '')],
+        const AppSettings(reminderEnabled: true, proUnlocked: true),
+        l10n,
+      );
+
+      final bodies = {
+        for (final call in calls.where((c) => c.method == 'zonedSchedule'))
+          (call.arguments as Map)['id'] as int:
+              (call.arguments as Map)['body'] as String,
+      };
+      expect(bodies[reminderNotificationId(41, 0)], l10n.notificationBodyNoBody);
+      expect(
+        bodies[reminderNotificationId(42, 0)],
+        l10n.notificationBodyNoFrame,
+      );
+      // İkisi gerçekten ayrışıyor; aynı dizeye düşen bir geri adım testi
+      // sessizce geçmesin.
+      expect(l10n.notificationBodyNoFrame, isNot(l10n.notificationBodyNoBody));
+      await service.dispose();
+    });
+
+    test('saat dilimi her senkronda köprüden okunmuyor', () async {
+      // Bölge ancak uygulama arkadayken değişebilir; bir notun düzenlenmesi
+      // onu değiştirmez. Eskiden her senkron native kanala gidiyordu ve
+      // senkron her kayıt değişiminde koşuyor.
+      var reads = 0;
+      messenger.setMockMethodCallHandler(actionChannel, (call) async {
+        if (call.method == 'timeZoneIdentifier') {
+          reads++;
+          return 'Europe/Istanbul';
+        }
+        return null;
+      });
+
+      final service = ReminderService(supported: true);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      const settings = AppSettings(reminderEnabled: true, proUnlocked: true);
+
+      await service.sync(const [], settings, l10n);
+      expect(reads, 1);
+
+      await service.sync(const [], settings, l10n);
+      await service.sync(const [], settings, l10n);
+      expect(reads, 1, reason: 'sonraki senkronlar köprüye gitmiyor');
+
+      // Öne dönüşte yeniden okunuyor: kullanıcı seyahatte olabilir.
+      service.invalidateTimeZone();
+      await service.sync(const [], settings, l10n);
+      expect(reads, 2);
+      await service.dispose();
+    });
+
     test('debug Pro test bildirimi tek immediate show çağrısı yapar', () async {
       final service = ReminderService(supported: true);
       await service.initialize();

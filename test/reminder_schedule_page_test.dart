@@ -68,10 +68,20 @@ void main() {
     if (sandbox.existsSync()) sandbox.deleteSync(recursive: true);
   });
 
+  /// Karesiz bir kayıt.
+  Future<int> createTextNote({
+    RetentionChoice retention = const RetentionChoice.off(),
+  }) => repository.createText(
+    body: 'Faturayı ödemeyi unutma.',
+    retention: retention,
+  );
+
   Future<void> open(
     WidgetTester tester, {
     Locale locale = const Locale('tr'),
     ReminderChoice initial = const ReminderChoice.off(),
+    bool initialDeleteAfter = false,
+    int? id,
     Size size = const Size(393, 852),
     double textScale = 1,
   }) async {
@@ -107,8 +117,12 @@ void main() {
     unawaited(
       navigatorKey.currentState!.push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              ReminderSchedulePage(noteId: noteId, initial: initial, now: now),
+          builder: (_) => ReminderSchedulePage(
+            noteId: id ?? noteId,
+            initial: initial,
+            initialDeleteAfter: initialDeleteAfter,
+            now: now,
+          ),
         ),
       ),
     );
@@ -120,7 +134,19 @@ void main() {
     await _settle(tester);
   }
 
-  Future<Note> readNote() async => (await repository.noteById(noteId))!;
+  Future<Note> readNote([int? id]) async =>
+      (await repository.noteById(id ?? noteId))!;
+
+  /// Sönük olanın yeri duruyor, kendisi durmuyor: ikisi de opaklıktan
+  /// okunuyor çünkü yerleşimin kıpırdamaması testin asıl konusu.
+  double opacityOf(WidgetTester tester, String key) =>
+      tester.widget<AnimatedOpacity>(find.byKey(Key(key))).opacity;
+
+  double slotOpacity(WidgetTester tester) =>
+      opacityOf(tester, 'reminder-delete-after-slot');
+
+  double overrideOpacity(WidgetTester tester) =>
+      opacityOf(tester, 'note-option-detail');
 
   /// Ağaç testin **içinde** sökülüyor: AppScope kapanırken Drift'in akış
   /// temizliği sıfır süreli bir timer bırakıyor ve bir kare daha atılmazsa
@@ -294,12 +320,158 @@ void main() {
     await close(tester);
   });
 
-  testWidgets('hatırlatma sonrası otomatik silme seçeneği sunulmaz', (
+  testWidgets('fotoğraflı kayda da silme sözü sunuluyor', (tester) async {
+    // Bir süre yalnız karesiz notlara sunuldu; çekince kareyi geri
+    // getirememekti. Silme yolu fotoğrafın bütün dosyalarını topluyor
+    // (`notes_repository_test.dart` kareli bir kayıtla doğruluyor) ve söz
+    // verilen kayıtta kart kalan ömrü gösterdiği için kullanıcı sürprizle
+    // karşılaşmıyor.
+    await open(tester);
+
+    expect(find.byKey(const Key('reminder-delete-after-row')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    await _settle(tester);
+    await saveAndClose(tester);
+
+    final note = await readNote();
+    expect(note.remindAt, DateTime(2026, 8, 9, 10));
+    expect(note.expiresAt, reminderExpiryFor(DateTime(2026, 8, 9, 10)));
+    await close(tester);
+  });
+
+  testWidgets('karesiz kayıtta silme sözü kayda geçer', (tester) async {
+    final id = await createTextNote();
+    await open(tester, id: id);
+
+    expect(find.byKey(const Key('reminder-delete-after-row')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    await _settle(tester);
+
+    // Söz Kaydet'in üstündeki cümlede de duruyor: kullanıcı neye evet
+    // dediğini anahtarın kendisinden başka bir yerde de görüyor.
+    expect(find.textContaining('sonra silinir'), findsOneWidget);
+
+    await saveAndClose(tester);
+
+    final note = await readNote(id);
+    expect(note.remindAt, DateTime(2026, 8, 9, 10));
+    expect(note.expiresAt, reminderExpiryFor(DateTime(2026, 8, 9, 10)));
+    await close(tester);
+  });
+
+  testWidgets('ritme geçilince söz düşer ve cümleden de kalkar', (
     tester,
   ) async {
-    await open(tester);
-    expect(find.byKey(const Key('reminder-delete-after-row')), findsNothing);
-    expect(find.text('Hatırlattıktan 1 saat sonra sil'), findsNothing);
+    final id = await createTextNote();
+    await open(tester, id: id);
+
+    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    await _settle(tester);
+    await tester.tap(find.text('Hafta'));
+    await _settle(tester);
+
+    // Verdiğini sandığı söz sessizce kalkmıyor: cümle önce söylüyordu, artık
+    // söylemiyor — ve anahtarın kendisi de sönüyor.
+    expect(find.textContaining('sonra silinir'), findsNothing);
+    expect(slotOpacity(tester), 0);
+    await saveAndClose(tester);
+
+    final note = await readNote(id);
+    expect(note.remindEveryDays, isNot(0));
+    expect(note.expiresAt, isNull);
+    await close(tester);
+  });
+
+  testWidgets('sözün yeri ritim değişince oynamıyor', (tester) async {
+    final id = await createTextNote();
+    await open(tester, id: id);
+
+    final before = tester.getTopLeft(
+      find.byKey(const Key('reminder-cadence-rail')),
+    );
+    await tester.tap(find.text('Hafta'));
+    await _settle(tester);
+
+    // Satır katlanıp açılsaydı üstteki üç bölüm artan yeri yeniden paylaşır,
+    // ray da her dokunuşta yerinden oynardı.
+    expect(
+      tester.getTopLeft(find.byKey(const Key('reminder-cadence-rail'))),
+      before,
+    );
+    await close(tester);
+  });
+
+  testWidgets('kayıtta duran söz yalnız saat değişince silinmiyor', (
+    tester,
+  ) async {
+    // Sayfaya ikinci giriş: kullanıcı sözü daha önce verdi, bu kez yalnız
+    // saati düzeltiyor. Söz taşınmasaydı Kaydet onu sessizce iptal ederdi.
+    //
+    // Tarih sabit "şimdi"nin değil, **gerçek** takvimin ilerisinde: sözden
+    // doğan silinme anı geçmişte kalırsa notu `AppScope`'un açılış temizliği
+    // sayfa daha çizilmeden siler.
+    final id = await createTextNote();
+    final at = DateTime(2027, 8, 9, 10);
+    await repository.setReminder(
+      id,
+      ReminderChoice(at: at),
+      deleteAfterReminder: true,
+    );
+
+    await open(
+      tester,
+      id: id,
+      initial: ReminderChoice(at: at),
+      initialDeleteAfter: true,
+    );
+
+    await tester.enterText(find.byKey(const Key('reminder-time-hour')), '18');
+    await _settle(tester);
+    await saveAndClose(tester);
+
+    final note = await readNote(id);
+    expect(note.remindAt, DateTime(2027, 8, 9, 18));
+    expect(note.expiresAt, reminderExpiryFor(DateTime(2027, 8, 9, 18)));
+    await close(tester);
+  });
+
+  testWidgets('kendi saklama süresi olan notta sözün ne yaptığı yazıyor', (
+    tester,
+  ) async {
+    // Söz o süreyi kısaltabilir de uzatabilir de; sessiz kalırsa kullanıcı
+    // seçtiği ömrün yerine başka bir şey geçtiğini hiç öğrenmez. Sözün
+    // gerçekten yerine geçtiğini `notes_repository_test.dart` doğruluyor,
+    // burada sorulan tek şey ekranın bunu söyleyip söylemediği.
+    final id = await createTextNote(
+      retention: RetentionChoice.custom(30 * 24 * 60),
+    );
+    await open(tester, id: id);
+    // Yeri anahtardan bağımsız ayrılıyor — satır dokunuşla büyüyüp
+    // küçülmesin diye — ama sözü vermeden önce okunmuyor.
+    expect(
+      find.text('Notun kendi saklama süresinin yerine geçer.'),
+      findsOneWidget,
+    );
+    expect(overrideOpacity(tester), 0);
+
+    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    await _settle(tester);
+
+    expect(overrideOpacity(tester), 1);
+    await close(tester);
+  });
+
+  testWidgets('kendi saklama süresi olmayan notta o satır hiç yok', (
+    tester,
+  ) async {
+    final id = await createTextNote();
+    await open(tester, id: id);
+    await tester.tap(find.byKey(const Key('reminder-delete-after-switch')));
+    await _settle(tester);
+
+    // Sözün ne yaptığı adından belli; yerine geçtiği bir şey yokken bir satır
+    // daha yazmak, okunması gereken tek uyarıyı gürültüye çevirirdi.
+    expect(find.byKey(const Key('note-option-detail')), findsNothing);
     await close(tester);
   });
 
@@ -346,21 +518,31 @@ void main() {
   testWidgets('bütün dillerde dar ekranda ve büyük yazıyla taşmaz', (
     tester,
   ) async {
-    for (final locale in L10n.supportedLocales) {
-      await open(
-        tester,
-        locale: locale,
-        size: const Size(320, 900),
-        textScale: 1.3,
-      );
+    // En geniş hâl karesiz kayıtta: silme sözünün satırı, uzun etiketi,
+    // açıklaması ve anahtarı da o ekrana sığmak zorunda.
+    final text = await createTextNote(
+      retention: RetentionChoice.custom(30 * 24 * 60),
+    );
 
-      expect(
-        tester.takeException(),
-        isNull,
-        reason: '${locale.toLanguageTag()} dilinde planlama ekranı taştı',
-      );
-      await tester.tap(find.byKey(const ValueKey('reminder-schedule-skip')));
-      await _settle(tester);
+    for (final id in [noteId, text]) {
+      for (final locale in L10n.supportedLocales) {
+        await open(
+          tester,
+          id: id,
+          initialDeleteAfter: id == text,
+          locale: locale,
+          size: const Size(320, 900),
+          textScale: 1.3,
+        );
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${locale.toLanguageTag()} dilinde planlama ekranı taştı',
+        );
+        await tester.tap(find.byKey(const ValueKey('reminder-schedule-skip')));
+        await _settle(tester);
+      }
     }
     await close(tester);
   });

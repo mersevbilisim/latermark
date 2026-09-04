@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../../core/analytics/meta_events_service.dart';
 import 'debug_entitlement.dart';
 
 /// Teşhis kaydı — yalnız geliştirme yapılarında.
@@ -473,10 +472,6 @@ class PurchaseService {
     var owned = false;
     var hasError = false;
 
-    // Yalnız *yeni* satın alma. `restored` sahipliği kanıtlar ama yeni bir
-    // gelir değildir: cihaz değiştiren kullanıcıda her açılışta gelebilir ve
-    // ölçüme girerse aynı satın alma birden çok kez sayılır.
-    PurchaseDetails? fresh;
     final androidRestore = _isAndroid ? _androidRestoreResult : null;
 
     for (final purchase in purchases) {
@@ -488,7 +483,6 @@ class PurchaseService {
         case PurchaseStatus.restored:
           if (purchase.productID == productId) {
             owned = true;
-            if (purchase.status == PurchaseStatus.purchased) fresh = purchase;
           }
 
         case PurchaseStatus.error:
@@ -527,7 +521,6 @@ class PurchaseService {
         if (verified) {
           // Ölçüm ancak StoreKit hakkı teyit ettikten sonra: doğrulanmamış
           // ya da iade edilmiş bir makbuz Meta'ya gerçek gelir gibi görünür.
-          if (fresh != null) _reportPurchase(fresh);
           _purchased.add(null);
         }
         return;
@@ -551,38 +544,10 @@ class PurchaseService {
 
     if (owned) {
       unlocked.value = true;
-      if (fresh != null) _reportPurchase(fresh);
       _purchased.add(null);
     } else if (unlocked.value == null) {
       // İlk sorgudan hiçbir sahiplik dönmediyse: satın almamış.
       unlocked.value = false;
     }
-  }
-
-  /// Doğrulanmış ve yeni satın almayı Meta'ya bildirir.
-  ///
-  /// Tutar ve para birimi mağazadan gelen üründen okunur, sabit yazılmaz:
-  /// her bölgede farklı. Ürün önbelleği boşsa olay hiç gönderilmez — sıfır
-  /// değerli satın alma, değer bazlı tekliflerde ortalamayı bozuyor.
-  ///
-  /// Pratikte boş kalmıyor: satın alma akışı ürün yüklenmeden başlamıyor
-  /// ([buy]); yine de sessiz bir yanlış değer göndermektense hiç göndermemek
-  /// doğru davranış.
-  void _reportPurchase(PurchaseDetails purchase) {
-    final product = _product;
-    if (product == null) {
-      _log('[Meta] Ürün önbelleği boş, satın alma olayı gönderilmedi.');
-      return;
-    }
-
-    // Sonucu beklenmiyor: hak zaten açıldı, ölçümün gecikmesi arayüzü
-    // tutmamalı.
-    unawaited(
-      MetaEvents.instance.logPurchase(
-        amount: product.rawPrice,
-        currency: product.currencyCode,
-        orderId: purchase.purchaseID,
-      ),
-    );
   }
 }

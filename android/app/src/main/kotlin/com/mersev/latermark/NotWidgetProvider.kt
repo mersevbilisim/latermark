@@ -3,6 +3,7 @@ package com.mersev.latermark
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -52,6 +53,7 @@ class NotWidgetProvider : HomeWidgetProvider() {
         const val CREATED_AT = "not_created_at"
         const val COUNT = "not_count"
         const val PRO = "not_pro"
+        const val LOCALE = "not_locale"
         const val ACCENT = "not_accent"
         const val PHOTO = "not_photo"
     }
@@ -145,10 +147,14 @@ class NotWidgetProvider : HomeWidgetProvider() {
             )
         }
 
+        // Ölçüler cihazın gerçek bağlamından, metinler kullanıcının seçtiği
+        // dilden okunur; ikisi aynı `Context` olmak zorunda değil.
+        val strings = data.localized(context)
+
         when {
-            !isPro -> renderLocked(context, views, format, accent)
-            hasNote -> renderNote(context, views, data, format, accent)
-            else -> renderEmpty(context, views, format, accent)
+            !isPro -> renderLocked(context, strings, views, format, accent)
+            hasNote -> renderNote(context, strings, views, data, format, accent)
+            else -> renderEmpty(context, strings, views, format, accent)
         }
 
         val opensNote = isPro && hasNote && noteId > 0
@@ -176,6 +182,7 @@ class NotWidgetProvider : HomeWidgetProvider() {
 
     private fun renderNote(
         context: Context,
+        strings: Context,
         views: RemoteViews,
         data: SharedPreferences,
         format: WidgetFormat,
@@ -189,6 +196,10 @@ class NotWidgetProvider : HomeWidgetProvider() {
         val photo = data.getString(Keys.PHOTO, null)?.let(::decodePhoto)
         if (photo != null) {
             views.setImageViewBitmap(R.id.widget_photo, photo)
+            views.setContentDescription(
+                R.id.widget_photo,
+                strings.getString(R.string.widget_photo_description),
+            )
             views.setViewVisibility(R.id.widget_photo, View.VISIBLE)
             views.setViewVisibility(R.id.widget_no_photo_art, View.GONE)
         } else {
@@ -221,24 +232,26 @@ class NotWidgetProvider : HomeWidgetProvider() {
         val body = data.getString(Keys.BODY, "").orEmpty().trim()
         views.setTextViewText(
             R.id.widget_body,
-            body.ifEmpty { context.getString(R.string.widget_note_without_body) },
+            body.ifEmpty { strings.getString(R.string.widget_note_without_body) },
         )
         views.setTextColor(
             R.id.widget_body,
             if (body.isEmpty()) Palette.INK_FAINT else Palette.INK,
         )
 
-        views.setTextViewText(R.id.widget_date, dayLabel(context, createdAt))
+        views.setTextViewText(R.id.widget_date, dayLabel(strings, createdAt))
+        // Saat, künyedeki tek bölgesel değer: 12/24 saat bir dil değil bölge
+        // tercihi. Dili Türkçe yapan bir ABD kullanıcısı `2:32 PM` görmeli.
         views.setTextViewText(R.id.widget_time, timeLabel(context, createdAt))
         views.setTextViewText(
             R.id.widget_folio,
-            context.getString(
+            strings.getString(
                 R.string.widget_folio,
                 data.number(Keys.COUNT).coerceAtLeast(1L),
             ),
         )
 
-        val remaining = remainingLabel(context, expiresAt)
+        val remaining = remainingLabel(strings, expiresAt)
         if (remaining == null) {
             // Süresiz not da sessizce boşluğa düşmüyor: açık uçlu yaşam
             // çizgisinin yanında sonsuzluk işareti kalıyor.
@@ -252,6 +265,7 @@ class NotWidgetProvider : HomeWidgetProvider() {
 
     private fun renderEmpty(
         context: Context,
+        strings: Context,
         views: RemoteViews,
         format: WidgetFormat,
         accent: Int,
@@ -268,10 +282,19 @@ class NotWidgetProvider : HomeWidgetProvider() {
                 0.72f,
             ),
         )
+
+        val title = strings.getString(R.string.widget_empty_title)
+        views.setTextViewText(R.id.widget_empty_title, title)
+        views.setContentDescription(R.id.widget_empty_aperture, title)
+        views.setTextViewText(
+            R.id.widget_empty_subtitle,
+            strings.getString(R.string.widget_empty_subtitle),
+        )
     }
 
     private fun renderLocked(
         context: Context,
+        strings: Context,
         views: RemoteViews,
         format: WidgetFormat,
         accent: Int,
@@ -287,6 +310,14 @@ class NotWidgetProvider : HomeWidgetProvider() {
                 format.emptyMarkDp,
                 0.38f,
             ),
+        )
+
+        val title = strings.getString(R.string.widget_pro_title)
+        views.setTextViewText(R.id.widget_locked_title, title)
+        views.setContentDescription(R.id.widget_locked_aperture, title)
+        views.setTextViewText(
+            R.id.widget_locked_subtitle,
+            strings.getString(R.string.widget_pro_subtitle),
         )
     }
 
@@ -308,6 +339,31 @@ class NotWidgetProvider : HomeWidgetProvider() {
             ?: Palette.DEFAULT_ACCENT
 
     /**
+     * Metinlerin okunacağı bağlam.
+     *
+     * `RemoteViews` launcher'ın sürecinde şişiyor; XML'deki `@string`
+     * değerleri de o yüzden **launcher'ın** yapılandırmasıyla, yani sistem
+     * diliyle çözülüyor. Uygulama içinden başka bir dil seçen kullanıcının
+     * widget'ı bu yüzden telefonun dilinde kalıyordu.
+     *
+     * Çözüm iki parçalı: dizeleri burada türetilen bağlamdan okuyup
+     * `setTextViewText` ile açıkça yazmak (bkz. [renderEmpty], [renderLocked])
+     * ve tarih kalıplarını da aynı yerelden istemek.
+     *
+     * Etiket yoksa gerçek bağlam döner — köprü henüz ilk yayınını yapmamış
+     * olabilir; o aralıkta sistem dili doğru cevaptır.
+     */
+    private fun SharedPreferences.localized(context: Context): Context {
+        val tag = getString(Keys.LOCALE, null)?.takeIf { it.isNotBlank() }
+            ?: return context
+        val locale = Locale.forLanguageTag(tag)
+        if (locale.language.isEmpty()) return context
+        val configuration = Configuration(context.resources.configuration)
+        configuration.setLocale(locale)
+        return context.createConfigurationContext(configuration)
+    }
+
+    /**
      * Kaydın gün etiketi: `BUGÜN`, `DÜN`, `PAZARTESİ`, `6 AĞUSTOS`.
      *
      * Metin burada üretilir, Flutter'dan hazır gelmez. Hazır gelseydi
@@ -317,10 +373,14 @@ class NotWidgetProvider : HomeWidgetProvider() {
      *
      * Gün ve ay sırası dile göre değişiyor (`6 Ağustos` ama `August 6`);
      * kalıbı elle yazmak yerine sistemden isteniyor.
+     *
+     * [strings] kullanıcının seçtiği dile göre türetilmiş bağlam (bkz.
+     * `SharedPreferences.localized`); yerel de oradan okunuyor ki ay adı ve
+     * sırası arayüzle aynı dilde çıksın.
      */
-    private fun dayLabel(context: Context, createdAt: Long): String {
+    private fun dayLabel(strings: Context, createdAt: Long): String {
         if (createdAt <= 0L) return ""
-        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+        val locale = strings.resources.configuration.locales[0] ?: Locale.getDefault()
         val zone = ZoneId.systemDefault()
         val born = Instant.ofEpochSecond(createdAt).atZone(zone).toLocalDate()
         val today = LocalDate.now(zone)
@@ -332,8 +392,8 @@ class NotWidgetProvider : HomeWidgetProvider() {
         // istisnaya yol açabilirdi.
         val stamp = Date(createdAt * 1_000L)
         val label = when {
-            elapsed <= 0L -> context.getString(R.string.widget_day_today)
-            elapsed == 1L -> context.getString(R.string.widget_day_yesterday)
+            elapsed <= 0L -> strings.getString(R.string.widget_day_today)
+            elapsed == 1L -> strings.getString(R.string.widget_day_yesterday)
             elapsed < 7L -> SimpleDateFormat("EEEE", locale).format(stamp)
             else -> {
                 val skeleton = if (born.year == today.year) "dMMMM" else "dMMMMy"
@@ -365,25 +425,25 @@ class NotWidgetProvider : HomeWidgetProvider() {
         return (left.toDouble() / total.toDouble()).coerceIn(0.0, 1.0).toFloat()
     }
 
-    /** Kalan süreyi widget'ın yürürlükteki dilinde kısa biçimde verir. */
-    private fun remainingLabel(context: Context, epochSeconds: Long): String? {
+    /** Kalan süreyi kullanıcının seçtiği dilde kısa biçimde verir. */
+    private fun remainingLabel(strings: Context, epochSeconds: Long): String? {
         if (epochSeconds <= 0L) return null
         val left = epochSeconds - System.currentTimeMillis() / 1000
         return when {
-            left <= 0 -> context.getString(R.string.widget_remaining_now)
-            left >= 86_400 -> context.getString(
+            left <= 0 -> strings.getString(R.string.widget_remaining_now)
+            left >= 86_400 -> strings.getString(
                 R.string.widget_remaining_days,
                 ceil(left / 86_400.0).toLong(),
             )
-            left >= 3_600 -> context.getString(
+            left >= 3_600 -> strings.getString(
                 R.string.widget_remaining_hours,
                 ceil(left / 3_600.0).toLong(),
             )
-            left >= 60 -> context.getString(
+            left >= 60 -> strings.getString(
                 R.string.widget_remaining_minutes,
                 ceil(left / 60.0).toLong(),
             )
-            else -> context.getString(R.string.widget_remaining_less_than_minute)
+            else -> strings.getString(R.string.widget_remaining_less_than_minute)
         }
     }
 

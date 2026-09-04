@@ -13,6 +13,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../../l10n/app_localizations.dart';
 import '../../l10n/supported_locale.dart';
 import '../notes/data/notes_database.dart';
+import '../notes/domain/note_kind.dart';
 import '../notes/domain/note_reminder.dart';
 import '../notes/domain/reminder_action.dart';
 import '../settings/domain/app_settings.dart';
@@ -172,7 +173,23 @@ class ReminderService {
   /// UTC farkı kadar kaymış bir saatte çalar.
   bool _timeZoneResolved = false;
 
+  /// Bölgenin yeniden okunması gerekiyor mu.
+  ///
+  /// Saat dilimi ancak uygulama arkadayken değişebilir: kullanıcı seyahat
+  /// eder ya da sistem ayarından değiştirir. Bir notun düzenlenmesi onu
+  /// değiştirmez.
+  ///
+  /// Eskiden **her senkronda** native kanala gidiliyordu ve senkron her kayıt
+  /// değişiminde koşuyor: uzun bir oturumda yüzlerce gereksiz köprü çağrısı.
+  bool _timeZoneStale = true;
+
+  /// Öne dönüşte bölgenin yeniden okunmasını ister.
+  void invalidateTimeZone() => _timeZoneStale = true;
+
   Future<void> _configureTimeZone() async {
+    // Hiç çözülememiş soğuk açılışta her turda yeniden denenir: o hâlde
+    // uygulama UTC'de ve kurulan her tekrarlı hatırlatma yanlış saate düşer.
+    if (!_timeZoneStale && _timeZoneResolved) return;
     try {
       final identifier = await _actionChannel.invokeMethod<String>(
         'timeZoneIdentifier',
@@ -180,6 +197,7 @@ class ReminderService {
       if (identifier == null) throw StateError('Saat dilimi bulunamadı.');
       tz.setLocalLocation(tz.getLocation(identifier));
       _timeZoneResolved = true;
+      _timeZoneStale = false;
       debugPrint('Yerel saat dilimi: $identifier');
     } on Object catch (error) {
       debugPrint('Yerel saat dilimi çözülemedi: $error');
@@ -540,7 +558,8 @@ class ReminderService {
 
       Future<void> show(String? attachment) => _plugin.show(
         id: id,
-        title: _title,
+        // Bu yol yalnız debug'da ve yalnız Pro açıkken çağrılıyor.
+        title: 'Latermark Pro',
         body: body,
         payload: 'note/${note.id}',
         notificationDetails: NotificationDetails(
@@ -675,6 +694,7 @@ class ReminderService {
         desired[reminder.notificationId] = _DesiredReminder(
           reminder: reminder,
           note: note,
+          title: _titleFor(settings),
           payload: _payload(
             reminder,
             note,
@@ -1015,11 +1035,11 @@ class ReminderService {
         await _plugin.zonedSchedule(
           id: reminder.notificationId,
           scheduledDate: tz.TZDateTime.from(reminder.at, tz.local),
-          title: _title,
+          title: desired.title,
           // Yinelenen kayıt işletim sisteminde uzun süre bekliyor; not gövdesi
           // o arada değişebilir. Metin bu yüzden zamansız kalıyor, dokununca
           // açılan not her zaman veritabanındaki güncel hâlidir.
-          body: l10n.notificationBodyNoBody,
+          body: _timelessBody(note, l10n),
           payload: desired.payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           notificationDetails: details,
@@ -1032,7 +1052,7 @@ class ReminderService {
     await _plugin.zonedSchedule(
       id: reminder.notificationId,
       scheduledDate: tz.TZDateTime.from(reminder.at, tz.local),
-      title: _title,
+      title: desired.title,
       body: body,
       payload: desired.payload,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -1144,15 +1164,28 @@ class ReminderService {
     _permission.dispose();
   }
 
-  /// Bildirimin başlığı her zaman uygulamanın adı.
+  /// Bildirimin başlığı uygulamanın adı.
   ///
   /// Kilit ekranında satırın *kimden* geldiği başlıktan okunuyor; "Hatırlatma"
   /// gibi genel bir sözcük her uygulamada aynı görünüyordu. Notun kendi metni
   /// zaten gövdede.
-  static const _title = 'Latermark Pro';
+  ///
+  /// Ürünün adı katmana göre değişiyor: ücretsiz kullanıcıya "Pro" demek,
+  /// sahip olmadığı bir şeyin adını her bildirimde tekrarlamak olurdu.
+  static String _titleFor(AppSettings settings) =>
+      settings.proUnlocked ? 'Latermark Pro' : 'Latermark';
 
   static String _body(Note note, L10n l10n) =>
-      note.body.isEmpty ? l10n.notificationBodyNoBody : note.body;
+      note.body.isEmpty ? _timelessBody(note, l10n) : note.body;
+
+  /// Notun kendi metni yerine geçen zamansız cümle.
+  ///
+  /// "Kare" uygulamanın kendi sözcüğü ve fotoğraflı kayıtta doğru; karesiz
+  /// kayıtta ortada işaret edeceği bir şey yok. Ayrım özellikle önemli çünkü
+  /// Siri'nin hatırlatmalı not akışı **tam olarak** karesiz kayıt üretiyor.
+  static String _timelessBody(Note note, L10n l10n) => note.isTextOnly
+      ? l10n.notificationBodyNoFrame
+      : l10n.notificationBodyNoBody;
 
   /// Android bildiriminin genişletilmiş hâli.
   ///
@@ -1216,12 +1249,16 @@ final class _DesiredReminder {
     required this.reminder,
     required this.note,
     required this.payload,
+    required this.title,
     this.photo,
   });
 
   final ScheduledReminder reminder;
   final Note note;
   final String payload;
+
+  /// Bildirimin başlığı; katmana göre değişiyor.
+  final String title;
 
   /// Notun karesi. Depo çözücüsü verilmediyse (ör. testlerde) boş.
   final File? photo;

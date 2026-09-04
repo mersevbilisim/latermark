@@ -10,12 +10,14 @@ import '../../../../app/app_routes.dart';
 import '../../../../app/app_scope.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../shared/widgets/app_toast.dart';
+import '../../../../shared/widgets/colophon_bar.dart';
 import '../../../../shared/widgets/shutter_confirm.dart';
 import '../../../home_widget/home_widget_link.dart';
 import '../../../reminders/reminder_service.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
+import '../../domain/note_age_group.dart';
 import '../../domain/note_kind.dart';
 import '../../domain/note_reminder.dart';
 import '../../domain/retention.dart';
@@ -72,6 +74,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// listede aranır, bulunmayan sessizce düşer.
   bool _selecting = false;
   final _selected = <int>{};
+
+  /// Kapatılmış zaman bölümleri.
+  ///
+  /// Doğruluk kaynağı ayarlar tablosu; burada yalnızca ondan çözülmüş hâli
+  /// duruyor. Yazma **iyimser**: dokunuşta küme hemen güncelleniyor, diske
+  /// yazma arkadan gidiyor. Akışın dönmesini beklemek, parmağın altındaki
+  /// irisi bir kare geç kapatırdı.
+  Set<NoteAgeGroup> _collapsedGroups = const {};
+
+  /// Ayarlardan gelen son ham değer. Kendi yazdığımız değeri geri okuyup
+  /// üzerine yazmamak için tutuluyor.
+  Set<String> _collapsedNames = const {};
 
   /// Silme sürerken şerit kilitli kalır; ikinci dokunuş aynı kayıtları bir
   /// daha silmeye kalkmaz.
@@ -162,6 +176,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _notes = repository.watchNotes();
     }
 
+    _readCollapsedGroups(context);
+
     final reminders = context.reminders;
     if (reminders != _reminders) {
       unawaited(_reminderLinkSubscription?.cancel());
@@ -169,6 +185,28 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _reminderLinkSubscription = reminders.listenNoteTaps(_queueLinkedNote);
       unawaited(_initializeReminderLinks(reminders));
     }
+  }
+
+  /// Akışı baştan kurar.
+  ///
+  /// Hata her zaman kalıcı değil: bildirim düğmeleri ayrı bir motorda, yani
+  /// ayrı bir SQLite bağlantısında işleniyor ve o yazma sürerken okuma
+  /// kilitlenmiş olabilir. Yeniden sormanın bedeli bir sorgu.
+  void _reopenArchive() {
+    final repository = _repository;
+    if (repository == null) return;
+    setState(() => _notes = repository.watchNotes());
+  }
+
+  /// Onarım bitti.
+  ///
+  /// Akış burada **yeniden bağlanmıyor**: onarım kök widget'taki yığını
+  /// tazeliyor, yeni depo `didChangeDependencies` üzerinden zaten geliyor.
+  /// Burada elle bağlamak, o geri çağrı henüz koşmadığı için akışı ölü depoya
+  /// geri bağlıyordu ve ekran onarımdan sonra da hata hâlinde kalıyordu.
+  void _onRepaired(int recovered) {
+    if (!mounted) return;
+    showToast(context, context.l10n.archiveRepairDone(recovered));
   }
 
   Future<void> _initializeReminderLinks(ReminderService reminders) async {
@@ -417,11 +455,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Notu tümden kaybetmektense hatırlatmayı düşürmek daha az zarar veriyor
       // — ama sessizce değil, kullanıcı ne olduğunu görüyor.
       final expiry = retention.expiryFrom(shared.createdAt);
-      final droppedReminder =
+      var droppedReminder =
           remindAt != null && expiry != null && !remindAt.isBefore(expiry);
       if (droppedReminder) remindAt = null;
 
-      await _repository!.createText(
+      final requestedReminder = remindAt;
+      final noteId = await _repository!.createText(
         body: shared.initialText,
         retention: retention,
         createdAt: shared.createdAt,
@@ -430,6 +469,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             : ReminderChoice(at: remindAt),
         importId: shared.id,
       );
+
+      // Depo hatırlatmayı başka bir sebeple de düşürmüş olabilir — bugün
+      // ücretsiz hatırlatma hakkının tükenmesi. Uzantı kalan hakkı bayat bir
+      // aynadan okuyor ve kullanıcı konuştuktan sonra hak başka bir yoldan
+      // bitmiş olabilir.
+      //
+      // Sebebi tek tek sormak yerine sonuca bakılıyor: istenen hatırlatma
+      // kayda geçmediyse düşmüştür. Böylece ileride eklenecek her kapı da
+      // kullanıcıya kendiliğinden görünür olur.
+      if (!droppedReminder && requestedReminder != null) {
+        final saved = await _repository!.noteById(noteId);
+        droppedReminder = saved?.remindAt == null;
+      }
 
       if (reviewPrompts != null) {
         unawaited(reviewPrompts.recordSuccessfulSave());
@@ -606,6 +658,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() {
       _selecting = !_selecting;
       _selected.clear();
+      // Kapalı bölümlere **dokunulmuyor**. Seçim kipi onları yalnızca
+      // uygulamıyor (bkz. `build`); tercihi silmek, kipi açıp vazgeçen
+      // kullanıcının kapattığı bölümleri kalıcı olarak geri açardı.
       if (_selecting && _searching) {
         _searching = false;
         _searchDebounce?.cancel();
@@ -626,6 +681,41 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _selected.clear();
       });
     });
+  }
+
+  /// Ayarlardan gelen adları bölümlere çözer.
+  ///
+  /// Tanınmayan ad sessizce atılıyor: bölüm adları değişirse eski bir kayıt
+  /// açılışı bozmamalı.
+  void _readCollapsedGroups(BuildContext context) {
+    final names = AppScope.preferences(context).collapsedGroups;
+    if (setEquals(names, _collapsedNames)) return;
+    _collapsedNames = names;
+    _collapsedGroups = {
+      for (final group in NoteAgeGroup.values)
+        if (names.contains(group.name)) group,
+    };
+  }
+
+  /// Bir zaman bölümünü açar ya da kapatır.
+  void _toggleGroup(NoteAgeGroup group) {
+    final next = {..._collapsedGroups};
+    if (!next.remove(group)) next.add(group);
+    setState(() {
+      _collapsedGroups = next;
+      _collapsedNames = {for (final item in next) item.name};
+    });
+    unawaited(_persistCollapsedGroups());
+  }
+
+  /// Bölümleri açıp diske yazar. Görünüm tercihi olduğu için hatası da
+  /// yutuluyor: yazılamayan bir tercih yüzünden akış durmamalı.
+  Future<void> _persistCollapsedGroups() async {
+    try {
+      await AppScope.settingsOf(context).setCollapsedGroups(_collapsedNames);
+    } on Object catch (error) {
+      debugPrint('Kapalı bölümler yazılamadı: $error');
+    }
   }
 
   void _toggleSelection(Note note) {
@@ -741,6 +831,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       body: StreamBuilder<List<Note>>(
         stream: _notes,
         builder: (context, snapshot) {
+          // Arşiv okunamıyor. Bunu boş tuvalle geçiştirmek en kötüsü olurdu:
+          // kullanıcı kayıtlarının gittiğini sanıp uygulamayı siler ve asıl
+          // veri kaybı o zaman olur. Ekran ne olduğunu ve ne yapılmaması
+          // gerektiğini açıkça söylüyor.
+          if (snapshot.hasError) {
+            return _Canvas(
+              child: _ArchiveUnavailable(
+                onRetry: _reopenArchive,
+                repair: AppScope.archiveRepair(context),
+                onRepaired: _onRepaired,
+              ),
+            );
+          }
           // İlk kare gelene kadar boş tuval: deklanşörün "ortadan aşağı"
           // hareketi yalnızca gerçek bir durum değişiminde görünmeli.
           if (!snapshot.hasData) return const _Canvas();
@@ -813,6 +916,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           selecting: selecting,
                           selectedIds: _selected,
                           onToggleSelection: _toggleSelection,
+                          // Seçim kipinde bütün bölümler açık gösteriliyor
+                          // ama tercih **yerinde duruyor**: kullanıcı
+                          // göremediği bir kareyi silmemeli, kipten çıkınca
+                          // da arşivini bıraktığı gibi bulmalı.
+                          collapsedGroups: selecting
+                              ? const {}
+                              : _collapsedGroups,
+                          onToggleGroup: selecting ? null : _toggleGroup,
                         );
                       },
                     ),
@@ -848,6 +959,172 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
     );
   }
+}
+
+/// Arşivin okunamadığı hâl.
+///
+/// Ekranda söylenen şey bir hata mesajı değil, bir **güvence**: kareler
+/// duruyor. İkinci satır da paniğin götüreceği tek yeri kapatıyor — okunamayan
+/// arşivi gerçekten yok eden şey, kullanıcının uygulamayı silmesi olurdu.
+///
+/// Ne ikon var ne çerçeve: hata kutusu çizmek, ekranın söylediği şeyi
+/// yüksekliğinden değil dekorundan okutmak olurdu. Sayfanın dibindeki şerit,
+/// uygulamanın her yerindeki künye şeridinin aynısı.
+class _ArchiveUnavailable extends StatefulWidget {
+  const _ArchiveUnavailable({
+    required this.onRetry,
+    required this.repair,
+    required this.onRepaired,
+  });
+
+  final VoidCallback onRetry;
+
+  /// Onarım yolu. Kök widget bunu vermediyse (testler, eski çağıranlar)
+  /// ekran yalnızca yeniden denemeyi sunuyor.
+  final ArchiveRepair? repair;
+
+  final ValueChanged<int> onRepaired;
+
+  @override
+  State<_ArchiveUnavailable> createState() => _ArchiveUnavailableState();
+}
+
+class _ArchiveUnavailableState extends State<_ArchiveUnavailable> {
+  /// Kaç kare kurtarılabileceği diskten okunuyor. Sayı bilinmeden onarım
+  /// önerilmiyor: kullanıcıdan sonucunu görmediği bir karar istemek olurdu.
+  int? _recoverable;
+  bool _repairing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_count());
+  }
+
+  Future<void> _count() async {
+    final repair = widget.repair;
+    if (repair == null) return;
+    try {
+      final found = await repair.count();
+      if (!mounted) return;
+      setState(() => _recoverable = found);
+    } on Object catch (error) {
+      debugPrint('Kurtarılabilir kareler sayılamadı: $error');
+    }
+  }
+
+  Future<void> _repair() async {
+    final repair = widget.repair;
+    if (repair == null || _repairing) return;
+    setState(() => _repairing = true);
+    try {
+      final recovered = await repair.repair();
+      if (!mounted) return;
+      widget.onRepaired(recovered);
+    } on Object catch (error) {
+      debugPrint('Onarım tamamlanamadı: $error');
+      if (!mounted) return;
+      setState(() => _repairing = false);
+      showToast(context, context.l10n.toastSaveFailed, error: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final l10n = context.l10n;
+    // Onarım yalnızca gerçekten kurtarılacak bir şey varken sunuluyor. Sıfır
+    // kareyle "Onar" demek, hiçbir şey getirmeyecek bir düğmeyi ekrandaki en
+    // umut verici şey yapmak olurdu.
+    final recoverable = _recoverable ?? 0;
+    final canRepair = widget.repair != null && recoverable > 0;
+
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(34, 24, 34, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.archiveUnavailableTitle,
+                      style: palette.title,
+                      key: const Key('archive-unavailable-title'),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.archiveUnavailableBody,
+                      style: palette.body.copyWith(
+                        color: palette.inkSoft,
+                        height: 1.45,
+                      ),
+                    ),
+                    // Onarımın ne getirip ne getiremeyeceği, düğmeye basmadan
+                    // önce ve sayıyla. Kararın bedeli yazılı olmadan sunulan
+                    // bir "Onar", kullanıcıya ne kaybedeceğini söylemeden
+                    // evet dedirtirdi.
+                    if (canRepair) ...[
+                      const SizedBox(height: 22),
+                      const _Hairline(),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.archiveRepairCount(recoverable),
+                        key: const Key('archive-repair-count'),
+                        style: palette.bodyStrong.copyWith(
+                          color: palette.ember,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.archiveRepairCost,
+                        style: palette.caption.copyWith(height: 1.4),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ColophonBar(
+            actions: [
+              ColophonAction(
+                key: const ValueKey('archive-unavailable-retry'),
+                label: l10n.actionRetry,
+                semanticLabel: l10n.actionRetry,
+                accent: !canRepair,
+                onPressed: _repairing ? null : widget.onRetry,
+              ),
+              if (canRepair)
+                ColophonAction(
+                  key: const ValueKey('archive-repair'),
+                  label: l10n.archiveRepairAction,
+                  semanticLabel: l10n.archiveRepairAction,
+                  accent: true,
+                  busy: _repairing,
+                  onPressed: _repair,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bölümleri ayıran saç teli — uygulamanın her yerindeki işaret.
+class _Hairline extends StatelessWidget {
+  const _Hairline();
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.palette.hairline,
+    child: const SizedBox(height: 1, width: double.infinity),
+  );
 }
 
 /// Düz bir zemin yerine, üstten aşağı hafifçe açılan bir tuval. Fark neredeyse

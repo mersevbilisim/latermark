@@ -3,13 +3,58 @@ import SwiftUI
 import WidgetKit
 
 /// Widget uzantısının kendi paketindeki yerelleştirilmiş metinler.
+///
+/// Dil, paylaşılan alandaki `not_locale` etiketinden gelir. Uzantı kendi
+/// başına yalnızca **sistem** dilini bilir; `bundle: .main` ile okumak,
+/// uygulama içinden Türkçe seçmiş bir kullanıcının İngilizce telefonunda
+/// widget'ı İngilizce bırakıyordu.
+///
+/// Durum saklanmıyor: her çağrıda paylaşılan alan yeniden okunuyor. WidgetKit
+/// uzantıyı istediği anda öldürüp yeniden başlatabildiği ve görünümler
+/// zaman çizelgesinden ayrı bir anda çizilebildiği için, bir kez kurulan
+/// statik bir dil o çizimlerde yanlış kalabilirdi. `Bundle` örnekleri yola
+/// göre tekilleştiği için tekrar okumanın maliyeti yok.
 enum NotText {
+    /// Sayı ve tarih biçimlendiricilerinin kullanacağı yerel.
+    ///
+    /// Etiket yoksa sisteme düşülür; köprü henüz ilk yayınını yapmamış
+    /// olabilir.
+    static var locale: Locale {
+        guard let tag = selectedTag else { return .current }
+        return Locale(identifier: tag)
+    }
+
     static func value(_ key: String) -> String {
-        NSLocalizedString(key, tableName: "Localizable", bundle: .main, comment: "")
+        NSLocalizedString(key, tableName: "Localizable", bundle: bundle, comment: "")
     }
 
     static func format(_ key: String, _ arguments: CVarArg...) -> String {
-        String(format: value(key), locale: Locale.current, arguments: arguments)
+        String(format: value(key), locale: locale, arguments: arguments)
+    }
+
+    private static var selectedTag: String? {
+        let tag = UserDefaults(suiteName: NotKeys.appGroup)?
+            .string(forKey: NotKeys.locale)
+        guard let tag, !tag.isEmpty else { return nil }
+        return tag
+    }
+
+    /// Seçilen dilin `.lproj` paketi.
+    ///
+    /// Önce tam etiket (`pt-BR`), sonra yalnızca dil (`pt`) denenir; hiçbiri
+    /// yoksa uzantının kendi paketi kalır ve iOS sistem dilini çözer. Böylece
+    /// ileride bir dil eklenip çevirisi henüz gelmediğinde widget boş
+    /// anahtar yazmak yerine varsayılan dile düşer.
+    private static var bundle: Bundle {
+        guard let tag = selectedTag else { return .main }
+        let language = tag.split(separator: "-").first.map(String.init)
+        for name in [tag, language].compactMap({ $0 }) {
+            if let path = Bundle.main.path(forResource: name, ofType: "lproj"),
+               let localized = Bundle(path: path) {
+                return localized
+            }
+        }
+        return .main
     }
 }
 
@@ -23,6 +68,7 @@ enum NotKeys {
     static let expiresAt = "not_expires_at"
     static let createdAt = "not_created_at"
     static let pro = "not_pro"
+    static let locale = "not_locale"
     static let accent = "not_accent"
     static let photo = "not_photo"
 }
@@ -39,7 +85,12 @@ struct NotEntry: TimelineEntry {
     let accentARGB: String
     let image: UIImage?
 
-    static let placeholder = NotEntry(
+    /// Önizleme karesi.
+    ///
+    /// Hesaplanan bir özellik: `static let` süreç boyunca bir kez kurulur ve
+    /// hem `Date()` hem de o anki dil orada donardı. Uzantı, kullanıcı dili
+    /// değiştirdikten sonra da yaşamaya devam edebiliyor.
+    static var placeholder: NotEntry { NotEntry(
         date: Date(),
         hasNote: true,
         noteId: 0,
@@ -49,9 +100,9 @@ struct NotEntry: TimelineEntry {
         pro: true,
         accentARGB: "FFFF7A55",
         image: nil
-    )
+    ) }
 
-    static let empty = NotEntry(
+    static var empty: NotEntry { NotEntry(
         date: Date(),
         hasNote: false,
         noteId: 0,
@@ -61,7 +112,7 @@ struct NotEntry: TimelineEntry {
         pro: false,
         accentARGB: "FFFF7A55",
         image: nil
-    )
+    ) }
 
     /// Kalan süreyi widget'ın yürürlükteki dilinde kısa biçimde verir.
     ///
@@ -122,20 +173,30 @@ struct NotEntry: TimelineEntry {
         } else if elapsed == 1 {
             label = NotText.value("day.yesterday")
         } else if elapsed < 7 {
-            label = createdAt.formatted(.dateTime.weekday(.wide))
+            label = createdAt.formatted(
+                .dateTime.weekday(.wide).locale(NotText.locale)
+            )
         } else if calendar.component(.year, from: createdAt)
             == calendar.component(.year, from: date) {
-            label = createdAt.formatted(.dateTime.day().month(.wide))
+            label = createdAt.formatted(
+                .dateTime.day().month(.wide).locale(NotText.locale)
+            )
         } else {
-            label = createdAt.formatted(.dateTime.day().month(.wide).year())
+            label = createdAt.formatted(
+                .dateTime.day().month(.wide).year().locale(NotText.locale)
+            )
         }
 
         // Türkçede `i` → `İ`; yerel duyarlı büyütme bunu doğru yapar.
-        return label.uppercased(with: .current)
+        return label.uppercased(with: NotText.locale)
     }
 
     /// Kaydın saati. Cihazın 12/24 saat tercihini sistem biçimlendiricisi
     /// uygular; künyedeki her metin gibi bu da widget'ın kendi işi.
+    ///
+    /// Gün etiketinin aksine **uygulama diline bağlanmaz**: 12/24 saat bir dil
+    /// değil bölge tercihi. Dili Türkçe yapan bir ABD kullanıcısı saatini
+    /// yine `2:32 PM` görmeli — iOS'un kendi davranışı da bu.
     var displayTime: String {
         createdAt?.formatted(date: .omitted, time: .shortened) ?? ""
     }
@@ -157,6 +218,7 @@ struct NotEntry: TimelineEntry {
 
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
+        formatter.locale = NotText.locale
         let value = formatter.localizedString(for: createdAt, relativeTo: date)
         return value.isEmpty ? (displayTime.isEmpty ? nil : displayTime) : value
     }

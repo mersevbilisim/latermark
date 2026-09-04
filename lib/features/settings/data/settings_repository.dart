@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../../core/theme/accent_tone.dart';
 import '../../../core/theme/app_accent.dart';
 import '../../notes/data/notes_database.dart';
 import '../../notes/domain/retention.dart';
@@ -28,12 +29,36 @@ class SettingsRepository {
   Future<void> setAccent(AppAccent value) =>
       _write(SettingsTableCompanion(accent: Value(value)));
 
+  /// Özel vurgu tonunu yazar ve seçimi [AppAccent.custom]'a alır.
+  ///
+  /// İkisi tek yazıda: ayrı ayrı yazılsaydı arada bir akış yayını çıkar ve
+  /// arayüz bir kare boyunca eski renkle yeni tonu karıştırırdı.
+  Future<void> setCustomAccent(int hue) => _write(
+    SettingsTableCompanion(
+      accent: const Value(AppAccent.custom),
+      accentHue: Value(AccentTone.normalizeHue(hue)),
+    ),
+  );
+
   Future<void> setDensity(FeedDensity value) =>
       _write(SettingsTableCompanion(density: Value(value)));
 
   /// Paylaşım imzası. Pro'ya bağlı değil; herkesin kapatabildiği bir tercih.
   Future<void> setShareSignature(bool value) =>
       _write(SettingsTableCompanion(shareSignature: Value(value)));
+
+  /// Ana akışta kapatılmış zaman bölümleri.
+  ///
+  /// Boş ad süzülüyor ve sıra sabitleniyor: aynı küme her zaman aynı metne
+  /// dönsün, yoksa değişmeyen bir tercih diske yeniden yazılır ve ayar akışı
+  /// boşuna yayın yapar.
+  Future<void> setCollapsedGroups(Set<String> value) {
+    final names = value.where((name) => name.trim().isNotEmpty).toList()
+      ..sort();
+    return _write(
+      SettingsTableCompanion(collapsedGroups: Value(names.join(','))),
+    );
+  }
 
   /// Konum tercihi. Hatırlatmanın aksine Pro'ya bağlı değil: konum bir
   /// ücretli özellik değil, kaydın bir alanı.
@@ -159,6 +184,7 @@ class SettingsRepository {
     return AppSettings(
       themeMode: row.themeMode,
       accent: row.accent,
+      accentHue: row.accentHue,
       density: row.density,
       reminderEnabled: row.proUnlocked && row.reminderEnabled,
       locationEnabled: row.locationEnabled,
@@ -166,6 +192,17 @@ class SettingsRepository {
       defaultCustomMinutes: effectiveRetention.customMinutes,
       locale: row.locale,
       shareSignature: row.shareSignature,
+      collapsedGroups: {
+        for (final name in row.collapsedGroups.split(','))
+          if (name.trim().isNotEmpty) name.trim(),
+      },
+      // Bozuk ya da elle düzenlenmiş bir değer açılışı düşürmemeli; sayıya
+      // çevrilemeyen parça sessizce atılıyor.
+      freeReminderNotes: {
+        for (final id in row.freeReminderNotes.split(','))
+          if (int.tryParse(id.trim()) case final parsed?)
+            if (parsed > 0) parsed,
+      },
       proUnlocked: row.proUnlocked,
     );
   }

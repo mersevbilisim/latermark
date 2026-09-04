@@ -5,7 +5,9 @@ import '../../../../../core/theme/app_palette.dart';
 import '../../../../../shared/widgets/app_toast.dart';
 import '../../../data/notes_database.dart';
 import '../../../data/notes_repository.dart';
+import '../../../domain/note_kind.dart';
 import '../../../domain/note_reminder.dart';
+import '../../widgets/collapsed_options.dart';
 import '../../widgets/reminder_control.dart';
 import 'photo_dismiss_surface.dart';
 import '../../../../../l10n/l10n_context.dart';
@@ -50,8 +52,24 @@ class EditNoteController {
   _EditNoteSheetState? _editor;
   final ValueNotifier<bool> _saving = ValueNotifier(false);
   final ValueNotifier<bool> _remindMe = ValueNotifier(false);
+  final ValueNotifier<bool> _typing = ValueNotifier(true);
+  final ValueNotifier<bool> _canSave = ValueNotifier(true);
 
   ValueListenable<bool> get saving => _saving;
+
+  /// Kaydetmenin bir anlamı var mı.
+  ///
+  /// Karesiz bir kaydın yazısı tamamen silinirse geriye ne kare ne yazı
+  /// kalıyor — akışta boş bir kart, aramada hiç bulunmayan bir satır. Yeni
+  /// kayıt ekranı bunu zaten engelliyordu (bkz. `ComposePage`'in `_bodyEmpty`
+  /// koruması); aynı kaydın **düzenlenmesi** engellenmiyordu.
+  ValueListenable<bool> get canSave => _canSave;
+
+  /// Kullanıcı yazıyor mu.
+  ///
+  /// Şerit panelin **dışında** duruyor ve klavye boşluğunu göremiyor
+  /// (`Scaffold` onu tüketiyor). Panel odağı bildiği için kanal burası.
+  ValueListenable<bool> get typing => _typing;
 
   /// Hatırlatma anahtarının hâli. Alt eylem şeridi panelin dışında duruyor
   /// ama kelimesi panelin kararına bağlı: anahtar açıkken "Kaydet" tek başına
@@ -80,6 +98,14 @@ class EditNoteController {
     if (_remindMe.value != value) _remindMe.value = value;
   }
 
+  void _setTyping(bool value) {
+    if (_typing.value != value) _typing.value = value;
+  }
+
+  void _setCanSave(bool value) {
+    if (_canSave.value != value) _canSave.value = value;
+  }
+
   void _attach(_EditNoteSheetState editor) => _editor = editor;
 
   void _detach(_EditNoteSheetState editor) {
@@ -89,6 +115,8 @@ class EditNoteController {
   void dispose() {
     _saving.dispose();
     _remindMe.dispose();
+    _typing.dispose();
+    _canSave.dispose();
   }
 }
 
@@ -99,8 +127,42 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
 
   late final TextEditingController _text = TextEditingController(
     text: widget.note.body,
-  );
-  late final FocusNode _focus = FocusNode();
+  )..addListener(_onTextChanged);
+
+  /// Yazı alanı boş mu.
+  ///
+  /// Yalnızca karesiz kayıtta önemli; orada gövde boşsa geriye hiçbir şeyi
+  /// olmayan bir kayıt kalır. Her tuş vuruşunda değil, boş/dolu **eşiği
+  /// geçildiğinde** yeniden çiziliyor — yeni kayıt ekranındaki ölçünün aynısı.
+  late bool _bodyEmpty = widget.note.body.trim().isEmpty;
+
+  /// Kaydetmek kaydı boşaltır mı. Kural [NoteKind.wouldBeEmpty] içinde;
+  /// burada yalnızca uygulanıyor.
+  bool get _wouldEmptyNote => widget.note.wouldBeEmpty(_text.text);
+
+  void _onTextChanged() {
+    final empty = _text.text.trim().isEmpty;
+    if (empty == _bodyEmpty || !mounted) return;
+    setState(() => _bodyEmpty = empty);
+    widget.controller._setCanSave(!_wouldEmptyNote);
+  }
+
+  /// Odak değiştiğinde panel yeniden kuruluyor: anahtarların yerini alan
+  /// satır buna bağlı.
+  late final FocusNode _focus = FocusNode()..addListener(_onFocusChanged);
+
+  /// Kullanıcı yazıyor mu — kapının ölçütü.
+  ///
+  /// **`true` başlıyor** çünkü alan `autofocus` ile açılıyor ve odak ilk
+  /// kareden *sonra* geliyor. `hasFocus`'a doğrudan bakmak ilk kareyi
+  /// anahtarlarla çizip hemen ardından onları katlıyordu: kullanıcı, hiç
+  /// istemediği bir kapanma animasyonu izliyordu.
+  bool _typing = true;
+
+  void _onFocusChanged() {
+    widget.controller._setTyping(_focus.hasFocus);
+    if (mounted) setState(() => _typing = _focus.hasFocus);
+  }
 
   /// Notun kayıtlı hatırlatması. Panel bunu değiştirmiyor; yalnızca planlama
   /// ekranına başlangıç değeri olarak taşıyor.
@@ -123,6 +185,7 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
       // olurdu; kelime bir kare sonra, henüz ekranın dışındayken yerine
       // oturuyor.
       widget.controller._setRemindMe(_remindMe);
+      widget.controller._setCanSave(!_wouldEmptyNote);
     });
   }
 
@@ -137,8 +200,12 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
   @override
   void dispose() {
     widget.controller._detach(this);
-    _text.dispose();
-    _focus.dispose();
+    _text
+      ..removeListener(_onTextChanged)
+      ..dispose();
+    _focus
+      ..removeListener(_onFocusChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -158,6 +225,14 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
 
   Future<bool> _persist({required bool closeEditor}) async {
     if (widget.controller.isSaving) return false;
+
+    // Düğme bu durumda zaten kapalı, ama kaydetmenin ikinci bir kapısı var:
+    // fotoğrafı aşağı çekerek kapatmak da yazılanı kalıcılaştırıyor
+    // (`saveForDismiss`). Oradan geçen boş bir gövde kaydı sessizce
+    // boşaltırdı; koruma o yüzden düğmede değil, yazma yolunun kendisinde.
+    // `false` dönmek kapatmayı da durduruyor: kullanıcı kapalı düğmeyle
+    // birlikte editörde kalıyor ve ne olduğunu görüyor.
+    if (_wouldEmptyNote) return false;
 
     if (!_hasChanges) {
       if (closeEditor) _finish();
@@ -194,6 +269,11 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    // Ölçüt klavye boşluğu **değil**, odak: paneli saran `Scaffold`
+    // `resizeToAvoidBottomInset` ile boşluğu kendisi tüketip
+    // `MediaQuery`'den siliyor, burada `viewInsets.bottom` her zaman sıfır
+    // okunuyor (ölçüldü — kapı hiç çizilmiyordu). Zaten sorulacak doğru soru
+    // da "piksel örtülü mü" değil, "kullanıcı yazıyor mu".
 
     return ColoredBox(
       key: const ValueKey('edit-note-sheet-surface'),
@@ -286,16 +366,42 @@ class _EditNoteSheetState extends State<EditNoteSheet> {
               child: const SizedBox(height: 1),
             ),
           ),
+          // Klavye açıkken anahtarın yerini tek satır alıyor — yeni kayıt
+          // ekranındaki kapının aynısı.
+          //
+          // Burada durum daha kötüydü: anahtar yalnızca sıkışmıyor, ekranın
+          // **dışında** kalıyordu. Testi de onu söylüyordu — hatırlatmaya
+          // ulaşmak için `jumpTo(maxScrollExtent)` gerekiyordu.
+          //
+          // `Offstage`: denetim hep kurulu, klavye açıkken yalnızca sahne
+          // dışında. Dokunuşta ilk kez kurulsaydı o maliyet klavyenin indiği
+          // son karenin üstüne binerdi.
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
-            // Etiket tarafı compose ile aynı dili konuşur: ikon, başlık ve
-            // altında ne işe yaradığını söyleyen bir satır. Sağdaki kontrol
-            // değişmiyor — iki ekranda aynı alanın iki farklı görünmesi için
-            // bir sebep yok.
-            child: ReminderControl(value: _remindMe, onChanged: _setRemindMe),
+            child: OptionsFold(
+              collapsed: _typing,
+              door: CollapsedOptions(
+                onExpand: () => FocusManager.instance.primaryFocus?.unfocus(),
+              ),
+              // Etiket tarafı compose ile aynı dili konuşur: ikon, başlık ve
+              // altında ne işe yaradığını söyleyen bir satır. Sağdaki kontrol
+              // değişmiyor — iki ekranda aynı alanın iki farklı görünmesi için
+              // bir sebep yok.
+              options: ReminderControl(
+                value: _remindMe,
+                onChanged: _setRemindMe,
+                // Ücretsiz katmanda hakkını daha önce almış bir kayıt yeniden
+                // ücretlendirilmiyor; kilidin cevabı kaydın kim olduğuna bağlı.
+                noteId: widget.note.id,
+              ),
+            ),
           ),
           // Sabit alt eylem rayı içeriğin üstünde yüzmez.
-          SizedBox(height: EditNoteActionRail.extentOf(context) + 16),
+          // Şeridin ayırdığı yer onunla aynı ölçüyü kullanıyor; yazarken
+          // tutamak çekildiği için burada da 40 puan geri geliyor.
+          SizedBox(
+            height: EditNoteActionRail.extentOf(context, typing: _typing) + 16,
+          ),
         ],
       ),
     );
@@ -332,8 +438,9 @@ class EditNoteActionRail extends StatelessWidget {
     return safeBottom < 10 ? 10 : safeBottom;
   }
 
-  static double extentOf(BuildContext context) =>
-      _handleExtent + _actionsExtent + _bottomInsetOf(context);
+  /// Şeridin boyu. Yazarken tutamak yer kaplamıyor.
+  static double extentOf(BuildContext context, {bool typing = false}) =>
+      (typing ? 0 : _handleExtent) + _actionsExtent + _bottomInsetOf(context);
 
   @override
   Widget build(BuildContext context) {
@@ -345,71 +452,86 @@ class EditNoteActionRail extends StatelessWidget {
         color: palette.canvas,
         border: Border(top: BorderSide(color: palette.hairline)),
       ),
-      child: SizedBox(
-        height: extentOf(context),
-        child: Column(
-          children: [
-            PullDownDismissRegion(
-              key: const ValueKey('edit-pull-down-region'),
-              onDismissRequested: onDismissRequested,
-              onOffsetChanged: onDismissOffsetChanged,
-              onProgressChanged: onDismissProgressChanged,
-              onDismissed: onDismissed,
-              child: SizedBox(
-                height: _handleExtent,
-                child: Semantics(
-                  label: context.l10n.actionBack,
-                  child: Center(
-                    child: Container(
-                      width: 34,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: palette.inkGhost,
-                        borderRadius: BorderRadius.circular(2),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: controller.typing,
+        builder: (context, typing, _) => SizedBox(
+          height: extentOf(context, typing: typing),
+          child: Column(
+            children: [
+              // Tutamak yazarken çekiliyor.
+              //
+              // 40 puan yalnızca aşağı çekme hareketi için ayrılmıştı ve şerit
+              // klavyenin üstündeyken bütün alt bölgeyi kalınlaştırıyordu:
+              // seçenek satırı neredeyse buranın altında kalıyordu. Paneli
+              // kapatmak yazarken yapılan bir şey değil; klavye inince tutamak
+              // yerine dönüyor.
+              if (!typing)
+                PullDownDismissRegion(
+                  key: const ValueKey('edit-pull-down-region'),
+                  onDismissRequested: onDismissRequested,
+                  onOffsetChanged: onDismissOffsetChanged,
+                  onProgressChanged: onDismissProgressChanged,
+                  onDismissed: onDismissed,
+                  child: SizedBox(
+                    height: _handleExtent,
+                    child: Semantics(
+                      label: context.l10n.actionBack,
+                      child: Center(
+                        child: Container(
+                          width: 34,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: palette.inkGhost,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
+              // Not detayının alt şeridiyle aynı künye dili. Rayın kendi üst
+              // kenarı zaten sınırı çiziyor, o yüzden şeridin güverte çizgisi
+              // kapalı: iki çizgi 40pt arayla üst üste gelince sınır değil,
+              // kusur okunuyor.
+              ListenableBuilder(
+                listenable: Listenable.merge([
+                  controller.saving,
+                  controller.remindMe,
+                  controller.canSave,
+                ]),
+                builder: (context, _) {
+                  final saving = controller.saving.value;
+                  // Karesiz kayıtta boş gövde kaydedilemez: ortada ne kare ne
+                  // yazı kalırdı. Yeni kayıt ekranındaki kuralın aynısı.
+                  final blocked = saving || !controller.canSave.value;
+                  final label = controller.remindMe.value
+                      ? context.l10n.actionSaveAndRemind
+                      : context.l10n.actionSave;
+                  return ColophonBar(
+                    height: _actionsExtent,
+                    rule: false,
+                    actions: [
+                      ColophonAction(
+                        key: const ValueKey('edit-action-cancel'),
+                        label: context.l10n.actionCancel,
+                        semanticLabel: context.l10n.actionCancel,
+                        onPressed: saving ? null : onCancel,
+                      ),
+                      ColophonAction(
+                        key: const ValueKey('edit-action-save'),
+                        label: label,
+                        semanticLabel: label,
+                        accent: true,
+                        busy: saving,
+                        onPressed: blocked ? null : controller.saveAndClose,
+                      ),
+                    ],
+                  );
+                },
               ),
-            ),
-            // Not detayının alt şeridiyle aynı künye dili. Rayın kendi üst
-            // kenarı zaten sınırı çiziyor, o yüzden şeridin güverte çizgisi
-            // kapalı: iki çizgi 40pt arayla üst üste gelince sınır değil,
-            // kusur okunuyor.
-            ListenableBuilder(
-              listenable: Listenable.merge([
-                controller.saving,
-                controller.remindMe,
-              ]),
-              builder: (context, _) {
-                final saving = controller.saving.value;
-                final label = controller.remindMe.value
-                    ? context.l10n.actionSaveAndRemind
-                    : context.l10n.actionSave;
-                return ColophonBar(
-                  height: _actionsExtent,
-                  rule: false,
-                  actions: [
-                    ColophonAction(
-                      key: const ValueKey('edit-action-cancel'),
-                      label: context.l10n.actionCancel,
-                      semanticLabel: context.l10n.actionCancel,
-                      onPressed: saving ? null : onCancel,
-                    ),
-                    ColophonAction(
-                      key: const ValueKey('edit-action-save'),
-                      label: label,
-                      semanticLabel: label,
-                      accent: true,
-                      busy: saving,
-                      onPressed: saving ? null : controller.saveAndClose,
-                    ),
-                  ],
-                );
-              },
-            ),
-            SizedBox(height: _bottomInsetOf(context)),
-          ],
+              SizedBox(height: _bottomInsetOf(context)),
+            ],
+          ),
         ),
       ),
     );

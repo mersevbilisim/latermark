@@ -13,6 +13,7 @@ import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
 import 'package:latermark/features/notes/presentation/detail/widgets/edit_note_sheet.dart';
 import 'package:latermark/features/notes/presentation/home/widgets/note_card.dart';
+import 'package:latermark/features/notes/presentation/widgets/collapsed_options.dart';
 import 'package:latermark/features/notes/presentation/widgets/reminder_control.dart';
 import 'package:latermark/features/settings/data/settings_repository.dart';
 import 'package:latermark/features/settings/domain/app_locale.dart';
@@ -103,21 +104,32 @@ void main() {
     expect(railTop + 0.5, greaterThan(height - keyboard - 120));
     expect(railTop, lessThan(height - keyboard));
 
-    // Panel viewport'a kilitli değil: sığmayan içerik kaydırma payı üretiyor.
-    // Hatırlatmayı gerçekten kaydıran scrollable, onun kendi bağlamından
-    // sorulur: sayfada birden fazla dikey scrollable var (yazı alanının kendi
-    // iç kaydırması da bir tanesi).
-    final position = Scrollable.of(
-      tester.element(find.byType(ReminderControl)),
-    ).position;
-    expect(position.maxScrollExtent, greaterThan(0));
+    // Yazarken anahtarın yerini tek satır alıyor.
+    //
+    // Eskiden bu test hatırlatmaya ulaşmak için `jumpTo(maxScrollExtent)`
+    // yapıyordu — yani satır ekranda değildi, sona kadar kaydırmak
+    // gerekiyordu. "Erişilebilir" olmak ile "ulaşılır" olmak aynı şey değil.
+    expect(find.byType(CollapsedOptions), findsOneWidget);
+    expect(find.byType(ReminderControl).hitTestable(), findsNothing);
+    expect(find.byKey(const ValueKey('edit-pull-down-region')), findsNothing);
+    // Ama ağaçta kurulu: dokunuşta ilk kez kurulsaydı o maliyet klavyenin
+    // indiği son karenin üstüne binerdi.
+    expect(
+      find.byType(ReminderControl, skipOffstage: false),
+      findsOneWidget,
+      reason: 'Anahtar sahne dışında tutulmalı, ağaçtan çıkarılmamalı',
+    );
 
-    // Hatırlatma satırı erişilebilir ve tek karar: anahtar. Gün, saat ve
-    // tekrar kaydettikten sonra açılan planlama ekranının işi.
-    final reminderContext = tester.element(find.byType(ReminderControl));
-    final reminderPosition = Scrollable.of(reminderContext).position;
-    reminderPosition.jumpTo(reminderPosition.maxScrollExtent);
-    await tester.pump();
+    // Kapıya dokunmak karar aşamasına geçiriyor: odak düşüyor, anahtar
+    // yerini alıyor. Kaydırmaya gerek yok.
+    await tester.tap(find.byType(CollapsedOptions));
+    await _settle(tester);
+
+    expect(find.byType(ReminderControl).hitTestable(), findsOneWidget);
+    // Tutamak da yerine döndü: yazarken çekiliyor, karar aşamasında geri
+    // geliyor. Paneli kapatmak yazarken yapılan bir şey değil.
+    expect(find.byKey(const ValueKey('edit-pull-down-region')), findsOneWidget);
+
     await tester.tap(find.byKey(const Key('reminder-switch-row')));
     await _settle(tester);
 

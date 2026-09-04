@@ -11,6 +11,13 @@ enum SharedImportStore {
   private static let defaultRetentionMinutesKey =
     "share.default_retention_minutes"
   private static let reminderEnabledKey = "share.reminder_enabled"
+
+  /// Ucretsiz katmanda kalan hatirlatma hakki.
+  ///
+  /// Uzanti veritabanini acamiyor; kotayi gorebilmesinin tek yolu bu ayna.
+  /// Deger **tavsiye niteliginde**: son soz uygulamanin deposunun, uzanti
+  /// yalniz Siri'nin dogru cumleyi kurabilmesi icin okuyor.
+  private static let freeRemindersLeftKey = "share.free_reminders_left"
   private static let orphanGrace: TimeInterval = 24 * 60 * 60
 
   private enum ImportKind: String, Codable {
@@ -133,6 +140,36 @@ enum SharedImportStore {
     return defaults.bool(forKey: reminderEnabledKey)
   }
 
+  /// Ucretsiz katmanda kalan hatirlatma hakki.
+  ///
+  /// Anahtar hic yoksa `nil`: "deger bilinmiyor" ile "hak kalmadi" ayri
+  /// seyler. Bilinmiyorsa uzanti eski davranisina, yani Pro kapisina duser.
+  static var freeRemindersLeft: Int? {
+    guard
+      let defaults = UserDefaults(suiteName: appGroup),
+      defaults.object(forKey: freeRemindersLeftKey) != nil
+    else {
+      return nil
+    }
+    return defaults.integer(forKey: freeRemindersLeftKey)
+  }
+
+  /// Hakki yerel aynada bir dusurur.
+  ///
+  /// Uygulama acilmadan art arda soylenen istekler icin gerekli: ayna ancak
+  /// uygulama onе geldiginde tazeleniyor, o zamana kadar sayiyi uzantinin
+  /// kendisi tutuyor. Uygulama bir sonraki yayinda gercek degeri yaziyor.
+  static func consumeFreeReminder() {
+    guard
+      let defaults = UserDefaults(suiteName: appGroup),
+      defaults.object(forKey: freeRemindersLeftKey) != nil
+    else {
+      return
+    }
+    let left = defaults.integer(forKey: freeRemindersLeftKey)
+    defaults.set(max(0, left - 1), forKey: freeRemindersLeftKey)
+  }
+
   static func setProUnlocked(_ value: Bool) {
     UserDefaults(suiteName: appGroup)?.set(value, forKey: proUnlockedKey)
   }
@@ -144,11 +181,17 @@ enum SharedImportStore {
   static func mirrorSettings(
     proUnlocked: Bool,
     reminderEnabled: Bool,
-    retentionMinutes: Int?
+    retentionMinutes: Int?,
+    freeRemindersLeft: Int?
   ) {
     guard let defaults = UserDefaults(suiteName: appGroup) else { return }
     defaults.set(proUnlocked, forKey: proUnlockedKey)
     defaults.set(reminderEnabled, forKey: reminderEnabledKey)
+    if let freeRemindersLeft {
+      defaults.set(max(0, freeRemindersLeft), forKey: freeRemindersLeftKey)
+    } else {
+      defaults.removeObject(forKey: freeRemindersLeftKey)
+    }
     if let retentionMinutes {
       defaults.set(retentionMinutes, forKey: defaultRetentionMinutesKey)
     } else {

@@ -1,3 +1,22 @@
+> **ARŞİV — 2 Eylül 2026'da entegrasyon projeden çıkarıldı.**
+>
+> Kod, bağımlılık ve native yapılandırma tamamen söküldü; mağaza sayfası
+> yeniden "Veri Toplanmıyor" diyor. Sebep gizlilik kaygısı değil **aritmetik**:
+> Meta'nın optimizasyonu haftalık belirli sayıda dönüşüm görmeden öğrenmiyor
+> ve o hacmi üretecek bütçe yoktu. SDK'nın tek işi reklamı doğru kişiye
+> göstermek; reklam yoksa ödediği tek şey gizlilik etiketi oluyordu.
+>
+> **Bu belge duruyor çünkü karar geri alınabilir.** Reklam vermeye gerçekten
+> karar verildiği gün buradaki her şey — iki şalter ayrımı, ATT'nin bedeli,
+> platformlar arası fark, çift sayma tuzakları — yeniden gerekecek. Geri
+> takmak yarım saatlik iş: iki çağrı yeri, bir `pubspec` satırı, plist ve
+> manifest anahtarları.
+>
+> Geri takılırsa `test/meta_sdk_config_test.dart` de geri gelmeli; yer
+> tutucuların sessizce yayınlanmasını engelleyen tek şey oydu.
+
+---
+
 # Meta SDK Playbook
 
 Kaynak: Howl'daki kurulumun kaydı (1 Eylül 2026, Meta App ID `2035684263756792`).
@@ -103,6 +122,39 @@ ifade edilebiliyor.
 `NSUserTrackingUsageDescription` ve bir ATT isteği **aynı değişiklikte**
 eklenmeli; Apple istemsiz IDFA erişimini reddediyor. Yapılandırma testi bu iki
 yarıyı birbirine bağlı tutar: birini açıp diğerini unutursan kırmızı yanar.
+
+### Karıştırılan iki şalter
+
+Bu karar düzenli olarak yeniden tartışmaya açılıyor ve her seferinde aynı
+yerden: **reklam kimliği** ile **olayların kendisi** tek şey sanılıyor. Değil,
+ve ikisini ayırmadan verilen hiçbir cevap tutarlı olmuyor.
+
+| | Şalter | Bugünkü hâli | Kapatırsan ne olur |
+| --- | --- | --- | --- |
+| **1** | `FacebookAdvertiserIDCollectionEnabled` (iOS) | Kapalı | Zaten elde olmayan bir sinyal gider — ATT istemi hiç gösterilmediği için IDFA hâlihazırda yok |
+| **2** | `FacebookAutoLogAppEventsEnabled` + `logPurchase` | Açık | **Ölçüm biter.** Satın almaya optimize kampanya kurulamaz, SKAdNetwork'ün dönüşüm değeri beslenemez |
+
+"Anonim kurulum/satın alma toplamanın reklam performansına etkisi yok" cümlesi
+**2. şalter için yanlıştır**; 1. şalter için söylendiğinde doğruya yakındır.
+Aynı cümlenin bir gün doğru bir gün yanlış görünmesinin sebebi bu — hangi
+şalterden bahsedildiği söylenmiyor.
+
+Yürürlükteki bileşim bilinçli: **kimlik kapalı, sinyal açık.** Kullanıcıya
+izleme diyaloğu gösterilmiyor ama Meta ölçebileceği tek şeyi ölçmeye devam
+ediyor. Yapılacak asıl hata, "nasılsa anonim" deyip 2. şalteri de kapatmak
+olurdu.
+
+İkisi de teste bağlı — `test/meta_sdk_config_test.dart` → "iOS: otomatik
+loglama açık, reklam kimliği kapalı". Yani bu bir niyet beyanı değil: biri
+sessizce değişirse takım kırmızı yanar.
+
+**Bu soruyu bir daha bir dil modeline sorma — Events Manager'a sor.** Olaylar
+geliyor mu, satın almalar görünüyor mu; cevap orada. Reklam tarafı hızlı
+değişiyor ve modelin bilgisi her zaman geçmişte kalıyor.
+
+Ayrıca: bu yapılandırmada kurulum atfının yürüdüğü asıl yol SKAdNetwork.
+`SKAdNetworkItems` listesi Meta'nın yayımladığı güncel listeyle karşılaştırılmalı
+— IDFA tartışmasından daha çok işe yarar ve tahminle doğrulanamaz.
 
 ---
 

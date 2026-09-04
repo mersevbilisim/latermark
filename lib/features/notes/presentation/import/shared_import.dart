@@ -165,6 +165,7 @@ abstract final class SharedImportBridge {
     required bool proUnlocked,
     required bool reminderEnabled,
     required int retentionMinutes,
+    required int? freeRemindersLeft,
   }) async {
     _ensureInitialized();
     try {
@@ -172,6 +173,10 @@ abstract final class SharedImportBridge {
         'unlocked': proUnlocked,
         'reminderEnabled': reminderEnabled,
         'retentionMinutes': retentionMinutes,
+        // Uzantı veritabanını açamıyor; ücretsiz hatırlatma hakkını
+        // görebilmesinin tek yolu bu ayna. `null` "bilinmiyor" demek ve
+        // uzantı o hâlde sade Pro kapısına düşüyor.
+        'freeRemindersLeft': freeRemindersLeft,
       });
     } on MissingPluginException {
       // Android ve widget testlerinde iOS App Group'u yoktur.

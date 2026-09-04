@@ -152,7 +152,7 @@ void main() {
     final original = repository.originalOf(note)!;
     expect(original.existsSync(), isTrue);
 
-    expect(await repository.purgeExpired(), 1);
+    expect(await repository.purgeExpired(reminderPermissionGranted: false), 1);
     expect(original.existsSync(), isFalse);
   });
 

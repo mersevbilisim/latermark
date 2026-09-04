@@ -59,6 +59,7 @@ extension AccentLabels on AppAccent {
     AppAccent.pink => l10n.accentPink,
     AppAccent.green => l10n.accentGreen,
     AppAccent.gold => l10n.accentGold,
+    AppAccent.custom => l10n.accentCustom,
   };
 }
 
@@ -87,10 +88,21 @@ extension ReminderCadenceLabels on ReminderCadence {
 
   /// Kaydet'in üstünde duran cümle: tek atışta anın kendisi, ritimde ritmin
   /// adı ve bir sonraki oluşum.
-  String sentence(L10n l10n, {required DateTime at, bool use24Hour = false}) {
+  ///
+  /// [deleteAfter] yalnız tek atışta okunuyor; sözün kendisi de yalnız orada
+  /// veriliyor. Ritme geçen kullanıcının cümlesinden silme kaydı böylece
+  /// kendiliğinden düşüyor — verdiğini sandığı söz sessizce kalkmıyor,
+  /// Kaydet'in üstünde kalkarken görünüyor.
+  String sentence(
+    L10n l10n, {
+    required DateTime at,
+    bool use24Hour = false,
+    bool deleteAfter = false,
+  }) {
     final moment = l10n.stamp(at, use24Hour: use24Hour);
     return switch (this) {
-      ReminderCadence.once => moment,
+      ReminderCadence.once =>
+        deleteAfter ? l10n.reminderDeleteAfterValue(moment) : moment,
       ReminderCadence.daily => l10n.reminderDailyValue(moment),
       ReminderCadence.weekly => l10n.reminderWeeklyValue(moment),
       ReminderCadence.monthly => l10n.reminderMonthlyValue(moment),

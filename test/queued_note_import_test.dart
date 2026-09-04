@@ -127,6 +127,9 @@ void main() {
       reminderEnabled: true,
       // Sıfır "süresiz sakla"; uzantı bunu "değer yok" ile karıştırmamalı.
       retentionMinutes: 0,
+      // Uzantı veritabanını açamıyor; ücretsiz hatırlatma hakkını yalnız
+      // buradan görebiliyor.
+      freeRemindersLeft: 2,
     );
 
     expect(calls.single.method, 'setShareMirror');
@@ -134,6 +137,7 @@ void main() {
       'unlocked': true,
       'reminderEnabled': true,
       'retentionMinutes': 0,
+      'freeRemindersLeft': 2,
     });
   });
 }

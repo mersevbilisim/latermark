@@ -681,7 +681,7 @@ class L10nIt extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark funziona interamente sul tuo dispositivo. Note e ricordi non vengono inviati per analisi, segnalazioni di errori o statistiche. Lasciano il dispositivo solo quando scegli tu di condividerli. Per la misurazione pubblicitaria a Meta vengono comunicate solo due cose: che l’app è stata installata e che è stato effettuato un acquisto. Nessuna delle due include ciò che scrivi, fotografi o contrassegni.';
+      'Latermark elabora note, foto e posizioni interamente sul tuo dispositivo. Se non scegli di condividerli, i tuoi contenuti non lo lasciano mai: né per analisi, segnalazioni di errori, statistiche d\'uso o pubblicità. L\'app non contiene alcun SDK di tracciamento o pubblicità di terze parti. L\'unico traffico di rete è quello dell\'App Store che gestisce il tuo acquisto.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -779,6 +779,19 @@ class L10nIt extends L10n {
 
   @override
   String get accentGold => 'Oro';
+
+  @override
+  String get accentCustom => 'Personalizzato';
+
+  @override
+  String get accentCustomTitle => 'Colore personalizzato';
+
+  @override
+  String get accentCustomHint =>
+      'Trascina l’anello per scegliere una tonalità. Latermark regola la luminosità perché il colore resti leggibile su sfondi chiari, scuri e sulle foto.';
+
+  @override
+  String get accentCustomApply => 'Usa questo colore';
 
   @override
   String get retentionTitle => 'Eliminazione automatica';
@@ -1092,6 +1105,24 @@ class L10nIt extends L10n {
       'Hai chiesto a Latermark di ricordarti questo scatto.';
 
   @override
+  String get notificationBodyNoFrame =>
+      'Hai chiesto a Latermark di ricordarti questa nota.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Piano gratuito: $count promemoria rimasti',
+      one: 'Piano gratuito: 1 promemoria rimasto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Promemoria gratuiti esauriti';
+
+  @override
   String get notificationChannelName => 'Promemoria';
 
   @override
@@ -1188,7 +1219,16 @@ class L10nIt extends L10n {
   String get reminderSkip => 'Non ora';
 
   @override
-  String get reminderDeleteAfterLabel => 'Elimina 1 ora dopo il promemoria';
+  String get reminderDeleteAfterLabel => 'Elimina 30 minuti dopo il promemoria';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · poi eliminata';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Sostituisce la conservazione di questa nota.';
 
   @override
   String get reminderAfterExpiry =>
@@ -1198,6 +1238,9 @@ class L10nIt extends L10n {
   String get keepOriginalLabel => 'Salva l’originale';
 
   @override
+  String get composeOptionsLabel => 'Opzioni';
+
+  @override
   String get keepOriginalDetail => 'Qualità intatta, occupa più spazio.';
 
   @override
@@ -1205,6 +1248,30 @@ class L10nIt extends L10n {
 
   @override
   String get composeLocationFailed => 'Posizione non disponibile';
+
+  @override
+  String get archiveUnavailableTitle => 'Impossibile aprire l\'archivio';
+
+  @override
+  String get archiveUnavailableBody =>
+      'I tuoi scatti sono ancora su questo telefono. Non eliminare l\'app: se li porterebbe via.';
+
+  @override
+  String get archiveRepairAction => 'Ripara';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Scatti recuperabili: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'Note, promemoria e tempi di conservazione non sono recuperabili: erano solo nel record. Il file danneggiato non viene eliminato, solo messo da parte.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return 'Recuperati $count scatti';
+  }
 
   @override
   String get locationFixFailed =>

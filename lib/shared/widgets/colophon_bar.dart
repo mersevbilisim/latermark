@@ -84,15 +84,24 @@ class ColophonTick extends StatelessWidget {
 
 /// Şeritteki tek eylem.
 ///
-/// [pressColor] yalnızca basılı hâlde görünür: dinlenirken üç kelime de aynı
-/// mürekkepte durur, sinyal kararın verildiği anda belirir. Yıkıcı eylem için
-/// tehlike rengi, diğerleri için kor verilir.
+/// [pressColor] yalnızca basılı hâlde görünür; yıkıcı eylem için tehlike
+/// rengi, diğerleri için kor verilir.
+///
+/// [color] ise **dinlenirken** de görünüyor. Bir süre bütün kelimeler aynı
+/// mürekkepte durdu ve sinyal yalnızca kararın verildiği anda beliriyordu;
+/// yıkıcı eylem için bu yetmiyor. Kullanıcının bir kelimenin tehlikeli
+/// olduğunu, ona basarak öğrenmesi gerekmiyor — silme onayı arkada dursa bile
+/// hangi kelimenin ne yaptığı önceden okunmalı.
+///
+/// Kutu ya da kalınlık eklenmiyor: değişen tek şey mürekkebin rengi. Şerit
+/// hâlâ üç eşit kelime, biri farklı bir şey söylüyor.
 class ColophonAction {
   const ColophonAction({
     this.key,
     required this.label,
     required this.semanticLabel,
     required this.onPressed,
+    this.color,
     this.pressColor,
     this.accent = false,
     this.busy = false,
@@ -103,6 +112,10 @@ class ColophonAction {
   final String label;
   final String semanticLabel;
   final VoidCallback? onPressed;
+
+  /// Dinlenirken kelimenin rengi. Boşsa tam mürekkep (ya da [accent] ile kor).
+  final Color? color;
+
   final Color? pressColor;
 
   /// Şeridin baskın eylemi kor renginde yazılır.
@@ -232,9 +245,8 @@ class _ColophonWordState extends State<_ColophonWord>
                   style: palette.overline.copyWith(
                     color: _down
                         ? (action.pressColor ?? palette.ember)
-                        : action.accent
-                        ? palette.ember
-                        : palette.ink,
+                        : action.color ??
+                              (action.accent ? palette.ember : palette.ink),
                     fontSize: 11,
                     height: 1,
                     fontWeight: FontWeight.w600,

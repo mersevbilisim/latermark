@@ -11,6 +11,7 @@
 		0DCD1889C0C94C9E70A6002F /* NotWidgetEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB1960131A73F7A2F05BC8C /* NotWidgetEntry.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		203DE8C2F27B4342F32C46BC /* SpotlightChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */; };
+		7A1C4E2B9D3F41A8B6E50C88 /* ReminderQuotaChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C4E2B9D3F41A8B6E50C77 /* ReminderQuotaChannel.swift */; };
 		224E9B149FAD95B175F04E52 /* ImageChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606DA421C9CF6774698D8BD0 /* ImageChannel.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -196,6 +197,7 @@
 		D1379037FE7ADB7EB21B992E /* ReminderActionBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReminderActionBridge.swift; sourceTree = "<group>"; };
 		D26ED0D63A94588D58F284AF /* tr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SpotlightChannel.swift; sourceTree = "<group>"; };
+		7A1C4E2B9D3F41A8B6E50C77 /* ReminderQuotaChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReminderQuotaChannel.swift; sourceTree = "<group>"; };
 		DD0EB8F9B17953A18E3279A9 /* AppLinkChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppLinkChannel.swift; sourceTree = "<group>"; };
 		E62D13C2F7CA433FF85CDCCA /* pt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/Localizable.strings; sourceTree = "<group>"; };
 		E7F90A156E369E6B9F6C477C /* TextRecognitionChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextRecognitionChannel.swift; sourceTree = "<group>"; };
@@ -322,6 +324,7 @@
 				BD86FE290274462F81E4C28D /* LocationChannel.swift */,
 				606DA421C9CF6774698D8BD0 /* ImageChannel.swift */,
 				DA13455054B0A5ECFBC9D203 /* SpotlightChannel.swift */,
+				7A1C4E2B9D3F41A8B6E50C77 /* ReminderQuotaChannel.swift */,
 				DD0EB8F9B17953A18E3279A9 /* AppLinkChannel.swift */,
 				D1379037FE7ADB7EB21B992E /* ReminderActionBridge.swift */,
 				A10000000000000000000050 /* notification.wav */,
@@ -460,6 +463,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
+				D21C0F7E018446918380BC35 /* Invalidate App Intents SSU Cache */,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
@@ -632,6 +636,25 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
+		D21C0F7E018446918380BC35 /* Invalidate App Intents SSU Cache */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Invalidate App Intents SSU Cache";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\ncase \"${TARGET_TEMP_DIR}\" in\n  */Runner.build/*/Runner.build)\n    rm -f \"${TARGET_TEMP_DIR}/ssu/root.ssu.yaml\"\n    ;;\n  *)\n    echo \"Unexpected TARGET_TEMP_DIR; refusing to remove SSU cache: ${TARGET_TEMP_DIR}\" >&2\n    exit 1\n    ;;\nesac\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -665,6 +688,7 @@
 				9E7E587016EB4A64A9B9241D /* LocationChannel.swift in Sources */,
 				224E9B149FAD95B175F04E52 /* ImageChannel.swift in Sources */,
 				203DE8C2F27B4342F32C46BC /* SpotlightChannel.swift in Sources */,
+				7A1C4E2B9D3F41A8B6E50C88 /* ReminderQuotaChannel.swift in Sources */,
 				E85BC3A0E123D995150AD298 /* AppLinkChannel.swift in Sources */,
 				ECFFC9D586B231266555D901 /* ReminderActionBridge.swift in Sources */,
 				594ECFB41AACD26BB6934F4F /* LatermarkIntents.swift in Sources */,

@@ -48,7 +48,8 @@ end
 target.product_type = PRODUCT_TYPE
 
 development_team = runner.build_configurations
-                         .filter_map { |config| config.build_settings['DEVELOPMENT_TEAM'] }
+                         .map { |config| config.build_settings['DEVELOPMENT_TEAM'] }
+                         .compact
                          .first
 
 group = project.main_group.find_subpath(TARGET_NAME, true)
@@ -199,6 +200,7 @@ end
 # hedef klasoru adim belirliyor, dosya degil.
 EXTENSIONKIT_PHASE_NAME = 'Embed ExtensionKit Extensions'
 LEGACY_PHASE_NAME = 'Embed App Extensions'
+INVALIDATE_SSU_PHASE_NAME = 'Invalidate App Intents SSU Cache'
 
 legacy = runner.build_phases.find do |phase|
   phase.respond_to?(:name) && phase.name == LEGACY_PHASE_NAME
@@ -235,6 +237,38 @@ thin_binary_index = runner.build_phases.index do |phase|
   phase.respond_to?(:name) && phase.name == 'Thin Binary'
 end
 runner.build_phases.insert(thin_binary_index || runner.build_phases.length, embed)
+
+# Flutter her cihaz derlemesinde urun paketini yeniden olusturabiliyor; Xcode
+# ise App Intents NLU ara ciktisini (`TARGET_TEMP_DIR/ssu/root.ssu.yaml`)
+# guncel sayip islemciyi tekrar calistirmiyor. Islemcinin urun kopyasi bu
+# durumda kayboluyor: Kestirmeler aksiyonu goruyor ama Siri cumleyi
+# eslestiremiyor. Yalnizca uretilmis ara ciktiyi build basinda gecersiz kilarak
+# Xcode'un kendi SSU islemcisinin her urun icin yeniden calismasini sagla.
+invalidate_ssu = runner.build_phases.find do |phase|
+  phase.respond_to?(:name) && phase.name == INVALIDATE_SSU_PHASE_NAME
+end
+invalidate_ssu ||= runner.new_shell_script_build_phase(INVALIDATE_SSU_PHASE_NAME)
+invalidate_ssu.always_out_of_date = '1'
+invalidate_ssu.input_paths = []
+invalidate_ssu.output_paths = []
+invalidate_ssu.shell_script = <<~'SH'
+  set -e
+
+  case "${TARGET_TEMP_DIR}" in
+    */Runner.build/*/Runner.build)
+      rm -f "${TARGET_TEMP_DIR}/ssu/root.ssu.yaml"
+      ;;
+    *)
+      echo "Unexpected TARGET_TEMP_DIR; refusing to remove SSU cache: ${TARGET_TEMP_DIR}" >&2
+      exit 1
+      ;;
+  esac
+SH
+
+# Ilk kullanici build adimindan once calissin; kaynak derleme ve metadata
+# cikarma bundan sonra gerceklesir.
+runner.build_phases.delete(invalidate_ssu)
+runner.build_phases.unshift(invalidate_ssu)
 
 project.root_object.attributes['TargetAttributes'] ||= {}
 project.root_object.attributes['TargetAttributes'][target.uuid] = {

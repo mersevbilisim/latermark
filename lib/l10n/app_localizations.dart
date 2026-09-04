@@ -1225,7 +1225,7 @@ abstract class L10n {
   /// No description provided for @yourDataSafetyAnswer.
   ///
   /// In en, this message translates to:
-  /// **'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.'**
+  /// **'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, usage statistics, or advertising. The app contains no third-party tracking or advertising SDK. The only network traffic is the App Store handling your purchase.'**
   String get yourDataSafetyAnswer;
 
   /// No description provided for @yourDataLocationQuestion.
@@ -1401,6 +1401,30 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Gold'**
   String get accentGold;
+
+  /// No description provided for @accentCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get accentCustom;
+
+  /// No description provided for @accentCustomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom color'**
+  String get accentCustomTitle;
+
+  /// No description provided for @accentCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the ring to choose a tone. Brightness is set by Latermark so the colour stays readable on light, dark and photo backgrounds.'**
+  String get accentCustomHint;
+
+  /// No description provided for @accentCustomApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this colour'**
+  String get accentCustomApply;
 
   /// No description provided for @retentionTitle.
   ///
@@ -1792,6 +1816,24 @@ abstract class L10n {
   /// **'You asked Latermark to remind you about this frame.'**
   String get notificationBodyNoBody;
 
+  /// No description provided for @notificationBodyNoFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'You asked Latermark to remind you about this note.'**
+  String get notificationBodyNoFrame;
+
+  /// Ücretsiz katmanda kalan hatırlatma hakkı; hak teslimde yanar.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Free plan: 1 reminder left} other{Free plan: {count} reminders left}}'**
+  String reminderFreeRemaining(int count);
+
+  /// No description provided for @reminderFreeSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Free reminders used up'**
+  String get reminderFreeSpent;
+
   /// No description provided for @notificationChannelName.
   ///
   /// In en, this message translates to:
@@ -1972,11 +2014,23 @@ abstract class L10n {
   /// **'Not now'**
   String get reminderSkip;
 
-  /// Scheduling screen: after the single reminder fires, the note and its photo are deleted an hour later.
+  /// Scheduling screen: after the single reminder fires, the note and its photo are deleted 30 minutes later. Offered on any note with a one-off reminder.
   ///
   /// In en, this message translates to:
-  /// **'Delete 1 hour after reminding'**
+  /// **'Delete 30 minutes after reminding'**
   String get reminderDeleteAfterLabel;
+
+  /// Scheduling screen: the outcome sentence above Save when the note is deleted an hour after its single reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · then deleted'**
+  String reminderDeleteAfterValue(String when);
+
+  /// Scheduling screen: shown under the delete-after switch when the note already carries its own retention, which the promise takes over.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces this note\'s own retention.'**
+  String get reminderDeleteAfterOverride;
 
   /// Shown when a reminder is set at or after the note's automatic deletion time.
   ///
@@ -1989,6 +2043,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Save the original'**
   String get keepOriginalLabel;
+
+  /// Compose screen: the collapsed options row shown while the keyboard is open. Tapping it dismisses the keyboard and reveals the switches.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get composeOptionsLabel;
 
   /// Explains the storage cost of keeping the original.
   ///
@@ -2007,6 +2067,42 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Location unavailable'**
   String get composeLocationFailed;
+
+  /// Home screen: shown instead of the feed when the archive database cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open your archive'**
+  String get archiveUnavailableTitle;
+
+  /// Home screen: reassures the user their photos are intact and warns that deleting the app would destroy them.
+  ///
+  /// In en, this message translates to:
+  /// **'Your frames are still on this phone. Don\'t delete the app — that would take them with it.'**
+  String get archiveUnavailableBody;
+
+  /// Home screen: starts recovering photos from disk after the archive could not be opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair'**
+  String get archiveRepairAction;
+
+  /// Home screen: how many photos on disk can be turned back into notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Frames that can be recovered: {count}'**
+  String archiveRepairCount(int count);
+
+  /// Home screen: what repairing cannot bring back, and that nothing is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your notes, reminders and retention settings can\'t be recovered — those lived only in the record. The damaged file isn\'t deleted, just set aside.'**
+  String get archiveRepairCost;
+
+  /// Toast after a successful repair.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered {count} frames'**
+  String archiveRepairDone(int count);
 
   /// Explains that no position could be obtained.
   ///

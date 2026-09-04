@@ -21,4 +21,15 @@ extension NoteKind on Note {
 
   /// Kayıt yalnızca yazıdan ibaret mi.
   bool get isTextOnly => imageName.isEmpty;
+
+  /// [body] ile kaydedilirse geriye hiçbir şey kalmıyor mu.
+  ///
+  /// Karesiz bir kaydın yazısı silinirse ortada ne kare ne yazı kalıyor:
+  /// akışta boş bir kart, aramada hiç bulunmayan bir satır. Yeni kayıt ekranı
+  /// bunu baştan beri engelliyordu; aynı kaydın **düzenlenmesi**
+  /// engellenmiyordu.
+  ///
+  /// Kare varsa gövdenin boşalması serbest — kayıt hâlâ bir şey. Aksi hâlde
+  /// kullanıcı fotoğrafına yazdığı notu bir daha hiç silemezdi.
+  bool wouldBeEmpty(String body) => isTextOnly && body.trim().isEmpty;
 }

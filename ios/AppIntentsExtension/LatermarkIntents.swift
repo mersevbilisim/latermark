@@ -82,9 +82,26 @@ struct AddReminderNoteIntent: AppIntent {
   func perform() async throws -> some IntentResult & ProvidesDialog {
     // Kayıt yapılmadan önceki kapılar. Sırası önemli: hiçbiri geçmezse
     // gelen kutusuna hiçbir şey bırakılmaz ve alarm kurulmaz.
-    guard SharedImportStore.proUnlocked else {
+    // Hatirlatma Pro'ya kilitli **degil**, sayili: ucretsiz katmanin da hakki
+    // var (bkz. `ProLimits.freeReminders`). Uzanti veritabanini acamadigi icin
+    // kalan hakki aynadan okuyor.
+    //
+    // Ayna **tavsiye**, son soz uygulamanin: burasi bir kapi degil, Siri'nin
+    // dogru cumleyi kurabilmesi icin var. Kullanici konustuktan sonra hakki
+    // baska bir yoldan tukenmisse uygulama iceri alirken hatirlatmayi
+    // dusuruyor ve bunu kullaniciya soyluyor.
+    //
+    // Anahtar hic yoksa (eski surumden yeni gelen ayna) eski davranisa,
+    // yani Pro kapisina duselim: bilinmeyen bir sayiyi "hak var" saymak,
+    // olmayan bir hakki vaat etmek olurdu.
+    let freeRemindersLeft = SharedImportStore.freeRemindersLeft
+    let allowsReminder =
+      SharedImportStore.proUnlocked || (freeRemindersLeft ?? 0) > 0
+    guard allowsReminder else {
       return .result(
-        dialog: "Reminders from Siri require Latermark Pro. Nothing was saved."
+        dialog: freeRemindersLeft == nil
+          ? "Reminders from Siri require Latermark Pro. Nothing was saved."
+          : "You have used all your free reminders. Latermark Pro removes the limit. Nothing was saved."
       )
     }
 
@@ -147,6 +164,13 @@ struct AddReminderNoteIntent: AppIntent {
       return .result(
         dialog: "Latermark couldn't save the note. Please try again. Nothing was saved."
       )
+    }
+
+    // Hak yerel aynadan dusuluyor: uygulama acilmadan art arda soylenen
+    // istekler ayni son hakki birlikte gormemeli. Uygulama bir sonraki
+    // yayinda gercek degeri yaziyor.
+    if !SharedImportStore.proUnlocked {
+      SharedImportStore.consumeFreeReminder()
     }
 
     do {

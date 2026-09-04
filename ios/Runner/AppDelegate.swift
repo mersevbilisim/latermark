@@ -1,3 +1,4 @@
+import AppIntents
 import Flutter
 import StoreKit
 import UIKit
@@ -54,6 +55,7 @@ import flutter_local_notifications
   private var locationChannel: FlutterMethodChannel?
   private var locationHandler: LocationChannel?
   private var spotlightChannel: FlutterMethodChannel?
+  private var reminderQuotaChannel: FlutterMethodChannel?
   private var appLinkChannel: FlutterMethodChannel?
   private var reminderActionChannel: FlutterMethodChannel?
 
@@ -61,6 +63,14 @@ import flutter_local_notifications
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Metadata pakette bulunsa da Siri, App Shortcut cümlelerini ancak sağlayıcı
+    // sistemle eşitlendiğinde doğrudan çalıştırabiliyor. Bu çağrı özellikle
+    // geliştirme sırasında kabloyla üst üste kurulan release build'lerinde eski
+    // Siri indeksinin yenilenmesini sağlar.
+    if #available(iOS 16.0, *) {
+      LatermarkShortcuts.updateAppShortcutParameters()
+    }
+
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
     }
@@ -117,7 +127,10 @@ import flutter_local_notifications
           reminderEnabled: reminderEnabled,
           // Süresiz saklama `nil` gönderiyor; anahtar silinsin ki uzantı
           // "değer yok" ile "sıfır dakika"yı karıştırmasın.
-          retentionMinutes: arguments["retentionMinutes"] as? Int
+          retentionMinutes: arguments["retentionMinutes"] as? Int,
+          // Eski bir uygulama sürümü bu anahtarı hiç göndermiyor olabilir;
+          // `nil` "bilinmiyor" demek ve uzantı o hâlde Pro kapısına düşüyor.
+          freeRemindersLeft: arguments["freeRemindersLeft"] as? Int
         )
         result(nil)
       case "cancelQueuedReminder":
@@ -196,6 +209,9 @@ import flutter_local_notifications
 
     spotlightChannel = SpotlightChannel.register(
       messenger: engineBridge.applicationRegistrar.messenger()
+    )
+    reminderQuotaChannel = ReminderQuotaChannel.register(
+      with: engineBridge.applicationRegistrar.messenger()
     )
     // Sahne olaylarına ancak tam bir eklenti kaydı üzerinden abone olunuyor;
     // `applicationRegistrar` `addSceneDelegate:` taşımıyor.

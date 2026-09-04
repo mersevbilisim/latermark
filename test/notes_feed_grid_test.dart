@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:latermark/app/app.dart';
 import 'package:latermark/features/notes/data/notes_database.dart';
+import 'package:latermark/features/notes/presentation/home/widgets/home_header.dart';
 import 'package:latermark/features/notes/data/notes_repository.dart';
 import 'package:latermark/features/notes/data/photo_store.dart';
 import 'package:latermark/features/notes/domain/retention.dart';
@@ -138,8 +139,9 @@ void main() {
   /// yaşıyor — aynı kare iki kez çiziliyor. Hero etiketleri kayıt kimliğine
   /// bağlı olduğu için bu, geçiş penceresinde bir karta dokunmayı "aynı
   /// etiketten iki tane" hatasına çeviriyordu.
-  testWidgets('geçiş sırasında çekilen düzen Hero taşımasının dışında',
-      (tester) async {
+  testWidgets('geçiş sırasında çekilen düzen Hero taşımasının dışında', (
+    tester,
+  ) async {
     usePhoneSurface(tester);
 
     for (var i = 0; i < 4; i++) {
@@ -178,8 +180,16 @@ void main() {
     usePhoneSurface(tester);
 
     await addNote(tester, 'Otopark P10', DateTime.now());
-    await addNote(tester, 'Fatura', DateTime.now().subtract(const Duration(days: 40)));
-    await addNote(tester, 'Otopark P3', DateTime.now().subtract(const Duration(days: 400)));
+    await addNote(
+      tester,
+      'Fatura',
+      DateTime.now().subtract(const Duration(days: 40)),
+    );
+    await addNote(
+      tester,
+      'Otopark P3',
+      DateTime.now().subtract(const Duration(days: 400)),
+    );
 
     await tester.pumpWidget(
       LatermarkApp(notes: repository, settings: settings),
@@ -206,8 +216,16 @@ void main() {
     usePhoneSurface(tester);
 
     await addNote(tester, 'yalnız', DateTime.now());
-    await addNote(tester, 'eski bir', DateTime.now().subtract(const Duration(days: 400)));
-    await addNote(tester, 'eski iki', DateTime.now().subtract(const Duration(days: 401)));
+    await addNote(
+      tester,
+      'eski bir',
+      DateTime.now().subtract(const Duration(days: 400)),
+    );
+    await addNote(
+      tester,
+      'eski iki',
+      DateTime.now().subtract(const Duration(days: 401)),
+    );
 
     await tester.pumpWidget(
       LatermarkApp(notes: repository, settings: settings),
@@ -241,6 +259,160 @@ void main() {
     await tester.tap(find.text('kare bir'));
     await settle(tester);
     expect(find.text('1 SEÇİLDİ'), findsOneWidget);
+
+    await disposeTree(tester);
+  });
+
+  Finder separator(String group) =>
+      find.byKey(ValueKey('age-separator-$group'));
+
+  /// Sayı her ayraçta çiziliyor, yalnız görünürlüğü değişiyor — bu yüzden
+  /// varlığı değil opaklığı sorgulanıyor.
+  double countOpacity(WidgetTester tester, String group) => tester
+      .widget<AnimatedOpacity>(
+        find.descendant(
+          of: separator(group),
+          matching: find.byType(AnimatedOpacity),
+        ),
+      )
+      .opacity;
+
+  String countOf(WidgetTester tester, String group) => tester
+      .widget<Text>(
+        find.descendant(of: separator(group), matching: find.byType(Text)).last,
+      )
+      .data!;
+
+  /// Uzun bir arşivde tarama kolaylığı: bölüm kapanınca kayıtları ağaca hiç
+  /// girmiyor.
+  testWidgets('zaman bölümü kapanıp açılıyor', (tester) async {
+    usePhoneSurface(tester);
+
+    final now = DateTime.now();
+    await addNote(tester, 'bugunku kare', now);
+    await addNote(tester, 'eski kare', now.subtract(const Duration(days: 20)));
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await settle(tester);
+
+    expect(find.text('bugunku kare'), findsOneWidget);
+    expect(find.text('eski kare'), findsOneWidget);
+
+    // Ayracın kendisi hedef: 15 puanlık irise nişan almak gerekmiyor.
+    await tester.tap(find.byKey(const ValueKey('age-separator-pastMonth')));
+    await settle(tester);
+
+    expect(find.text('eski kare'), findsNothing);
+    // Kapağın üstünde ne saklandığı yazıyor. Sayının **yeri** her ayraçta
+    // ayrılıyor (kapanırken satır zıplamasın diye), okunması kapağa bağlı.
+    expect(countOf(tester, 'pastMonth'), '1');
+    expect(countOpacity(tester, 'pastMonth'), 1);
+    expect(countOpacity(tester, 'today'), 0);
+    // Kapatılan bölüm dışındaki hiçbir şey etkilenmiyor.
+    expect(find.text('bugunku kare'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('age-separator-pastMonth')));
+    await settle(tester);
+    expect(find.text('eski kare'), findsOneWidget);
+    expect(countOpacity(tester, 'pastMonth'), 0);
+
+    await disposeTree(tester);
+  });
+
+  /// Kapalı bölüm uygulamayı kapatınca da kapalı kalıyor.
+  ///
+  /// Tercih ayarlar tablosunda duruyor; burada sınanan şey **aynı diskten**
+  /// yeniden kurulan bir ağacın onu geri okuması.
+  testWidgets('kapalı bölüm yeniden açılışta kapalı geliyor', (tester) async {
+    usePhoneSurface(tester);
+
+    final now = DateTime.now();
+    await addNote(tester, 'bugunku kare', now);
+    await addNote(tester, 'eski kare', now.subtract(const Duration(days: 20)));
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await settle(tester);
+
+    await tester.tap(separator('pastMonth'));
+    await settle(tester);
+    expect(find.text('eski kare'), findsNothing);
+
+    // Ağaç tamamen sökülüp aynı depolarla yeniden kuruluyor: uygulamayı
+    // kapatıp açmanın testteki karşılığı.
+    await disposeTree(tester);
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await settle(tester);
+
+    expect(find.text('bugunku kare'), findsOneWidget);
+    expect(
+      find.text('eski kare'),
+      findsNothing,
+      reason: 'Kapatılan bölüm açılışta yeniden açılmamalı',
+    );
+    expect(countOpacity(tester, 'pastMonth'), 1);
+
+    await disposeTree(tester);
+  });
+
+  /// Görünmeyen kayıt silinemez.
+  ///
+  /// Seçim kipinde kapalı bir bölüm kalsaydı kullanıcı, ekranda hiç görmediği
+  /// kareleri de kapsayan bir silme yapabilirdi — geri dönüşü olmayan bir
+  /// işlemi göremediği şeyin üstünde.
+  testWidgets('seçim kipi kapalı bölüm bırakmıyor', (tester) async {
+    usePhoneSurface(tester);
+
+    final now = DateTime.now();
+    await addNote(tester, 'bugunku kare', now);
+    await addNote(tester, 'eski kare', now.subtract(const Duration(days: 20)));
+
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('age-separator-pastMonth')));
+    await settle(tester);
+    expect(find.text('eski kare'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await settle(tester);
+
+    // Kip açılırken bölüm de açıldı: silinecek her şey ekranda.
+    expect(find.text('SEÇİM YOK'), findsOneWidget);
+    expect(find.text('eski kare'), findsOneWidget);
+
+    // Ve kipteyken ayraç artık bir düğme değil.
+    expect(
+      tester.widget<AgeSeparator>(separator('pastMonth')).onToggle,
+      isNull,
+    );
+
+    // Kipten çıkınca kullanıcı arşivini bıraktığı gibi buluyor: açılma
+    // **geçici**, tercih silinmiyor.
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await settle(tester);
+
+    expect(
+      find.text('eski kare'),
+      findsNothing,
+      reason: 'Toplu silmeden vazgeçmek kapalı bölümü kalıcı olarak açmamalı',
+    );
+    expect(countOpacity(tester, 'pastMonth'), 1);
+
+    // Diske de yazılmamış olmalı: yeniden açılışta hâlâ kapalı.
+    await disposeTree(tester);
+    await tester.pumpWidget(
+      LatermarkApp(notes: repository, settings: settings),
+    );
+    await settle(tester);
+    expect(find.text('eski kare'), findsNothing);
 
     await disposeTree(tester);
   });

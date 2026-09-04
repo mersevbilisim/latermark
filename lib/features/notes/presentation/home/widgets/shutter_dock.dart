@@ -233,9 +233,21 @@ class _ShutterDockState extends State<ShutterDock> {
                               bladeBase: palette.isDark
                                   ? palette.canvas
                                   : OnPhoto.canvasDeep,
-                              edgeTint: palette.isDark
-                                  ? palette.ink
-                                  : OnPhoto.ink,
+                              // Vurgu artık ışığın kendisi: kenarlar, ağız ve
+                              // halka bu tonu taşıyor.
+                              edgeTint: palette.onPhotoAccent,
+                              // Vurgu rengi artık delikten sızan ışıkta
+                              // değil, gövdenin kendisinde. Deklanşör ekranın
+                              // tek dolu kütlesi; rengi taşıyacak yüzey de o.
+                              // Gövde her iki temada da grafit olduğu için
+                              // fotoğraf üstü (parlak) ton kullanılıyor.
+                              accent: palette.onPhotoAccent,
+                              // Gövde rengi taşırken deliğin içindeki kor
+                              // ikinci bir renk kaynağı oluyor ve bulanık bir
+                              // gradyandan ibaret kalıyordu — düğmenin
+                              // arkasındaki hale de bir zamanlar aynı sebeple
+                              // kaldırılmıştı. Objektifin içi karanlıktır.
+                              glow: false,
                               onPressed: widget.onCapture,
                             ),
                           ),

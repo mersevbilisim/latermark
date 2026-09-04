@@ -8,6 +8,7 @@ import '../../../../l10n/l10n_context.dart';
 import '../../../../shared/widgets/ember_switch.dart';
 import '../../../../shared/widgets/pressable.dart';
 import '../../../../shared/widgets/pro_badge.dart';
+import '../../../paywall/domain/pro_limits.dart';
 import '../../../paywall/presentation/paywall_host.dart';
 import '../../../reminders/reminder_service.dart';
 import 'note_option_label.dart';
@@ -31,12 +32,19 @@ class ReminderControl extends StatefulWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.noteId,
   });
 
   /// Kullanıcı bu kare için hatırlatma istiyor mu.
   final bool value;
 
   final ValueChanged<bool> onChanged;
+
+  /// Düzenlenen kaydın kimliği; yeni kayıtta `null`.
+  ///
+  /// Ücretsiz katmanda hakkını daha önce almış bir kayıt yeniden
+  /// ücretlendirilmiyor, o yüzden kilidin cevabı kaydın kim olduğuna bağlı.
+  final int? noteId;
 
   @override
   State<ReminderControl> createState() => _ReminderControlState();
@@ -103,7 +111,33 @@ class _ReminderControlState extends State<ReminderControl> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final locked = !AppScope.preferences(context).proUnlocked;
+    final preferences = AppScope.preferences(context);
+    final isPro = preferences.proUnlocked;
+    final used = preferences.freeReminderNotes;
+    // Kurulu olanlar da kapıya dahil; kaydın kendisi hariç, yoksa kullanıcı
+    // kendi hatırlatmasının saatini bile değiştiremezdi.
+    final inFlight = AppScope.pendingReminderNoteIds(context)
+        .where((id) => id != widget.noteId && !used.contains(id))
+        .length;
+    // Ücretsiz katmanda hatırlatma tümden kapalı değil, sayılı. Kilit ancak
+    // hak bittiğinde geliyor.
+    final floor = AppScope.freeReminderFloor(context);
+    final locked = !ProLimits.allowsReminder(
+      isPro: isPro,
+      usedNoteIds: used,
+      inFlight: inFlight,
+      burnedFloor: floor,
+      noteId: widget.noteId,
+    );
+    // Özellik kapatıldıysa kotadan hiç söz edilmiyor: satır sade Pro kapısına
+    // dönüyor.
+    final remaining = isPro || !ProLimits.freeRemindersEnabled
+        ? null
+        : ProLimits.remainingReminders(
+            used,
+            inFlight: inFlight,
+            burnedFloor: floor,
+          );
     final permission = AppScope.reminderPermission(context);
     final blocked = widget.value
         ? switch (permission) {
@@ -115,10 +149,21 @@ class _ReminderControlState extends State<ReminderControl> {
 
     // Tek satır: çan, cümle, anahtar. Altına bir açıklama daha koymak satırı
     // iki kata çıkarıp adının zaten söylediğini tekrarlıyordu.
+    // Ücretsiz katmanda satırın altında kısa bir durum cümlesi var.
+    //
+    // Normalde bu satır bilinçli olarak tek satır: bir anahtarın ne yaptığı
+    // adından anlaşılıyorsa altına cümle koymak yer israfı. Ama burada
+    // söylenen şey anahtarın ne yaptığı değil **kaç hakkın kaldığı** — ve
+    // kullanıcı bunu ancak duvara toslayınca öğrenirse geç öğrenmiş olur.
     final label = NoteOptionLabel(
       icon: Icons.notifications_none_rounded,
       title: l10n.reminderSwitchLabel,
       active: widget.value && !locked,
+      detail: remaining == null
+          ? null
+          : (remaining > 0
+                ? l10n.reminderFreeRemaining(remaining)
+                : l10n.reminderFreeSpent),
     );
 
     if (locked) {

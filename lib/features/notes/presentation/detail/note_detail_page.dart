@@ -185,9 +185,21 @@ class _NoteDetailPageState extends State<NoteDetailPage>
   /// Panel kapandıktan sonra açılıyor, çünkü sayfa geri döndüğünde detayın
   /// okuma hâlinde beklemesi gerekiyor — düzenleme kipine geri düşmek,
   /// kaydedilmiş bir notu yeniden "yarım" göstermek olurdu.
+  /// Kayıtta duran silme sözü de sayfaya taşınıyor. Taşınmasaydı yalnız saati
+  /// değiştirip Kaydet'e basan biri, hiç dokunmadığı sözü sessizce iptal
+  /// etmiş olurdu: sayfa sözü kapalı sanıp geri yazıyor.
   void _openReminderSchedule(Note note, ReminderChoice initial) {
     Navigator.of(context).push(
-      AppRoutes.lift(ReminderSchedulePage(noteId: note.id, initial: initial)),
+      AppRoutes.lift(
+        ReminderSchedulePage(
+          noteId: note.id,
+          initial: initial,
+          initialDeleteAfter: isReminderExpiry(
+            remindAt: note.remindAt,
+            expiresAt: note.expiresAt,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1101,6 +1113,9 @@ class DetailActionBar extends StatelessWidget {
                       key: const ValueKey('detail-action-delete'),
                       label: l10n.actionDelete,
                       semanticLabel: l10n.actionDelete,
+                      // Yıkıcı eylem dinlenirken de kendini söylüyor: üç eşit
+                      // kelimeden biri geri dönüşü olmayan bir şey yapıyor.
+                      color: palette.danger,
                       pressColor: palette.danger,
                       onPressed: onDelete,
                     ),

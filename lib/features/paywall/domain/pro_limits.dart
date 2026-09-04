@@ -1,3 +1,5 @@
+import '../../notes/domain/note_reminder.dart';
+
 /// Ücretsiz katmanın sınırları.
 ///
 /// Tek yerde toplu duruyorlar: sayılar koda dağılırsa hem değiştirmek zorlaşır
@@ -13,6 +15,7 @@
 ///   yani uygulamayı tasarlandığı gibi kullandığı için cezalandırırdı.
 /// * **Ücretsiz katman süresiz kullanılabilir kalır.** Bir kare silmek yer
 ///   açar; kullanıcı ödemeden de uygulamaya devam edebilir.
+
 abstract final class ProLimits {
   /// Ücretsiz katmanda aynı anda tutulabilecek kare sayısı.
   ///
@@ -37,4 +40,84 @@ abstract final class ProLimits {
   /// Kullanıcı duvara habersiz toslamamalı; son birkaç karede sayaç görünür.
   static bool showsCounter(int noteCount, {required bool isPro}) =>
       !isPro && noteCount >= freeNotes - counterWindow;
+
+  /// Ücretsiz katmanda ömür boyu kurulabilecek hatırlatma sayısı.
+  ///
+  /// Ücretsiz kullanıcının ürünü **yaşayabilmesi** için var. Uygulamanın sözü
+  /// "yaz ve unut"; o sözün karşılığı kaydetmek değil, kaydın doğru anda geri
+  /// gelmesi. O an tümden paywall'ın arkasındayken kullanıcı hiç yaşamadığı
+  /// bir şey için ödemeye çağrılıyordu.
+  ///
+  /// Sayı **süre değil adet**: değer, hatırlatma çaldığında doğuyor. Yedi
+  /// günlük bir deneme, onuncu güne kurulmuş bir hatırlatmayı hiç göstermez.
+  /// Ölçünün birimi tamamlanmış turdur.
+  static const freeReminders = 3;
+
+  /// Ücretsiz hatırlatma hakkı açık mı.
+  ///
+  /// [freeReminders] sıfırlandığında özellik tümden kapanır ve hatırlatma
+  /// eskisi gibi yalnız Pro'ya ait olur — tek sabitle geri alınabilen bir
+  /// kapatma anahtarı.
+  ///
+  /// Kapalıyken **kotadan hiç söz edilmiyor**. "Hakkın doldu" demek, hiç hakkı
+  /// olmamış birine olmayan bir şeyi kaybettirmek olurdu; o hâlde ekran da
+  /// Siri de sade Pro kapısına dönüyor.
+  static bool get freeRemindersEnabled => freeReminders > 0;
+
+  /// Bu kayda hatırlatma kurulabilir mi.
+  ///
+  /// [usedNoteIds] hakkı **yakmış** kayıtların kimlikleri: bildirimi çalmış
+  /// olanlar. [inFlight] henüz çalmamış ama kurulu duran hatırlatma sayısı —
+  /// [noteId] kendisi buna dahil edilmez.
+  ///
+  /// Hak kurulumda değil **teslimde** yanıyor: kullanıcı kurup vazgeçtiyse
+  /// ortada teslim edilmiş bir değer yok, hak da durur. Ama kurulu olanlar
+  /// kapıya dahil; aksi hâlde hiçbiri çalmadan on tane kurup hepsini bedavaya
+  /// almak mümkün olurdu.
+  ///
+  /// Zaten hakkını yakmış bir kayıt **yeniden ücretlendirilmiyor**: kullanıcının
+  /// kendi kurduğu hatırlatmayı kapatıp açması, saatini değiştirmesi ya da
+  /// bildirimden ertelemesi ikinci bir hak yemez.
+  /// [burnedFloor] yeniden kurulumdan sonra da duran hak tabanı: kimlik
+  /// listesi kuruluma özel olduğu için silip yeniden kuran kullanıcıda boş
+  /// başlıyor, taban ise cihazda kalıyor.
+  static bool allowsReminder({
+    required bool isPro,
+    required Set<int> usedNoteIds,
+    int inFlight = 0,
+    int burnedFloor = 0,
+    int? noteId,
+  }) {
+    if (isPro) return true;
+    if (noteId != null && usedNoteIds.contains(noteId)) return true;
+    return burnedCount(usedNoteIds, burnedFloor) + inFlight < freeReminders;
+  }
+
+  /// Harcanmış hak: listedeki kayıt sayısı ile silinmeyen tabandan büyük olan.
+  static int burnedCount(Set<int> usedNoteIds, int burnedFloor) =>
+      usedNoteIds.length > burnedFloor ? usedNoteIds.length : burnedFloor;
+
+  /// Ücretsiz katmanda tekrar **yok**.
+  ///
+  /// Hak "üç bildirim" demek. Tekrarlı bir hatırlatma tek hakla sınırsız
+  /// bildirim üretir: günlük tekrar kuran bir kullanıcı bir slotla ömür boyu
+  /// hatırlatma alır ve sayının hiçbir anlamı kalmaz. Ritim bu yüzden Pro'da.
+  static ReminderCadence effectiveCadence(
+    ReminderCadence cadence, {
+    required bool isPro,
+  }) => isPro ? cadence : ReminderCadence.once;
+
+  /// Ücretsiz katmanda kalan hatırlatma hakkı.
+  ///
+  /// Kurulu ama henüz çalmamış olanlar da düşülüyor: kullanıcıya "2 hakkın
+  /// var" deyip ikincisini kurdurmamak olmaz.
+  static int remainingReminders(
+    Set<int> usedNoteIds, {
+    int inFlight = 0,
+    int burnedFloor = 0,
+  }) {
+    final left =
+        freeReminders - burnedCount(usedNoteIds, burnedFloor) - inFlight;
+    return left < 0 ? 0 : left;
+  }
 }

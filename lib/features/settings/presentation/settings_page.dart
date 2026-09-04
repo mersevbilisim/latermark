@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../app/app_routes.dart';
 import '../../../app/app_scope.dart';
+import '../../../core/theme/app_accent.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_toast.dart';
@@ -22,6 +23,7 @@ import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import 'widgets/pro_callout.dart';
 import '../../../shared/widgets/choice_rail.dart';
+import 'widgets/custom_accent_sheet.dart';
 import 'widgets/settings_pieces.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../paywall/presentation/paywall_host.dart';
@@ -156,6 +158,17 @@ class _SettingsPageState extends State<SettingsPage>
                           value: settings.accent,
                           labelOf: (accent) => accent.label(context.l10n),
                           onChanged: repository.setAccent,
+                          customHue: settings.accentHue,
+                          // Kullanıcı özel renge ilk geçtiğinde sıfırdan
+                          // başlamıyor: panel, o an yürürlükte olan rengin
+                          // tonundan açılıyor.
+                          onCustom: () => showCustomAccentSheet(
+                            context,
+                            hue: settings.accent == AppAccent.custom
+                                ? settings.accentHue
+                                : settings.accent.hue,
+                            onChanged: repository.setCustomAccent,
+                          ),
                         ),
                       ),
                     ),

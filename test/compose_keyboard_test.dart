@@ -97,9 +97,34 @@ void main() {
     );
     expect(bar.bottom, lessThanOrEqualTo(height - keyboard));
 
+    // Klavye açıkken anahtarların yerinde tek satır var: yazarken üç anahtarı
+    // ekranda tutmaya çalışmak, klavyenin zaten aldığı yer için kavga etmekti.
+    expect(find.byType(ReminderControl).hitTestable(), findsNothing);
+    expect(find.byKey(const Key('compose-options-collapsed')), findsOneWidget);
+    // Satır bir kapı ve kapı gibi görünüyor: bilmece ikonlar değil, tek söz.
+    expect(find.text('SEÇENEKLER'), findsOneWidget);
+
+    // Anahtarlar görünmüyor ama **ağaçta kurulu**: dokunuşta ilk kez
+    // kurulsalardı üç `Stateful` denetimin kurulum bedeli, klavyenin indiği
+    // son karenin üstüne binerdi — gözle görülür takılma buradan geliyordu.
+    // Bulucular `Offstage` altını varsayılan olarak atladığı için yukarıdaki
+    // "görünmüyor" iddiaları da doğru kalıyor.
+    expect(
+      find.byType(ReminderControl, skipOffstage: false),
+      findsOneWidget,
+      reason: 'Anahtarlar sahne dışında tutulmalı, ağaçtan çıkarılmamalı',
+    );
+
+    // Satıra dokunmak karar aşamasına geçiriyor: klavye iniyor, anahtarlar
+    // açılıyor. Testte klavyenin inişini `viewInsets` temsil ediyor.
+    await tester.tap(find.byKey(const Key('compose-options-collapsed')));
+    tester.view.viewInsets = FakeViewPadding.zero;
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    await _settle(tester);
+
     // Hatırlatma artık klavyenin altında ikinci bir form değil, tek bir
-    // anahtar: gün ve saat kaydettikten sonraki ekranda soruluyor.
-    await tester.ensureVisible(find.byType(ReminderControl));
+    // anahtar: gün ve saat kaydettikten sonraki ekranda soruluyor. Kaydırmaya
+    // da gerek yok — `ensureVisible` çağrısı kalktı.
     await tester.tap(find.byKey(const Key('reminder-switch-row')));
     await _settle(tester);
 
@@ -114,19 +139,107 @@ void main() {
     // bitmiyor, arkasından planlama ekranı geliyor.
     expect(find.text('KAYDET VE HATIRLAT'), findsOneWidget);
     expect(
-      tester
-          .getRect(find.byKey(const ValueKey('compose-action-bar')))
-          .bottom,
-      lessThanOrEqualTo(height - keyboard),
+      tester.getRect(find.byKey(const ValueKey('compose-action-bar'))).bottom,
+      lessThanOrEqualTo(height),
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
 
+  /// Açılışta anahtarlar bir an görünüp sonra katlanıyordu.
+  ///
+  /// Sebep sıralama: alan `autofocus` ile açılıyor ama odak ilk kareden
+  /// **sonra** geliyor. Kapı doğrudan `hasFocus`'a bakınca ilk kare
+  /// anahtarlarla çiziliyor, odak gelince de kullanıcının hiç istemediği bir
+  /// kapanma animasyonu oynuyordu.
+  testWidgets('ilk kare kapalı çiziliyor, anahtarlar hiç görünmüyor', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      AppScope(
+        notes: repository,
+        settings: settings,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          locale: const Locale('tr'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: ComposePage(
+            capture: XFile(photo.path),
+            source: ComposeSource.gallery,
+          ),
+        ),
+      ),
+    );
+
+    // Tek kare: odak henüz gelmedi.
+    await tester.pump();
+    expect(
+      find.byType(ReminderControl).hitTestable(),
+      findsNothing,
+      reason: 'İlk karede anahtarlar görünmemeli',
+    );
+    expect(find.text('SEÇENEKLER'), findsOneWidget);
+
+    await _settle(tester);
+    // Odak geldikten sonra da kapalı: arada bir katlanma oynamadı.
+    expect(find.byType(ReminderControl).hitTestable(), findsNothing);
+    expect(find.text('SEÇENEKLER'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  /// Simülatörde fark edilmeyen, gerçek cihazda canını sıkan şey: satır
+  /// 30pt'ydi. Parmak ucu 44pt'nin altındaki bir hedefi güvenilir bulmuyor —
+  /// Apple'ın asgarisi de bu.
+  testWidgets('daraltılmış satırın dokunma hedefi 44pt', (tester) async {
+    const height = 852.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, height);
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      AppScope(
+        notes: repository,
+        settings: settings,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          locale: const Locale('tr'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: ComposePage(
+            capture: XFile(photo.path),
+            source: ComposeSource.gallery,
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 336);
+    await _settle(tester);
+
+    final target = tester.getRect(
+      find.byKey(const Key('compose-options-collapsed')),
+    );
+    expect(target.height, greaterThanOrEqualTo(44));
+    // Genişlik satırın tamamı: 15pt'lik irise nişan almak gerekmiyor.
+    expect(target.width, greaterThan(300));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
   testWidgets('uzun metin seçenekleri aşağı itmez', (tester) async {
-    // Alan metinle birlikte uzasaydı hatırlatma satırı sayfanın altına
-    // kaçardı; kullanıcı yazdıkça seçeneklerini kaybederdi.
+    // Alan metinle birlikte uzasaydı seçenek satırı sayfanın altına kaçardı;
+    // kullanıcı yazdıkça seçeneklerine giden kapıyı kaybederdi.
     const height = 852.0;
     const keyboard = 336.0;
     tester.view.devicePixelRatio = 1;
@@ -154,7 +267,9 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: keyboard);
     await _settle(tester);
 
-    final before = tester.getRect(find.byType(ReminderControl));
+    final before = tester.getRect(
+      find.byKey(const Key('compose-options-collapsed')),
+    );
     final fieldBefore = tester.getRect(find.byType(TextField).first);
 
     await tester.enterText(
@@ -163,7 +278,10 @@ void main() {
     );
     await _settle(tester);
 
-    expect(tester.getRect(find.byType(ReminderControl)), before);
+    expect(
+      tester.getRect(find.byKey(const Key('compose-options-collapsed'))),
+      before,
+    );
     expect(tester.getRect(find.byType(TextField).first), fieldBefore);
     expect(before.bottom, lessThanOrEqualTo(height - keyboard));
 
@@ -171,12 +289,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  /// Yeni bir seçenek satırı eklemek, klavye açıkken alttakini erişilmez hâle
-  /// getirebiliyor: yazı alanı tabanını koruyor ve seçenekler kendi içinde
-  /// kayıyor — o kayma gerçekten çalışmalı.
-  testWidgets('klavye açıkken orijinal anahtarı da erişilebilir', (
-    tester,
-  ) async {
+  /// Seçenekler artık kaydırılarak değil, tek dokunuşla açılıyor: en alttaki
+  /// anahtar da o kapının ardında erişilebilir olmalı.
+  testWidgets('daraltılmış satır bütün anahtarları açıyor', (tester) async {
     const height = 852.0;
     const keyboard = 336.0;
     tester.view.devicePixelRatio = 1;
@@ -206,19 +321,22 @@ void main() {
     tester.view.padding = const FakeViewPadding(top: 47);
     await _settle(tester);
 
-    await tester.ensureVisible(find.byKey(const Key('keep-original-row')));
+    // Anahtar klavye açıkken çizilmiyor; kapı daraltılmış satır.
+    expect(
+      find.byKey(const Key('keep-original-row')).hitTestable(),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const Key('compose-options-collapsed')));
+    tester.view.viewInsets = FakeViewPadding.zero;
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
     await _settle(tester);
 
+    // Ölçüm sırasında bırakılmış iki `debugPrint` buradan kalktı: hiçbir
+    // iddiayı beslemiyor, her koşuda çıktıyı kirletiyorlardı.
     final row = tester.getRect(find.byKey(const Key('keep-original-row')));
-    final bar = tester.getRect(
-      find.byKey(const ValueKey('compose-action-bar')),
-    );
-    final rem = tester.getRect(find.byKey(const Key('reminder-switch-row')));
-    debugPrint('SERIT ust=${bar.top.toStringAsFixed(0)} '
-        'alt=${bar.bottom.toStringAsFixed(0)}');
-    debugPrint('HATIRLATMA ust=${rem.top.toStringAsFixed(0)} '
-        'alt=${rem.bottom.toStringAsFixed(0)}');
-    expect(row.bottom, lessThanOrEqualTo(height - keyboard));
+    // Klavye indi: satırın sınırı artık ekranın kendisi.
+    expect(row.bottom, lessThanOrEqualTo(height));
 
     await tester.tap(find.byKey(const Key('keep-original-row')));
     await _settle(tester);
@@ -232,7 +350,6 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
-
 }
 
 Future<void> _settle(WidgetTester tester) async {

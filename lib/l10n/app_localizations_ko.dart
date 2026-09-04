@@ -625,7 +625,7 @@ class L10nKo extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark는 노트, 사진, 위치 정보를 모두 기기 안에서 처리합니다. 직접 공유하지 않는 한 데이터는 기기 밖으로 나가지 않으며, 분석·오류 보고·이용 통계를 위해 전송되는 일도 없습니다. 광고 성과 측정을 위해 Meta로 전달되는 것은 앱이 설치되었다는 사실과 구매가 이루어졌다는 사실 두 가지뿐입니다. 어느 쪽에도 작성한 내용이나 사진, 위치 정보는 포함되지 않습니다.';
+      'Latermark는 노트, 사진, 위치 정보를 모두 기기 안에서 처리합니다. 직접 공유하지 않는 한 데이터는 기기 밖으로 나가지 않으며, 분석·오류 보고·사용 통계·광고 어느 목적으로도 전송되지 않습니다. 서드파티 추적 또는 광고 SDK가 전혀 포함되어 있지 않습니다. 유일한 네트워크 통신은 구매를 처리하는 앱 스토어입니다.';
 
   @override
   String get yourDataLocationQuestion => '위치 권한은 왜 필요한가요?';
@@ -720,6 +720,19 @@ class L10nKo extends L10n {
 
   @override
   String get accentGold => '골드';
+
+  @override
+  String get accentCustom => '사용자 지정';
+
+  @override
+  String get accentCustomTitle => '사용자 지정 색상';
+
+  @override
+  String get accentCustomHint =>
+      '링을 돌려 색조를 고르세요. 밝기는 Latermark가 정합니다. 밝은 배경, 어두운 배경, 사진 위에서도 잘 읽히도록.';
+
+  @override
+  String get accentCustomApply => '이 색 사용';
 
   @override
   String get retentionTitle => '자동 삭제';
@@ -958,6 +971,22 @@ class L10nKo extends L10n {
   String get notificationBodyNoBody => '이 기록을 다시 알려 달라고 하셨어요.';
 
   @override
+  String get notificationBodyNoFrame => '이 메모를 알려 달라고 설정했어요.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '무료 플랜: 알림 $count개 남음',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => '무료 알림을 모두 사용했어요';
+
+  @override
   String get notificationChannelName => '리마인더';
 
   @override
@@ -1048,13 +1077,24 @@ class L10nKo extends L10n {
   String get reminderSkip => '나중에';
 
   @override
-  String get reminderDeleteAfterLabel => '알림 1시간 뒤에 삭제';
+  String get reminderDeleteAfterLabel => '알림 30분 뒤에 삭제';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · 이후 삭제';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride => '이 메모의 자체 보관 기간을 대체합니다.';
 
   @override
   String get reminderAfterExpiry => '미리 알림은 이 노트가 삭제되기 전이어야 합니다.';
 
   @override
   String get keepOriginalLabel => '원본 그대로 저장';
+
+  @override
+  String get composeOptionsLabel => '옵션';
 
   @override
   String get keepOriginalDetail => '화질 그대로, 용량은 늘어납니다.';
@@ -1064,6 +1104,30 @@ class L10nKo extends L10n {
 
   @override
   String get composeLocationFailed => '위치를 가져오지 못했습니다';
+
+  @override
+  String get archiveUnavailableTitle => '보관함을 열지 못했습니다';
+
+  @override
+  String get archiveUnavailableBody =>
+      '사진은 이 기기에 그대로 있습니다. 앱을 삭제하지 마세요 — 함께 지워집니다.';
+
+  @override
+  String get archiveRepairAction => '복구';
+
+  @override
+  String archiveRepairCount(int count) {
+    return '복구할 수 있는 사진: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      '메모, 미리 알림, 보관 기간은 복구할 수 없습니다 — 기록에만 있던 정보입니다. 손상된 파일은 삭제하지 않고 옆으로 옮깁니다.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '사진 $count장을 되찾았습니다';
+  }
 
   @override
   String get locationFixFailed => '지금은 위치를 확인하지 못했습니다. 장소 없이 저장됩니다.';

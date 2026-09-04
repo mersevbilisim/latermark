@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/theme/accent_tone.dart';
 import '../../../../core/theme/app_accent.dart';
 import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_palette.dart';
@@ -197,11 +198,20 @@ class AccentRail extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.labelOf,
+    required this.customHue,
+    required this.onCustom,
   });
 
   final AppAccent value;
   final ValueChanged<AppAccent> onChanged;
   final String Function(AppAccent) labelOf;
+
+  /// Kullanıcının özel tonu; yuvanın örneği bunu gösteriyor.
+  final int customHue;
+
+  /// Özel yuvaya dokunulduğunda. Seçim burada değil panelde tamamlanıyor:
+  /// tonu görmeden "özel"e geçmek anlamsız bir ara durum olurdu.
+  final VoidCallback onCustom;
 
   @override
   Widget build(BuildContext context) {
@@ -232,17 +242,39 @@ class AccentRail extends StatelessWidget {
                       key: ValueKey('app-accent-${accent.name}'),
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
-                        if (accent == value) return;
                         HapticFeedback.selectionClick();
+                        // Özel yuva seçiliyken de dokunulabilir: kullanıcı
+                        // tonunu değiştirmek için paneli yeniden açabilmeli.
+                        if (accent == AppAccent.custom) {
+                          onCustom();
+                          return;
+                        }
+                        if (accent == value) return;
                         onChanged(accent);
                       },
                       child: Center(
-                        child: _AccentSwatch(
-                          color: accent.colorFor(palette.brightness),
-                          selected: accent == value,
-                          canvas: palette.canvasLift,
-                          ink: palette.ink,
-                        ),
+                        child: accent == AppAccent.custom
+                            ? _AccentSwatch(
+                                color: accent.colorFor(
+                                  palette.brightness,
+                                  customHue: customHue,
+                                ),
+                                selected: accent == value,
+                                canvas: palette.canvasLift,
+                                ink: palette.ink,
+                                // Henüz seçilmemişken yuva tek bir renk
+                                // göstermiyor: seçilecek olan **ton
+                                // çemberinin kendisi**. Şeritteki diğer
+                                // altısıyla aynı dilde, ama ne yaptığı
+                                // etiketsiz anlaşılıyor.
+                                wheel: accent != value,
+                              )
+                            : _AccentSwatch(
+                                color: accent.colorFor(palette.brightness),
+                                selected: accent == value,
+                                canvas: palette.canvasLift,
+                                ink: palette.ink,
+                              ),
                       ),
                     ),
                   ),
@@ -261,12 +293,16 @@ class _AccentSwatch extends StatelessWidget {
     required this.selected,
     required this.canvas,
     required this.ink,
+    this.wheel = false,
   });
 
   final Color color;
   final bool selected;
   final Color canvas;
   final Color ink;
+
+  /// Tek renk yerine ton çemberi çiz. Yalnızca henüz seçilmemiş özel yuva.
+  final bool wheel;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +325,21 @@ class _AccentSwatch extends StatelessWidget {
         ),
       ),
       child: DecoratedBox(
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: wheel ? null : color,
+          gradient: wheel
+              ? SweepGradient(
+                  colors: [
+                    for (var h = 0; h <= 12; h++)
+                      AccentTone.colorFor(
+                        (h * 30) % AccentTone.hueCount,
+                        Brightness.dark,
+                      ),
+                  ],
+                )
+              : null,
+        ),
         child: selected
             ? Icon(Icons.check_rounded, color: check, size: 15)
             : null,

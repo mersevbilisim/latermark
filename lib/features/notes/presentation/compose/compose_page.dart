@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../reminder/reminder_schedule_page.dart';
 import 'widgets/capture_preview.dart';
 import 'widgets/note_composer.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
+import '../widgets/collapsed_options.dart';
 import '../widgets/keep_original_control.dart';
 import '../widgets/location_control.dart';
 import '../widgets/reminder_control.dart';
@@ -88,6 +90,27 @@ class _ComposePageState extends State<ComposePage> {
 
   /// Hatırlatma isteniyor mu. Gün ve saat burada sorulmuyor: kaydetmenin
   /// ardından açılan planlama ekranının işi.
+  /// Yazı alanının odağı.
+  ///
+  /// Ölçüt klavye boşluğu (`viewInsets`) değil odak: boşluk yalnızca
+  /// animasyonun **sonunda** sıfıra iniyor ve ona bakmak açılmayı klavye
+  /// tamamen indikten sonra başlatıp iki hareketi arka arkaya diziyordu.
+  /// Odak dokunuşta anında düşüyor, yani anahtarlar klavye çekilirken
+  /// açılıyor — iOS'ta olan da bu.
+  late final FocusNode _bodyFocus = FocusNode()..addListener(_onFocusChanged);
+
+  /// Kullanıcı yazıyor mu — kapının ölçütü.
+  ///
+  /// **`true` başlıyor** çünkü alan `autofocus` ile açılıyor ve odak ilk
+  /// kareden *sonra* geliyor. `hasFocus`'a doğrudan bakmak ilk kareyi
+  /// anahtarlarla çizip hemen ardından onları katlıyordu: kullanıcı, hiç
+  /// istemediği bir kapanma animasyonu izliyordu.
+  bool _typing = true;
+
+  void _onFocusChanged() {
+    if (mounted) setState(() => _typing = _bodyFocus.hasFocus);
+  }
+
   bool _remindMe = false;
 
   /// Her zaman kapalı başlar; tercih hatırlanmıyor.
@@ -161,6 +184,9 @@ class _ComposePageState extends State<ComposePage> {
   void dispose() {
     _text.removeListener(_onTextChanged);
     _text.dispose();
+    _bodyFocus
+      ..removeListener(_onFocusChanged)
+      ..dispose();
     if (!_flowHandedOff) _closeFlow();
     super.dispose();
   }
@@ -344,7 +370,14 @@ class _ComposePageState extends State<ComposePage> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final keyboard = media.viewInsets.bottom;
-    final bottomSafe = keyboard > 0 ? keyboard : media.padding.bottom;
+    // İkisinin **büyüğü**, koşullu seçim değil.
+    //
+    // Koşullu hâlde klavye inerken `bottomSafe` onunla birlikte 20'ye kadar
+    // düşüyor, klavye sıfırlandığı karede ise birden güvenli alana (34)
+    // sıçrıyordu: animasyonun tam sonunda 14 puanlık bir süreksizlik, yani
+    // gözün yakaladığı o "tık". Büyüğünü almak eğriyi sürekli kılıyor —
+    // klavye büyükken o baskın, küçülünce güvenli alanda düzleşiyor.
+    final bottomSafe = math.max(keyboard, media.padding.bottom);
 
     // Fotoğraf, yazı alanından artan yeri alır. Klavye yükseldikçe bu pay
     // kendiliğinden küçülür; ayrı bir animasyona gerek kalmaz çünkü klavye
@@ -413,76 +446,94 @@ class _ComposePageState extends State<ComposePage> {
                   child: NoteComposer(
                     controller: _text,
                     autofocus: true,
+                    focusNode: _bodyFocus,
                     // "Bunu neden çektin?" karesiz kayıtta anlamsız: ortada
                     // çekilmiş bir şey yok.
                     hintText: capture == null
                         ? context.l10n.composeTextHint
                         : null,
-                    extra: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ReminderControl(
-                          value: _remindMe,
-                          onChanged: (value) =>
-                              setState(() => _remindMe = value),
-                        ),
-                        // Saklanacak orijinal ancak bir kare varsa var.
-                        // Ayırıcı da onunla birlikte gider: karesiz kayıtta
-                        // altında satır kalmıyor, tek başına asılı bir çizgi
-                        // olurdu.
-                        if (capture != null) ...[
-                          // Konum denetiminden önceki ayırıcının aynısı: iki
-                          // anahtar arasında ince bir çizgi olmadan satırlar
-                          // birbirine yapışık okunuyordu.
-                          Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              32,
-                              18,
-                              0,
-                              18,
-                            ),
-                            child: ColoredBox(
-                              color: context.palette.hairline,
-                              child: const SizedBox(height: 0.6),
-                            ),
-                          ),
-                          KeepOriginalControl(
-                            value: _keepOriginal,
+                    // Klavye açıkken anahtarlar tek satıra iniyor.
+                    //
+                    // Onlar cümle hakkında değil **kayıt** hakkında kararlar;
+                    // yazarken gerekmiyorlar. Ekranda kalmaya çalıştıklarında
+                    // klavyenin zaten aldığı yer için kavga ediyorlar:
+                    // fotoğraf 150'ye, yazı alanı tabanına dayanıyor,
+                    // anahtarlara kırıntı bir kaydırma penceresi kalıyordu.
+                    // Erişilebilirdi ama rahat değildi.
+                    extra: OptionsFold(
+                      collapsed: _typing,
+                      door: CollapsedOptions(
+                        onExpand: () =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                      ),
+                      options: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ReminderControl(
+                            value: _remindMe,
                             onChanged: (value) =>
-                                setState(() => _keepOriginal = value),
+                                setState(() => _remindMe = value),
                           ),
-                        ],
-                        if (_wantsLocation) ...[
-                          Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              32,
-                              18,
-                              0,
-                              18,
+                          // Saklanacak orijinal ancak bir kare varsa var.
+                          // Ayırıcı da onunla birlikte gider: karesiz kayıtta
+                          // altında satır kalmıyor, tek başına asılı bir çizgi
+                          // olurdu.
+                          if (capture != null) ...[
+                            // Konum denetiminden önceki ayırıcının aynısı: iki
+                            // anahtar arasında ince bir çizgi olmadan satırlar
+                            // birbirine yapışık okunuyordu.
+                            Padding(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                32,
+                                18,
+                                0,
+                                18,
+                              ),
+                              child: ColoredBox(
+                                color: context.palette.hairline,
+                                child: const SizedBox(height: 0.6),
+                              ),
                             ),
-                            child: ColoredBox(
-                              color: context.palette.hairline,
-                              child: const SizedBox(height: 0.6),
+                            KeepOriginalControl(
+                              value: _keepOriginal,
+                              onChanged: (value) =>
+                                  setState(() => _keepOriginal = value),
                             ),
-                          ),
-                          LocationControl(
-                            enabled: _locationEnabled,
-                            onChanged: (value) {
-                              setState(() => _locationEnabled = value);
-                              unawaited(
-                                AppScope.settingsOf(
-                                  context,
-                                ).setLocationEnabled(value),
-                              );
-                            },
-                            onResolved: (value) {
-                              if (mounted) setState(() => _location = value);
-                            },
-                            controller: _locationController,
-                          ),
+                          ],
+                          if (_wantsLocation) ...[
+                            Padding(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                32,
+                                18,
+                                0,
+                                18,
+                              ),
+                              child: ColoredBox(
+                                color: context.palette.hairline,
+                                child: const SizedBox(height: 0.6),
+                              ),
+                            ),
+                            LocationControl(
+                              enabled: _locationEnabled,
+                              onChanged: (value) {
+                                setState(() => _locationEnabled = value);
+                                unawaited(
+                                  AppScope.settingsOf(
+                                    context,
+                                  ).setLocationEnabled(value),
+                                );
+                              },
+                              onResolved: (value) {
+                                if (mounted) {
+                                  setState(() => _location = value);
+                                }
+                              },
+                              controller: _locationController,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     header: ComposerStamp(
                       at: context.l10n.stamp(

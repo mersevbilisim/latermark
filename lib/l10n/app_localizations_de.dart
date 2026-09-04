@@ -684,7 +684,7 @@ class L10nDe extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – auch nicht für Analysen, Absturzberichte oder Nutzungsstatistiken. Zur Werbemessung werden an Meta nur zwei Dinge gemeldet: dass die App installiert wurde und dass ein Kauf stattgefunden hat. Beides enthält nichts von dem, was du schreibst, fotografierst oder markierst.';
+      'Latermark verarbeitet deine Notizen, Bilder und Ortsangaben vollständig auf deinem Gerät. Solange du sie nicht selbst teilst, verlassen deine Inhalte das Gerät nicht – weder für Analysen, Absturzberichte, Nutzungsstatistiken noch für Werbung. Die App enthält kein Tracking- oder Werbe-SDK von Drittanbietern. Der einzige Netzwerkverkehr ist der App Store, der deinen Kauf abwickelt.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -783,6 +783,19 @@ class L10nDe extends L10n {
 
   @override
   String get accentGold => 'Gold';
+
+  @override
+  String get accentCustom => 'Eigene';
+
+  @override
+  String get accentCustomTitle => 'Eigene Farbe';
+
+  @override
+  String get accentCustomHint =>
+      'Zieh am Ring, um einen Ton zu wählen. Die Helligkeit legt Latermark fest, damit die Farbe auf hellem, dunklem und fotografischem Grund lesbar bleibt.';
+
+  @override
+  String get accentCustomApply => 'Diese Farbe verwenden';
 
   @override
   String get retentionTitle => 'Automatisch löschen';
@@ -1095,6 +1108,24 @@ class L10nDe extends L10n {
       'Du wolltest an diese Aufnahme erinnert werden.';
 
   @override
+  String get notificationBodyNoFrame =>
+      'Du wolltest, dass Latermark dich an diese Notiz erinnert.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Gratis-Version: noch $count Erinnerungen',
+      one: 'Gratis-Version: noch 1 Erinnerung',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Gratis-Erinnerungen aufgebraucht';
+
+  @override
   String get notificationChannelName => 'Erinnerungen';
 
   @override
@@ -1189,7 +1220,17 @@ class L10nDe extends L10n {
   String get reminderSkip => 'Jetzt nicht';
 
   @override
-  String get reminderDeleteAfterLabel => '1 Stunde nach der Erinnerung löschen';
+  String get reminderDeleteAfterLabel =>
+      '30 Minuten nach der Erinnerung löschen';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · danach gelöscht';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Ersetzt die eigene Aufbewahrung dieser Notiz.';
 
   @override
   String get reminderAfterExpiry =>
@@ -1197,6 +1238,9 @@ class L10nDe extends L10n {
 
   @override
   String get keepOriginalLabel => 'Original speichern';
+
+  @override
+  String get composeOptionsLabel => 'Optionen';
 
   @override
   String get keepOriginalDetail =>
@@ -1207,6 +1251,30 @@ class L10nDe extends L10n {
 
   @override
   String get composeLocationFailed => 'Standort nicht verfügbar';
+
+  @override
+  String get archiveUnavailableTitle => 'Archiv konnte nicht geöffnet werden';
+
+  @override
+  String get archiveUnavailableBody =>
+      'Deine Aufnahmen sind weiterhin auf diesem Telefon. Lösche die App nicht — das würde sie mitnehmen.';
+
+  @override
+  String get archiveRepairAction => 'Reparieren';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Wiederherstellbare Aufnahmen: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'Notizen, Erinnerungen und Aufbewahrungszeiten lassen sich nicht wiederherstellen — sie lagen nur im Datensatz. Die beschädigte Datei wird nicht gelöscht, nur beiseitegelegt.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '$count Aufnahmen zurückgeholt';
+  }
 
   @override
   String get locationFixFailed =>

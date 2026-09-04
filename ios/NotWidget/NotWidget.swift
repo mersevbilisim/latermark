@@ -764,7 +764,7 @@ struct NotWidget: Widget {
         StaticConfiguration(kind: kind, provider: NotProvider()) { entry in
             NotWidgetView(entry: entry)
         }
-        .configurationDisplayName("Latermark")
+        .configurationDisplayName("Latermark Pro")
         .description(Text(NotText.value("widget.description")))
         .supportedFamilies([
             .systemSmall,

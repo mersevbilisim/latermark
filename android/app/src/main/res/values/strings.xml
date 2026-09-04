@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_label">Latermark</string>
+    <string name="widget_label">Latermark Pro</string>
     <string name="widget_description">Shows your latest frame and note.</string>
     <string name="widget_empty_title">Tap to capture</string>
     <string name="widget_empty_subtitle">Your first note will appear here</string>

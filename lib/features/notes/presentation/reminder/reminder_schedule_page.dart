@@ -10,14 +10,17 @@ import '../../../../core/theme/app_shape.dart';
 import '../../../../core/utils/app_format.dart';
 import '../../../../l10n/enum_labels.dart';
 import '../../../../l10n/l10n_context.dart';
+import '../../../../shared/widgets/aperture.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../../shared/widgets/choice_rail.dart';
 import '../../../../shared/widgets/colophon_bar.dart';
+import '../../../../shared/widgets/ember_switch.dart';
 import '../../../reminders/reminder_service.dart';
 import '../../data/notes_database.dart';
 import '../../data/notes_repository.dart';
 import '../../domain/note_reminder.dart';
 import '../home/widgets/note_photo.dart';
+import '../widgets/note_option_label.dart';
 import '../widgets/reminder_calendar.dart';
 import '../widgets/reminder_control.dart';
 
@@ -36,6 +39,7 @@ class ReminderSchedulePage extends StatefulWidget {
     super.key,
     required this.noteId,
     this.initial = const ReminderChoice.off(),
+    this.initialDeleteAfter = false,
     this.onFlowClosed,
     this.now,
   });
@@ -44,6 +48,15 @@ class ReminderSchedulePage extends StatefulWidget {
 
   /// Kayıtlı hatırlatma; yeni bir karede kapalı gelir.
   final ReminderChoice initial;
+
+  /// Kayıtta zaten duran silme sözü — kullanıcı bunu daha önce verdi mi.
+  ///
+  /// Çağıranın söylemesi şart. Sayfa notu diskten de okuyor ama o okuma bir
+  /// kare geç geliyor; bu arada Kaydet'e basan biri, hiç dokunmadığı sözü
+  /// kapalı hâliyle geri yazardı. [NotesRepository.setReminder] kapalı gelen
+  /// sözde hatırlatmadan türeyen silinme anını temizliyor — yani eksik
+  /// geçilen bu tek bayrak, verilmiş bir sözü sessizce siler.
+  final bool initialDeleteAfter;
 
   /// Kameradan başlayan dış yönlendirme zincirinin son halkası. Yazma ekranı
   /// bu sayfaya yerini bıraktığı için zinciri artık bu sayfa kapatıyor.
@@ -90,11 +103,19 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
   /// Çivili değilse yazılan saat, o saatin **bir sonraki** oluşumuna çözülür.
   late bool _dayPinned = widget.initial.isOn;
 
+  /// "Hatırlattıktan bir saat sonra sil."
+  late bool _deleteAfter = widget.initialDeleteAfter;
+
   bool _saving = false;
   bool _flowClosed = false;
 
   NotesRepository? _repository;
   Future<Note?>? _note;
+
+  /// Diskten okunan kayıt. Tek soruyu cevaplıyor: kaydın kendi saklama süresi
+  /// var mı. Hatırlatmanın kendisi buradan okunmuyor — onu çağıran veriyor ve
+  /// kullanıcı bu ekranda değiştiriyor olabilir.
+  Note? _loaded;
 
   DateTime get _defaultMoment {
     final tomorrow = shiftLocalCalendarDays(_now, 1);
@@ -115,7 +136,50 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
     _repository = repository;
     // Tek okuma yetiyor: kare bu ekran açıkken değişmiyor, künye de
     // kaydedilmiş hâli gösteriyor.
-    _note = repository.noteById(widget.noteId);
+    _note = repository.noteById(widget.noteId)
+      ..then(
+        (note) {
+          if (!mounted) return;
+          setState(() => _loaded = note);
+        },
+        // Cascade türetilen future'ı yutuyor: hata dinleyicisiz kalırsa
+        // bölgeye "yakalanmamış" olarak düşer. Künyedeki `FutureBuilder`
+        // aynı okumayı zaten karşılıyor, burada susmak yeterli.
+        onError: (Object _) {},
+      );
+  }
+
+  /// Silme sözü bu kayıtta sunuluyor mu.
+  ///
+  /// Artık **her kayıtta**. Bir süre yalnız karesiz notlara sunuldu; gerekçe
+  /// güvenilirlik değil sonuçtu — silinen kare geri getirilemez, metin yeniden
+  /// yazılabilir.
+  ///
+  /// İki şey o çekinceyi kaldırdı. Silme yolu fotoğrafı eksiksiz topluyor
+  /// (işlenmiş kare, küçük kopyası, saklanmışsa orijinali ve onun kopyası,
+  /// bildirime iliştirilen kopya, arama satırı, Spotlight kaydı) ve bu tam
+  /// olarak `notes_repository_test.dart` içinde **kareli** bir kayıtla
+  /// sınanıyor. İkincisi ve daha önemlisi: söz verilen kayıtta `expiresAt`
+  /// doluyor, kart da kalan ömrü diyaframıyla gösteriyor — kullanıcı arşivine
+  /// baktığında o karenin gideceğini görüyor, sürprizle karşılaşmıyor.
+  bool get _offersDeleteAfter => _loaded != null || _deleteAfter;
+
+  /// Söz yalnız tek atışta ayakta. Tekrarlı bir hatırlatmayı ilk bildirimden
+  /// sonra silmek, verilen sözün kendisini yerdi.
+  bool get _promisesDelete => _deleteAfter && _cadence == ReminderCadence.once;
+
+  /// Sözün, notun **kendi** saklama süresinin yerine geçtiği hâl.
+  ///
+  /// Kaydın hâlihazırdaki silinme anı hatırlatmadan türemiyorsa kullanıcı onu
+  /// ayrıca seçmiş demektir; söz o süreyi kısaltabilir de uzatabilir de.
+  /// Sessiz kalmasın diye anahtarın altında yazıyor.
+  bool get _replacesRetention {
+    final note = _loaded;
+    if (note == null || note.expiresAt == null) return false;
+    return !isReminderExpiry(
+      remindAt: note.remindAt,
+      expiresAt: note.expiresAt,
+    );
   }
 
   @override
@@ -172,6 +236,7 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
       await _repository!.setReminder(
         widget.noteId,
         ReminderChoice(at: _at, cadence: _cadence),
+        deleteAfterReminder: _promisesDelete,
       );
     } on ReminderAfterExpiryException {
       if (!mounted) return;
@@ -197,6 +262,7 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final l10n = context.l10n;
+    final isPro = AppScope.preferences(context).proUnlocked;
     final blocked =
         AppScope.reminderPermission(context) == ReminderPermissionState.denied;
 
@@ -258,9 +324,19 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                               // Sonucun cümlesi kaydetmenin hemen üstünde
                               // zaten yazıyor — rayın altına ikinci kez
                               // yazmak aynı şeyi iki kere söylemek olurdu.
+                              // Ücretsiz katmanda yalnız "Bir kez".
+                              //
+                              // Hak "üç bildirim" demek; tekrarlı bir
+                              // hatırlatma tek hakla sınırsız bildirim
+                              // üretirdi. Diğer ritimleri kilitli göstermek
+                              // yerine hiç göstermiyoruz: rayda dokunulamayan
+                              // dört seçenek, verilmeyen bir sözün reklamı
+                              // olurdu.
                               ChoiceRail<ReminderCadence>(
                                 key: const Key('reminder-cadence-rail'),
-                                options: ReminderCadence.values,
+                                options: isPro
+                                    ? ReminderCadence.values
+                                    : const [ReminderCadence.once],
                                 value: _cadence,
                                 onChanged: _setCadence,
                                 labelOf: (cadence) => switch (cadence) {
@@ -276,6 +352,25 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                                     l10n.reminderCadenceYearly,
                                 },
                               ),
+                              // Söz yalnız "Bir kez"de duruyor, ama yeri
+                              // ritimden bağımsız ayrılıyor. Eskiden satır
+                              // katlanıp açılıyordu ve sayfa her ritim
+                              // dokunuşunda zıplıyordu — üstteki üç bölüm
+                              // artan yeri paylaştığı için kaybolan satır
+                              // takvimi de saati de yerinden oynatıyordu.
+                              // Yer sabit kalınca yalnız satırın kendisi
+                              // sönüyor.
+                              if (_offersDeleteAfter)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 14),
+                                  child: _DeleteAfterSlot(
+                                    shown: _cadence == ReminderCadence.once,
+                                    value: _deleteAfter,
+                                    replacesRetention: _replacesRetention,
+                                    onChanged: (value) =>
+                                        setState(() => _deleteAfter = value),
+                                  ),
+                                ),
                             ],
                           ),
                         ],
@@ -311,8 +406,9 @@ class _ReminderSchedulePageState extends State<ReminderSchedulePage> {
                           l10n,
                           at: _at,
                           use24Hour: context.use24Hour,
+                          deleteAfter: _promisesDelete,
                         ),
-                        key: ValueKey((_at, _cadence)),
+                        key: ValueKey((_at, _cadence, _promisesDelete)),
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         style: palette.bodyStrong.copyWith(
@@ -430,6 +526,119 @@ class _SavedFrame extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Silme sözünün yeri: ritim ne olursa olsun ayrılıyor, yalnız "Bir kez"de
+/// doluyor.
+///
+/// Katlanıp açılan bir satır değil — üstteki üç bölüm artan yeri paylaştığı
+/// için katlanma takvimi ve saati de oynatıyordu. Yer sabit, sönen tek şey
+/// satırın kendisi; sönükken ne dokunuşu ne de ekran okuyucuyu karşılıyor.
+class _DeleteAfterSlot extends StatelessWidget {
+  const _DeleteAfterSlot({
+    required this.shown,
+    required this.value,
+    required this.replacesRetention,
+    required this.onChanged,
+  });
+
+  final bool shown;
+  final bool value;
+  final bool replacesRetention;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    ignoring: !shown,
+    child: ExcludeSemantics(
+      excluding: !shown,
+      child: AnimatedOpacity(
+        key: const Key('reminder-delete-after-slot'),
+        duration: AppMotion.fast,
+        curve: AppMotion.ease,
+        opacity: shown ? 1 : 0,
+        child: _DeleteAfterRow(
+          value: value,
+          replacesRetention: replacesRetention,
+          onChanged: onChanged,
+        ),
+      ),
+    ),
+  );
+}
+
+/// "Hatırlattıktan 1 saat sonra sil."
+///
+/// Soldaki işaret bir ikon değil, uygulamanın kendi irisi: söz verildiğinde
+/// kapanmaya başlar. Aynı iris not detayında kalan ömrü, silme onayında da
+/// kararın kendisini gösteriyor — üç ekran tek bir cümle kuruyor.
+class _DeleteAfterRow extends StatelessWidget {
+  const _DeleteAfterRow({
+    required this.value,
+    required this.replacesRetention,
+    required this.onChanged,
+  });
+
+  final bool value;
+
+  /// Notun kendi saklama süresi var ve söz onun yerine geçiyor.
+  final bool replacesRetention;
+
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final l10n = context.l10n;
+    final label = l10n.reminderDeleteAfterLabel;
+    // Açıklama yalnız gerçekten bir şeyin yerine geçen kayıtta var. Sözün ne
+    // yaptığı adından belli; her notta bir satır daha yazmak, okunması
+    // gereken tek uyarıyı da gürültüye çevirirdi.
+    //
+    // Yeri anahtardan bağımsız ayrılıyor, görünürlüğü ona bağlı: metni
+    // dokunuşla var edip yok etmek satırı büyütüp küçültür, o da üstündeki
+    // takvimi oynatırdı.
+    final detail = replacesRetention ? l10n.reminderDeleteAfterOverride : null;
+
+    return GestureDetector(
+      key: const Key('reminder-delete-after-row'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: MergeSemantics(
+        child: NoteOptionRow(
+          label: ExcludeSemantics(
+            child: NoteOptionLabel(
+              title: label,
+              detail: detail,
+              detailVisible: value,
+              active: value,
+              // Yuvada ikon değil uygulamanın kendi irisi duruyor: söz
+              // verildiğinde kapanmaya başlıyor. Aynı iris not detayında
+              // kalan ömrü, silme onayında da kararın kendisini gösteriyor —
+              // üç ekran tek bir cümle kuruyor.
+              leading: AnimatedSwitcher(
+                duration: AppMotion.medium,
+                child: Aperture(
+                  key: ValueKey(value),
+                  openness: value ? 0.22 : 0.72,
+                  twist: value ? -0.34 : 0,
+                  bladeCount: 7,
+                  edgeTint: value ? palette.ember : palette.inkFaint,
+                  bladeBase: palette.canvas,
+                ),
+              ),
+            ),
+          ),
+          trailing: EmberSwitch(
+            key: const Key('reminder-delete-after-switch'),
+            value: value,
+            onChanged: onChanged,
+            semanticLabel: label,
+          ),
+        ),
+      ),
     );
   }
 }

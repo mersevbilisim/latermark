@@ -2,7 +2,7 @@
 "Create a note in ${applicationName}" = "Crie uma nota no ${applicationName}";
 "Add a reminder note with ${applicationName}" = "Adicione uma nota com lembrete no ${applicationName}";
 "Create a reminder note in ${applicationName}" = "Crie uma nota com lembrete no ${applicationName}";
-"Save a note to ${applicationName}" = "Salva uma nota no ${applicationName}";
+"Save a note to ${applicationName}" = "Salve uma nota no ${applicationName}";
 "New note in ${applicationName}" = "Nova nota no ${applicationName}";
-"Save a reminder note to ${applicationName}" = "Salva uma nota com lembrete no ${applicationName}";
+"Save a reminder note to ${applicationName}" = "Salve uma nota com lembrete no ${applicationName}";
 "New reminder note in ${applicationName}" = "Nova nota com lembrete no ${applicationName}";

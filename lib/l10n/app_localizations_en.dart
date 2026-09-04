@@ -679,7 +679,7 @@ class L10nEn extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, or usage statistics. Two things are reported to Meta for advertising measurement: that the app was installed, and that a purchase was made. Neither includes anything you write, photograph, or tag.';
+      'Latermark processes your notes, photos, and location tags entirely on your device. Unless you choose to share them, your content never leaves it—not for analytics, crash reports, usage statistics, or advertising. The app contains no third-party tracking or advertising SDK. The only network traffic is the App Store handling your purchase.';
 
   @override
   String get yourDataLocationQuestion =>
@@ -777,6 +777,19 @@ class L10nEn extends L10n {
 
   @override
   String get accentGold => 'Gold';
+
+  @override
+  String get accentCustom => 'Custom';
+
+  @override
+  String get accentCustomTitle => 'Custom color';
+
+  @override
+  String get accentCustomHint =>
+      'Drag the ring to choose a tone. Brightness is set by Latermark so the colour stays readable on light, dark and photo backgrounds.';
+
+  @override
+  String get accentCustomApply => 'Use this colour';
 
   @override
   String get retentionTitle => 'Auto-Delete';
@@ -1088,6 +1101,24 @@ class L10nEn extends L10n {
       'You asked Latermark to remind you about this frame.';
 
   @override
+  String get notificationBodyNoFrame =>
+      'You asked Latermark to remind you about this note.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Free plan: $count reminders left',
+      one: 'Free plan: 1 reminder left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Free reminders used up';
+
+  @override
   String get notificationChannelName => 'Reminders';
 
   @override
@@ -1182,7 +1213,16 @@ class L10nEn extends L10n {
   String get reminderSkip => 'Not now';
 
   @override
-  String get reminderDeleteAfterLabel => 'Delete 1 hour after reminding';
+  String get reminderDeleteAfterLabel => 'Delete 30 minutes after reminding';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · then deleted';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Replaces this note\'s own retention.';
 
   @override
   String get reminderAfterExpiry =>
@@ -1192,6 +1232,9 @@ class L10nEn extends L10n {
   String get keepOriginalLabel => 'Save the original';
 
   @override
+  String get composeOptionsLabel => 'Options';
+
+  @override
   String get keepOriginalDetail => 'Quality stays untouched, storage grows.';
 
   @override
@@ -1199,6 +1242,30 @@ class L10nEn extends L10n {
 
   @override
   String get composeLocationFailed => 'Location unavailable';
+
+  @override
+  String get archiveUnavailableTitle => 'Couldn\'t open your archive';
+
+  @override
+  String get archiveUnavailableBody =>
+      'Your frames are still on this phone. Don\'t delete the app — that would take them with it.';
+
+  @override
+  String get archiveRepairAction => 'Repair';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Frames that can be recovered: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'Your notes, reminders and retention settings can\'t be recovered — those lived only in the record. The damaged file isn\'t deleted, just set aside.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return 'Recovered $count frames';
+  }
 
   @override
   String get locationFixFailed =>

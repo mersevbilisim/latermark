@@ -665,7 +665,7 @@ class L10nTr extends L10n {
 
   @override
   String get yourDataSafetyAnswer =>
-      'Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu veya kullanım istatistiği için de gönderilmez. Reklam ölçümü için Meta\'ya yalnızca iki şey bildirilir: uygulamanın kurulduğu ve bir satın alma yapıldığı. İkisi de yazdığınız, çektiğiniz veya etiketlediğiniz hiçbir şeyi içermez.';
+      'Latermark notlarınızı, fotoğraflarınızı ve konum etiketlerinizi tamamen cihazınızda işler. Siz paylaşmayı seçmedikçe içerikleriniz cihazınızdan çıkmaz; analiz, hata raporu, kullanım istatistiği veya reklam için de gönderilmez. Uygulamada üçüncü taraf hiçbir izleme ya da reklam SDK\'sı yoktur. Ağa çıkan tek şey, satın almanızı yürüten uygulama mağazasıdır.';
 
   @override
   String get yourDataLocationQuestion => 'Konum izni neden istenir?';
@@ -762,6 +762,19 @@ class L10nTr extends L10n {
 
   @override
   String get accentGold => 'Altın';
+
+  @override
+  String get accentCustom => 'Özel';
+
+  @override
+  String get accentCustomTitle => 'Özel renk';
+
+  @override
+  String get accentCustomHint =>
+      'Tonu seçmek için halkayı çevir. Parlaklığı Latermark ayarlıyor; renk aydınlıkta, karanlıkta ve fotoğraf üstünde okunur kalsın diye.';
+
+  @override
+  String get accentCustomApply => 'Bu rengi kullan';
 
   @override
   String get retentionTitle => 'Otomatik sil';
@@ -1062,6 +1075,22 @@ class L10nTr extends L10n {
   String get notificationBodyNoBody => 'Bu kareyi hatırlatmamı istemiştin.';
 
   @override
+  String get notificationBodyNoFrame => 'Bu notu hatırlatmamı istemiştin.';
+
+  @override
+  String reminderFreeRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ücretsiz kullanım: $count hatırlatma hakkın kaldı',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reminderFreeSpent => 'Ücretsiz hatırlatma hakkın doldu';
+
+  @override
   String get notificationChannelName => 'Hatırlatmalar';
 
   @override
@@ -1156,7 +1185,16 @@ class L10nTr extends L10n {
   String get reminderSkip => 'Şimdi değil';
 
   @override
-  String get reminderDeleteAfterLabel => 'Hatırlattıktan 1 saat sonra sil';
+  String get reminderDeleteAfterLabel => 'Hatırlattıktan 30 dakika sonra sil';
+
+  @override
+  String reminderDeleteAfterValue(String when) {
+    return '$when · sonra silinir';
+  }
+
+  @override
+  String get reminderDeleteAfterOverride =>
+      'Notun kendi saklama süresinin yerine geçer.';
 
   @override
   String get reminderAfterExpiry =>
@@ -1164,6 +1202,9 @@ class L10nTr extends L10n {
 
   @override
   String get keepOriginalLabel => 'Orijinal haliyle kaydet';
+
+  @override
+  String get composeOptionsLabel => 'Seçenekler';
 
   @override
   String get keepOriginalDetail =>
@@ -1174,6 +1215,30 @@ class L10nTr extends L10n {
 
   @override
   String get composeLocationFailed => 'Konum alınamadı';
+
+  @override
+  String get archiveUnavailableTitle => 'Arşiv açılamadı';
+
+  @override
+  String get archiveUnavailableBody =>
+      'Karelerin telefonunda duruyor. Uygulamayı silme — silmek onları da götürür.';
+
+  @override
+  String get archiveRepairAction => 'Onar';
+
+  @override
+  String archiveRepairCount(int count) {
+    return 'Kurtarılabilecek kare: $count';
+  }
+
+  @override
+  String get archiveRepairCost =>
+      'Yazılar, hatırlatmalar ve saklama süreleri kurtarılamıyor — onlar yalnızca kayıttaydı. Bozuk dosya silinmiyor, yana alınıyor.';
+
+  @override
+  String archiveRepairDone(int count) {
+    return '$count kare geri alındı';
+  }
 
   @override
   String get locationFixFailed =>

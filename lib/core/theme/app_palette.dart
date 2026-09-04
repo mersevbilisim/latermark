@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'accent_tone.dart';
 import 'app_accent.dart';
 import 'app_typography.dart';
 
@@ -13,6 +14,7 @@ import 'app_typography.dart';
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.accent,
+    this.customHue = AccentTone.defaultHue,
     required this.brightness,
     required this.canvas,
     required this.canvasLift,
@@ -35,6 +37,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// Bu paleti üreten kullanıcı tercihi. Parlaklık kopyalanırken vurgu
   /// seçiminin varsayılan turuncuya dönmesini önler.
   final AppAccent accent;
+
+  /// [AppAccent.custom] seçiliyken kullanıcının tonu. Diğer seçimlerde
+  /// okunmuyor ama taşınıyor: [copyWith] parlaklığı değiştirirken paleti
+  /// yeniden kuruyor ve ton orada kaybolmamalı.
+  final int customHue;
 
   final Brightness brightness;
 
@@ -122,13 +129,18 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   /// Nötr paleti bozmadan yalnızca gerçek vurgu kanallarını değiştirir.
-  static AppPalette forAccent(Brightness brightness, AppAccent accent) {
+  static AppPalette forAccent(
+    Brightness brightness,
+    AppAccent accent, {
+    int customHue = AccentTone.defaultHue,
+  }) {
     final base = brightness == Brightness.dark ? dark : light;
     if (accent == AppAccent.orange) return base;
-    final color = accent.colorFor(brightness);
-    final photo = accent.onPhoto;
+    final color = accent.colorFor(brightness, customHue: customHue);
+    final photo = accent.onPhotoFor(customHue: customHue);
     return base._withAccent(
       accent,
+      customHue,
       color,
       color.withValues(alpha: brightness == Brightness.dark ? 0.17 : 0.15),
       photo,
@@ -138,12 +150,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   AppPalette _withAccent(
     AppAccent accent,
+    int customHue,
     Color color,
     Color glow,
     Color photo,
     Color photoGlow,
   ) => AppPalette(
     accent: accent,
+    customHue: customHue,
     brightness: brightness,
     canvas: canvas,
     canvasLift: canvasLift,
@@ -167,13 +181,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette copyWith({Brightness? brightness}) =>
       brightness == null || brightness == this.brightness
       ? this
-      : AppPalette.forAccent(brightness, accent);
+      : AppPalette.forAccent(brightness, accent, customHue: customHue);
 
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
     if (other is! AppPalette) return this;
     return AppPalette(
       accent: t < 0.5 ? accent : other.accent,
+      customHue: t < 0.5 ? customHue : other.customHue,
       brightness: t < 0.5 ? brightness : other.brightness,
       canvas: Color.lerp(canvas, other.canvas, t)!,
       canvasLift: Color.lerp(canvasLift, other.canvasLift, t)!,

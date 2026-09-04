@@ -42,6 +42,19 @@ abstract final class WidgetKeys {
   /// ve fotoğrafı temizler; native widget da ayrıca kendi kilit durumunu çizer.
   static const pro = 'not_pro';
 
+  /// Widget metinlerinin dili: `tr`, `en`, `pt-BR` gibi bir BCP-47 etiketi.
+  ///
+  /// Zamana bağlı metinleri native taraf üretiyor (bkz. [createdAt]) ve bir
+  /// uzantı kendi başına yalnızca **sistem** dilini bilir. Uygulama içinden
+  /// başka bir dil seçen kullanıcının widget'ı bu anahtar olmadan telefonun
+  /// dilinde kalıyordu: arayüz Türkçe, ana ekrandaki kart "TODAY · 2d".
+  ///
+  /// "Sistem" seçiliyken de boş geçilmez; çözülmüş dil yazılır. Native tarafın
+  /// kendi yedeklemesi Flutter'ınkiyle aynı sonucu vermeyebilir — `pt_PT`
+  /// konuşan bir telefonda uygulama `pt_BR` çevirisine düşerken Android
+  /// `values-pt/` klasörünü seçerdi.
+  static const locale = 'not_locale';
+
   /// Kullanıcının seçtiği fotoğraf-üstü vurgu renginin sekiz haneli ARGB
   /// karşılığı. Swift/Kotlin, widget'ı Flutter paletiyle aynı tonda çizer.
   static const accent = 'not_accent';

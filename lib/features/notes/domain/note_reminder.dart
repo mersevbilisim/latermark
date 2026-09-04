@@ -136,9 +136,21 @@ final class ReminderAfterExpiryException implements Exception {
 ///
 /// "Hatırlat, sonra sil" tek bir sözdür; süreyi ayarlanabilir yapmak
 /// kullanıcıya ikinci bir karar daha yükler ve planlama ekranını bir forma
-/// çevirirdi. Bir saat, bildirimi görüp kareye dönmeye yeter — ama notu
-/// süresiz bekletmez.
-const kReminderExpiryGrace = Duration(hours: 1);
+/// çevirirdi.
+///
+/// Payın alt sınırını zevk değil **düzenek** belirliyor: silme bir zamanlayıcı
+/// değil, süpürme. `purgeExpired()` açılışta, öne gelişte ve önplandayken
+/// dakikada bir koşuyor, yani not süre dolduktan sonraki ilk açılışta gidiyor.
+/// Pay, "kullanıcının telefonu eline alması" süresinden kısa olamaz — yoksa
+/// bildirime dokunan biri notun olmadığı bir arşive düşer, ya da kart tam
+/// bakarken dakikalık süpürmede altından silinir. Beş dakika bu yüzden
+/// elendi: odaklanma kipi, cepteki telefon, saatten gelen bildirim hep o
+/// aralığa giriyor. Yarım saat boşluğu yutuyor ama kareyi de günlerce
+/// bekletmiyor.
+///
+/// Değeri değiştirirken `reminderDeleteAfterLabel` de on dilde değişmeli:
+/// etiket süreyi rakamla söylüyor.
+const kReminderExpiryGrace = Duration(minutes: 30);
 
 /// Hatırlatmadan türetilen silinme anı.
 DateTime reminderExpiryFor(DateTime remindAt) =>

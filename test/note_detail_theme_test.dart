@@ -144,13 +144,18 @@ void main() {
     // dokunma anında beliriyor, dinlenen ekranda değil.
     // Renk stilde değil boyanan paragrafta okunur: hücre onu
     // AnimatedDefaultTextStyle üzerinden veriyor.
-    Color colorOf(Finder cell) => (tester.renderObject(
-          find.descendant(of: cell, matching: find.byType(Text)),
-        ) as RenderParagraph)
-        .text
-        .style!
-        .color!;
-    expect(colorOf(deleteAction), palette.ink);
+    Color colorOf(Finder cell) =>
+        (tester.renderObject(
+                  find.descendant(of: cell, matching: find.byType(Text)),
+                )
+                as RenderParagraph)
+            .text
+            .style!
+            .color!;
+    // Yıkıcı eylem dinlenirken de kendini söylüyor: kullanıcı bir kelimenin
+    // tehlikeli olduğunu ona basarak öğrenmemeli. Değişen tek şey mürekkebin
+    // rengi — kutu ya da kalınlık yok, şerit hâlâ üç eşit kelime.
+    expect(colorOf(deleteAction), palette.danger);
     expect(colorOf(editAction), palette.ink);
     expect(colorOf(shareAction), palette.ink);
 
@@ -164,7 +169,8 @@ void main() {
     // kalanı bu testin konusu değil.
     await press.cancel();
     await _settle(tester);
-    expect(colorOf(deleteAction), palette.ink);
+    // Bırakınca da tehlike renginde kalıyor: artık dinlenme hâlinin kendisi.
+    expect(colorOf(deleteAction), palette.danger);
 
     final chrome = find.byKey(const ValueKey('detail-chrome'));
     final photoStage = find.byKey(const ValueKey('note-photo-stage'));
@@ -235,13 +241,11 @@ void main() {
     expect(logicalSize.height - saveCenter.dy, lessThan(90));
     expect(logicalSize.height - saveCenter.dy, greaterThan(bottomSafeInset));
     expect(saveCenter.dy, greaterThan(logicalSize.height / 2));
-    final pullRegion = find.byKey(const ValueKey('edit-pull-down-region'));
-    expect(pullRegion, findsOneWidget);
-    expect(
-      tester.getCenter(pullRegion).dy,
-      greaterThan(logicalSize.height / 2),
-    );
-    expect(tester.getCenter(pullRegion).dy, lessThan(saveCenter.dy));
+    // Tutamak yazarken çekiliyor: 40 puan yalnızca aşağı çekme hareketi için
+    // ayrılmıştı ve şerit klavyenin üstündeyken bütün alt bölgeyi
+    // kalınlaştırıp seçenek satırını neredeyse altında bırakıyordu. Klavye
+    // inince yerine dönüyor — onu `edit_sheet_keyboard_test.dart` doğruluyor.
+    expect(find.byKey(const ValueKey('edit-pull-down-region')), findsNothing);
 
     // Yazarken baskı küçülür ama oranını korur: kırpılmaz, letterbox taşımaz.
     expect(tester.getSize(photoStage).height, lessThan(restingPhotoHeight));
@@ -351,10 +355,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     final sheet = find.byType(DetailSheet);
-    expect(
-      tester.getSize(sheet).height,
-      greaterThan(logicalSize.height),
-    );
+    expect(tester.getSize(sheet).height, greaterThan(logicalSize.height));
     // Panel kendi içinde kaydırmaz; sayfanın akışına katılır.
     expect(
       find.descendant(of: sheet, matching: find.byType(SingleChildScrollView)),
@@ -458,7 +459,6 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
-
 }
 
 Future<void> _settle(WidgetTester tester) async {

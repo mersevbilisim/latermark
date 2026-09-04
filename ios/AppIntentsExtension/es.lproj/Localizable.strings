@@ -14,6 +14,7 @@
 "Added to Latermark. I'll remind you then." = "Añadida a Latermark. Te lo recordaré entonces.";
 "Added to Latermark, but the reminder couldn't be set. Open Latermark to finish it." = "Añadida a Latermark, pero no se pudo crear el recordatorio. Abre Latermark para terminarlo.";
 "Reminders from Siri require Latermark Pro. Nothing was saved." = "Los recordatorios desde Siri requieren Latermark Pro. No se ha guardado nada.";
+"You have used all your free reminders. Latermark Pro removes the limit. Nothing was saved." = "Has agotado los recordatorios gratuitos. Latermark Pro elimina el límite. No se guardó nada.";
 "Reminders are turned off in Latermark. Turn them on there first. Nothing was saved." = "Los recordatorios están desactivados en Latermark. Actívalos allí primero. No se ha guardado nada.";
 "Open Latermark once so Siri can read your retention setting. Nothing was saved." = "Abre Latermark una vez para que Siri pueda leer tu ajuste de conservación. No se ha guardado nada.";
 "Latermark can't send notifications yet. Allow them in Latermark first. Nothing was saved." = "Latermark aún no puede enviar notificaciones. Permítelas primero en Latermark. No se ha guardado nada.";

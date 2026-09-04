@@ -253,6 +253,25 @@ class PhotoStore {
 
   /// Veritabanında karşılığı kalmamış dosyaları temizler. Kayıt silinirken
   /// uygulama öldürülürse ortaya çıkan yetim dosyalar için.
+  /// Depodaki bütün kare adları. Küçük kopyalar hariç — onlar ayrı klasörde.
+  ///
+  /// Yalnızca kurtarma kullanıyor: veritabanı gittiğinde geriye kalan tek
+  /// gerçek bu liste oluyor.
+  /// Okuma bilinçli olarak **eşzamanlı**: tek seferlik, yalnız onarım
+  /// yolundan çağrılıyor ve dosyanın geri kalanı da (`existsSync`,
+  /// `lastModifiedSync`) aynı dilde konuşuyor. Eşzamansız gezinti burada
+  /// yalnızca testte gerçek olayları bekletiyor, üründe hiçbir şey
+  /// kazandırmıyordu.
+  List<String> frameNames() {
+    if (!_directory.existsSync()) return const [];
+    final names = [
+      for (final entity in _directory.listSync())
+        if (entity is File) p.basename(entity.path),
+    ];
+    names.sort();
+    return names;
+  }
+
   Future<void> pruneOrphans(Set<String> knownNames) async {
     if (!_directory.existsSync()) return;
     final cutoff = DateTime.now().subtract(_orphanGrace);

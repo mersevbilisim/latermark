@@ -1320,6 +1320,18 @@ class $SettingsTableTable extends SettingsTable
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       ).withConverter<AppAccent>($SettingsTableTable.$converteraccent);
+  static const VerificationMeta _accentHueMeta = const VerificationMeta(
+    'accentHue',
+  );
+  @override
+  late final GeneratedColumn<int> accentHue = GeneratedColumn<int>(
+    'accent_hue',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(AccentTone.defaultHue),
+  );
   @override
   late final GeneratedColumnWithTypeConverter<FeedDensity, int> density =
       GeneratedColumn<int>(
@@ -1423,11 +1435,37 @@ class $SettingsTableTable extends SettingsTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _collapsedGroupsMeta = const VerificationMeta(
+    'collapsedGroups',
+  );
+  @override
+  late final GeneratedColumn<String> collapsedGroups = GeneratedColumn<String>(
+    'collapsed_groups',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _freeReminderNotesMeta = const VerificationMeta(
+    'freeReminderNotes',
+  );
+  @override
+  late final GeneratedColumn<String> freeReminderNotes =
+      GeneratedColumn<String>(
+        'free_reminder_notes',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     themeMode,
     accent,
+    accentHue,
     density,
     reminderEnabled,
     locationEnabled,
@@ -1436,6 +1474,8 @@ class $SettingsTableTable extends SettingsTable
     defaultCustomMinutes,
     shareSignature,
     proUnlocked,
+    collapsedGroups,
+    freeReminderNotes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1451,6 +1491,12 @@ class $SettingsTableTable extends SettingsTable
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('accent_hue')) {
+      context.handle(
+        _accentHueMeta,
+        accentHue.isAcceptableOrUnknown(data['accent_hue']!, _accentHueMeta),
+      );
     }
     if (data.containsKey('reminder_enabled')) {
       context.handle(
@@ -1497,6 +1543,24 @@ class $SettingsTableTable extends SettingsTable
         ),
       );
     }
+    if (data.containsKey('collapsed_groups')) {
+      context.handle(
+        _collapsedGroupsMeta,
+        collapsedGroups.isAcceptableOrUnknown(
+          data['collapsed_groups']!,
+          _collapsedGroupsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('free_reminder_notes')) {
+      context.handle(
+        _freeReminderNotesMeta,
+        freeReminderNotes.isAcceptableOrUnknown(
+          data['free_reminder_notes']!,
+          _freeReminderNotesMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1522,6 +1586,10 @@ class $SettingsTableTable extends SettingsTable
           data['${effectivePrefix}accent'],
         )!,
       ),
+      accentHue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}accent_hue'],
+      )!,
       density: $SettingsTableTable.$converterdensity.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -1560,6 +1628,14 @@ class $SettingsTableTable extends SettingsTable
         DriftSqlType.bool,
         data['${effectivePrefix}pro_unlocked'],
       )!,
+      collapsedGroups: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collapsed_groups'],
+      )!,
+      freeReminderNotes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}free_reminder_notes'],
+      )!,
     );
   }
 
@@ -1590,6 +1666,13 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
 
   /// Küratörlü uygulama vurgu rengi. Turuncu (index 0) eski görünümü korur.
   final AppAccent accent;
+
+  /// [AppAccent.custom] seçildiğinde kullanıcının tonu (0–359).
+  ///
+  /// Renk değil **ton** saklanıyor. Parlaklık ve renkliliği uygulama üretiyor
+  /// (bkz. `AccentTone`); hazır bir ARGB yazsaydık o hedefler ileride
+  /// ayarlandığında eski seçimler eski değerlerinde donup kalırdı.
+  final int accentHue;
 
   /// Varsayılan ızgara (index 1): uygulama ilk açıldığında daha çok kayıt
   /// tek bakışta görünsün.
@@ -1626,10 +1709,41 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Doğruluk kaynağı **mağaza**; bu yalnızca önbellek. Soğuk açılışta mağaza
   /// cevabı gelene kadar ödemiş bir kullanıcıya paywall göstermemek için var.
   final bool proUnlocked;
+
+  /// Ana akışta kapatılmış zaman bölümleri, virgülle ayrılmış adlarıyla.
+  ///
+  /// Görünüm tercihi ama oturumdan uzun yaşıyor: uzun bir arşivi tarayan
+  /// kullanıcı eski bölümleri her açılışta yeniden kapatmak zorunda kalmasın.
+  /// Ayrı bir tablo yerine tek bir metin: küme en fazla yedi ad taşıyor ve
+  /// hiçbir sorgu içine bakmıyor.
+  ///
+  /// Tanınmayan ad okunurken sessizce atılıyor; bölüm adları değişirse eski
+  /// kayıt açılışı bozmaz.
+  final String collapsedGroups;
+
+  /// Ücretsiz hatırlatma hakkını **harcamış** kayıtların kimlikleri,
+  /// virgülle ayrılmış.
+  ///
+  /// Sayaç değil **liste** tutuluyor, çünkü sorulan soru "kaç tane kuruldu"
+  /// değil "bu kayıt hakkını daha önce aldı mı". Sayaçla, kurulmuş bir
+  /// hatırlatmayı kapatıp yeniden açmak ya da saatini değiştirmek ikinci bir
+  /// hak yerdi — kullanıcının kendi kurduğu şeyi düzenlemesi cezalandırılamaz.
+  ///
+  /// Kayıt silinse de kimliği listede kalır: hak ömürlük. `AUTOINCREMENT`
+  /// kimlikleri yeniden kullanmadığı için eski bir kimlik yeni bir kayda
+  /// denk gelemez.
+  ///
+  /// Pro'yken kurulan hatırlatmalar buraya **hiç yazılmaz**; iade sonrası
+  /// kullanıcı kaldığı yerden devam eder.
+  ///
+  /// Yedekten dönüşte bu sütuna dokunulmuyor (bkz. `BackupRepository`): aksi
+  /// hâlde eski bir yedeği geri yüklemek hakkı sıfırlamanın yolu olurdu.
+  final String freeReminderNotes;
   const SettingsRow({
     required this.id,
     required this.themeMode,
     required this.accent,
+    required this.accentHue,
     required this.density,
     required this.reminderEnabled,
     required this.locationEnabled,
@@ -1638,6 +1752,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.defaultCustomMinutes,
     required this.shareSignature,
     required this.proUnlocked,
+    required this.collapsedGroups,
+    required this.freeReminderNotes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1653,6 +1769,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         $SettingsTableTable.$converteraccent.toSql(accent),
       );
     }
+    map['accent_hue'] = Variable<int>(accentHue);
     {
       map['density'] = Variable<int>(
         $SettingsTableTable.$converterdensity.toSql(density),
@@ -1673,6 +1790,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     map['default_custom_minutes'] = Variable<int>(defaultCustomMinutes);
     map['share_signature'] = Variable<bool>(shareSignature);
     map['pro_unlocked'] = Variable<bool>(proUnlocked);
+    map['collapsed_groups'] = Variable<String>(collapsedGroups);
+    map['free_reminder_notes'] = Variable<String>(freeReminderNotes);
     return map;
   }
 
@@ -1681,6 +1800,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       id: Value(id),
       themeMode: Value(themeMode),
       accent: Value(accent),
+      accentHue: Value(accentHue),
       density: Value(density),
       reminderEnabled: Value(reminderEnabled),
       locationEnabled: Value(locationEnabled),
@@ -1689,6 +1809,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       defaultCustomMinutes: Value(defaultCustomMinutes),
       shareSignature: Value(shareSignature),
       proUnlocked: Value(proUnlocked),
+      collapsedGroups: Value(collapsedGroups),
+      freeReminderNotes: Value(freeReminderNotes),
     );
   }
 
@@ -1705,6 +1827,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       accent: $SettingsTableTable.$converteraccent.fromJson(
         serializer.fromJson<int>(json['accent']),
       ),
+      accentHue: serializer.fromJson<int>(json['accentHue']),
       density: $SettingsTableTable.$converterdensity.fromJson(
         serializer.fromJson<int>(json['density']),
       ),
@@ -1721,6 +1844,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       ),
       shareSignature: serializer.fromJson<bool>(json['shareSignature']),
       proUnlocked: serializer.fromJson<bool>(json['proUnlocked']),
+      collapsedGroups: serializer.fromJson<String>(json['collapsedGroups']),
+      freeReminderNotes: serializer.fromJson<String>(json['freeReminderNotes']),
     );
   }
   @override
@@ -1734,6 +1859,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'accent': serializer.toJson<int>(
         $SettingsTableTable.$converteraccent.toJson(accent),
       ),
+      'accentHue': serializer.toJson<int>(accentHue),
       'density': serializer.toJson<int>(
         $SettingsTableTable.$converterdensity.toJson(density),
       ),
@@ -1748,6 +1874,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'defaultCustomMinutes': serializer.toJson<int>(defaultCustomMinutes),
       'shareSignature': serializer.toJson<bool>(shareSignature),
       'proUnlocked': serializer.toJson<bool>(proUnlocked),
+      'collapsedGroups': serializer.toJson<String>(collapsedGroups),
+      'freeReminderNotes': serializer.toJson<String>(freeReminderNotes),
     };
   }
 
@@ -1755,6 +1883,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     int? id,
     AppThemeMode? themeMode,
     AppAccent? accent,
+    int? accentHue,
     FeedDensity? density,
     bool? reminderEnabled,
     bool? locationEnabled,
@@ -1763,10 +1892,13 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     int? defaultCustomMinutes,
     bool? shareSignature,
     bool? proUnlocked,
+    String? collapsedGroups,
+    String? freeReminderNotes,
   }) => SettingsRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
     accent: accent ?? this.accent,
+    accentHue: accentHue ?? this.accentHue,
     density: density ?? this.density,
     reminderEnabled: reminderEnabled ?? this.reminderEnabled,
     locationEnabled: locationEnabled ?? this.locationEnabled,
@@ -1775,12 +1907,15 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
     shareSignature: shareSignature ?? this.shareSignature,
     proUnlocked: proUnlocked ?? this.proUnlocked,
+    collapsedGroups: collapsedGroups ?? this.collapsedGroups,
+    freeReminderNotes: freeReminderNotes ?? this.freeReminderNotes,
   );
   SettingsRow copyWithCompanion(SettingsTableCompanion data) {
     return SettingsRow(
       id: data.id.present ? data.id.value : this.id,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
       accent: data.accent.present ? data.accent.value : this.accent,
+      accentHue: data.accentHue.present ? data.accentHue.value : this.accentHue,
       density: data.density.present ? data.density.value : this.density,
       reminderEnabled: data.reminderEnabled.present
           ? data.reminderEnabled.value
@@ -1801,6 +1936,12 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       proUnlocked: data.proUnlocked.present
           ? data.proUnlocked.value
           : this.proUnlocked,
+      collapsedGroups: data.collapsedGroups.present
+          ? data.collapsedGroups.value
+          : this.collapsedGroups,
+      freeReminderNotes: data.freeReminderNotes.present
+          ? data.freeReminderNotes.value
+          : this.freeReminderNotes,
     );
   }
 
@@ -1810,6 +1951,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
           ..write('accent: $accent, ')
+          ..write('accentHue: $accentHue, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
           ..write('locationEnabled: $locationEnabled, ')
@@ -1817,7 +1959,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('locale: $locale, ')
           ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
           ..write('shareSignature: $shareSignature, ')
-          ..write('proUnlocked: $proUnlocked')
+          ..write('proUnlocked: $proUnlocked, ')
+          ..write('collapsedGroups: $collapsedGroups, ')
+          ..write('freeReminderNotes: $freeReminderNotes')
           ..write(')'))
         .toString();
   }
@@ -1827,6 +1971,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     id,
     themeMode,
     accent,
+    accentHue,
     density,
     reminderEnabled,
     locationEnabled,
@@ -1835,6 +1980,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     defaultCustomMinutes,
     shareSignature,
     proUnlocked,
+    collapsedGroups,
+    freeReminderNotes,
   );
   @override
   bool operator ==(Object other) =>
@@ -1843,6 +1990,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.id == this.id &&
           other.themeMode == this.themeMode &&
           other.accent == this.accent &&
+          other.accentHue == this.accentHue &&
           other.density == this.density &&
           other.reminderEnabled == this.reminderEnabled &&
           other.locationEnabled == this.locationEnabled &&
@@ -1850,13 +1998,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.locale == this.locale &&
           other.defaultCustomMinutes == this.defaultCustomMinutes &&
           other.shareSignature == this.shareSignature &&
-          other.proUnlocked == this.proUnlocked);
+          other.proUnlocked == this.proUnlocked &&
+          other.collapsedGroups == this.collapsedGroups &&
+          other.freeReminderNotes == this.freeReminderNotes);
 }
 
 class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> id;
   final Value<AppThemeMode> themeMode;
   final Value<AppAccent> accent;
+  final Value<int> accentHue;
   final Value<FeedDensity> density;
   final Value<bool> reminderEnabled;
   final Value<bool> locationEnabled;
@@ -1865,10 +2016,13 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> defaultCustomMinutes;
   final Value<bool> shareSignature;
   final Value<bool> proUnlocked;
+  final Value<String> collapsedGroups;
+  final Value<String> freeReminderNotes;
   const SettingsTableCompanion({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
     this.accent = const Value.absent(),
+    this.accentHue = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
     this.locationEnabled = const Value.absent(),
@@ -1877,11 +2031,14 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     this.defaultCustomMinutes = const Value.absent(),
     this.shareSignature = const Value.absent(),
     this.proUnlocked = const Value.absent(),
+    this.collapsedGroups = const Value.absent(),
+    this.freeReminderNotes = const Value.absent(),
   });
   SettingsTableCompanion.insert({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
     this.accent = const Value.absent(),
+    this.accentHue = const Value.absent(),
     this.density = const Value.absent(),
     this.reminderEnabled = const Value.absent(),
     this.locationEnabled = const Value.absent(),
@@ -1890,11 +2047,14 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     this.defaultCustomMinutes = const Value.absent(),
     this.shareSignature = const Value.absent(),
     this.proUnlocked = const Value.absent(),
+    this.collapsedGroups = const Value.absent(),
+    this.freeReminderNotes = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<int>? themeMode,
     Expression<int>? accent,
+    Expression<int>? accentHue,
     Expression<int>? density,
     Expression<bool>? reminderEnabled,
     Expression<bool>? locationEnabled,
@@ -1903,11 +2063,14 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Expression<int>? defaultCustomMinutes,
     Expression<bool>? shareSignature,
     Expression<bool>? proUnlocked,
+    Expression<String>? collapsedGroups,
+    Expression<String>? freeReminderNotes,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (themeMode != null) 'theme_mode': themeMode,
       if (accent != null) 'accent': accent,
+      if (accentHue != null) 'accent_hue': accentHue,
       if (density != null) 'density': density,
       if (reminderEnabled != null) 'reminder_enabled': reminderEnabled,
       if (locationEnabled != null) 'location_enabled': locationEnabled,
@@ -1917,6 +2080,8 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
         'default_custom_minutes': defaultCustomMinutes,
       if (shareSignature != null) 'share_signature': shareSignature,
       if (proUnlocked != null) 'pro_unlocked': proUnlocked,
+      if (collapsedGroups != null) 'collapsed_groups': collapsedGroups,
+      if (freeReminderNotes != null) 'free_reminder_notes': freeReminderNotes,
     });
   }
 
@@ -1924,6 +2089,7 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Value<int>? id,
     Value<AppThemeMode>? themeMode,
     Value<AppAccent>? accent,
+    Value<int>? accentHue,
     Value<FeedDensity>? density,
     Value<bool>? reminderEnabled,
     Value<bool>? locationEnabled,
@@ -1932,11 +2098,14 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     Value<int>? defaultCustomMinutes,
     Value<bool>? shareSignature,
     Value<bool>? proUnlocked,
+    Value<String>? collapsedGroups,
+    Value<String>? freeReminderNotes,
   }) {
     return SettingsTableCompanion(
       id: id ?? this.id,
       themeMode: themeMode ?? this.themeMode,
       accent: accent ?? this.accent,
+      accentHue: accentHue ?? this.accentHue,
       density: density ?? this.density,
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       locationEnabled: locationEnabled ?? this.locationEnabled,
@@ -1945,6 +2114,8 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
       defaultCustomMinutes: defaultCustomMinutes ?? this.defaultCustomMinutes,
       shareSignature: shareSignature ?? this.shareSignature,
       proUnlocked: proUnlocked ?? this.proUnlocked,
+      collapsedGroups: collapsedGroups ?? this.collapsedGroups,
+      freeReminderNotes: freeReminderNotes ?? this.freeReminderNotes,
     );
   }
 
@@ -1963,6 +2134,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
       map['accent'] = Variable<int>(
         $SettingsTableTable.$converteraccent.toSql(accent.value),
       );
+    }
+    if (accentHue.present) {
+      map['accent_hue'] = Variable<int>(accentHue.value);
     }
     if (density.present) {
       map['density'] = Variable<int>(
@@ -1996,6 +2170,12 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
     if (proUnlocked.present) {
       map['pro_unlocked'] = Variable<bool>(proUnlocked.value);
     }
+    if (collapsedGroups.present) {
+      map['collapsed_groups'] = Variable<String>(collapsedGroups.value);
+    }
+    if (freeReminderNotes.present) {
+      map['free_reminder_notes'] = Variable<String>(freeReminderNotes.value);
+    }
     return map;
   }
 
@@ -2005,6 +2185,7 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
           ..write('accent: $accent, ')
+          ..write('accentHue: $accentHue, ')
           ..write('density: $density, ')
           ..write('reminderEnabled: $reminderEnabled, ')
           ..write('locationEnabled: $locationEnabled, ')
@@ -2012,7 +2193,9 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsRow> {
           ..write('locale: $locale, ')
           ..write('defaultCustomMinutes: $defaultCustomMinutes, ')
           ..write('shareSignature: $shareSignature, ')
-          ..write('proUnlocked: $proUnlocked')
+          ..write('proUnlocked: $proUnlocked, ')
+          ..write('collapsedGroups: $collapsedGroups, ')
+          ..write('freeReminderNotes: $freeReminderNotes')
           ..write(')'))
         .toString();
   }
@@ -2466,8 +2649,10 @@ class $$NotesTableTableManager
               ),
           withReferenceMapper: (p0) => p0
               .map(
-                (e) =>
-                    (e.readTable(table), $$NotesTableReferences(db, table, e)),
+                (e) => (
+                  e.readTable<$NotesTable, Note>(table),
+                  $$NotesTableReferences(db, table, e),
+                ),
               )
               .toList(),
           prefetchHooksCallback: ({noteSearchRefs = false}) {
@@ -2763,7 +2948,7 @@ class $$NoteSearchTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$NoteSearchTable, NoteSearchRow>(table),
                   $$NoteSearchTableReferences(db, table, e),
                 ),
               )
@@ -2832,6 +3017,7 @@ typedef $$SettingsTableTableCreateCompanionBuilder =
       Value<int> id,
       Value<AppThemeMode> themeMode,
       Value<AppAccent> accent,
+      Value<int> accentHue,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
       Value<bool> locationEnabled,
@@ -2840,12 +3026,15 @@ typedef $$SettingsTableTableCreateCompanionBuilder =
       Value<int> defaultCustomMinutes,
       Value<bool> shareSignature,
       Value<bool> proUnlocked,
+      Value<String> collapsedGroups,
+      Value<String> freeReminderNotes,
     });
 typedef $$SettingsTableTableUpdateCompanionBuilder =
     SettingsTableCompanion Function({
       Value<int> id,
       Value<AppThemeMode> themeMode,
       Value<AppAccent> accent,
+      Value<int> accentHue,
       Value<FeedDensity> density,
       Value<bool> reminderEnabled,
       Value<bool> locationEnabled,
@@ -2854,6 +3043,8 @@ typedef $$SettingsTableTableUpdateCompanionBuilder =
       Value<int> defaultCustomMinutes,
       Value<bool> shareSignature,
       Value<bool> proUnlocked,
+      Value<String> collapsedGroups,
+      Value<String> freeReminderNotes,
     });
 
 class $$SettingsTableTableFilterComposer
@@ -2881,6 +3072,11 @@ class $$SettingsTableTableFilterComposer
         column: $table.accent,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<int> get accentHue => $composableBuilder(
+    column: $table.accentHue,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnWithTypeConverterFilters<FeedDensity, FeedDensity, int> get density =>
       $composableBuilder(
@@ -2924,6 +3120,16 @@ class $$SettingsTableTableFilterComposer
     column: $table.proUnlocked,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get collapsedGroups => $composableBuilder(
+    column: $table.collapsedGroups,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get freeReminderNotes => $composableBuilder(
+    column: $table.freeReminderNotes,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableTableOrderingComposer
@@ -2947,6 +3153,11 @@ class $$SettingsTableTableOrderingComposer
 
   ColumnOrderings<int> get accent => $composableBuilder(
     column: $table.accent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get accentHue => $composableBuilder(
+    column: $table.accentHue,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2989,6 +3200,16 @@ class $$SettingsTableTableOrderingComposer
     column: $table.proUnlocked,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get collapsedGroups => $composableBuilder(
+    column: $table.collapsedGroups,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get freeReminderNotes => $composableBuilder(
+    column: $table.freeReminderNotes,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableTableAnnotationComposer
@@ -3008,6 +3229,9 @@ class $$SettingsTableTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<AppAccent, int> get accent =>
       $composableBuilder(column: $table.accent, builder: (column) => column);
+
+  GeneratedColumn<int> get accentHue =>
+      $composableBuilder(column: $table.accentHue, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<FeedDensity, int> get density =>
       $composableBuilder(column: $table.density, builder: (column) => column);
@@ -3043,6 +3267,16 @@ class $$SettingsTableTableAnnotationComposer
 
   GeneratedColumn<bool> get proUnlocked => $composableBuilder(
     column: $table.proUnlocked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get collapsedGroups => $composableBuilder(
+    column: $table.collapsedGroups,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get freeReminderNotes => $composableBuilder(
+    column: $table.freeReminderNotes,
     builder: (column) => column,
   );
 }
@@ -3083,6 +3317,7 @@ class $$SettingsTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
                 Value<AppAccent> accent = const Value.absent(),
+                Value<int> accentHue = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
                 Value<bool> locationEnabled = const Value.absent(),
@@ -3091,10 +3326,13 @@ class $$SettingsTableTableTableManager
                 Value<int> defaultCustomMinutes = const Value.absent(),
                 Value<bool> shareSignature = const Value.absent(),
                 Value<bool> proUnlocked = const Value.absent(),
+                Value<String> collapsedGroups = const Value.absent(),
+                Value<String> freeReminderNotes = const Value.absent(),
               }) => SettingsTableCompanion(
                 id: id,
                 themeMode: themeMode,
                 accent: accent,
+                accentHue: accentHue,
                 density: density,
                 reminderEnabled: reminderEnabled,
                 locationEnabled: locationEnabled,
@@ -3103,12 +3341,15 @@ class $$SettingsTableTableTableManager
                 defaultCustomMinutes: defaultCustomMinutes,
                 shareSignature: shareSignature,
                 proUnlocked: proUnlocked,
+                collapsedGroups: collapsedGroups,
+                freeReminderNotes: freeReminderNotes,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
                 Value<AppAccent> accent = const Value.absent(),
+                Value<int> accentHue = const Value.absent(),
                 Value<FeedDensity> density = const Value.absent(),
                 Value<bool> reminderEnabled = const Value.absent(),
                 Value<bool> locationEnabled = const Value.absent(),
@@ -3117,10 +3358,13 @@ class $$SettingsTableTableTableManager
                 Value<int> defaultCustomMinutes = const Value.absent(),
                 Value<bool> shareSignature = const Value.absent(),
                 Value<bool> proUnlocked = const Value.absent(),
+                Value<String> collapsedGroups = const Value.absent(),
+                Value<String> freeReminderNotes = const Value.absent(),
               }) => SettingsTableCompanion.insert(
                 id: id,
                 themeMode: themeMode,
                 accent: accent,
+                accentHue: accentHue,
                 density: density,
                 reminderEnabled: reminderEnabled,
                 locationEnabled: locationEnabled,
@@ -3129,9 +3373,20 @@ class $$SettingsTableTableTableManager
                 defaultCustomMinutes: defaultCustomMinutes,
                 shareSignature: shareSignature,
                 proUnlocked: proUnlocked,
+                collapsedGroups: collapsedGroups,
+                freeReminderNotes: freeReminderNotes,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$SettingsTableTable, SettingsRow>(table),
+                  BaseReferences<
+                    _$NotesDatabase,
+                    $SettingsTableTable,
+                    SettingsRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

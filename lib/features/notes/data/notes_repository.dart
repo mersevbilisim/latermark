@@ -1,14 +1,21 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:cross_file/cross_file.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../domain/note_kind.dart';
 import '../domain/note_reminder.dart';
 import '../domain/reminder_action.dart';
 import '../domain/retention.dart';
+import '../../paywall/data/reminder_quota_store.dart';
+import '../../paywall/domain/pro_limits.dart';
 import '../../settings/domain/pro_downgrade_policy.dart';
+import 'archive_recovery.dart';
 import 'location_service.dart';
 import 'notes_database.dart';
 import 'photo_store.dart';
@@ -73,9 +80,13 @@ void _ensureReminderBeforeExpiry({
 ///
 /// Ekranlar Drift'i veya dosya sistemini doğrudan tanımaz; hepsi buradan geçer.
 class NotesRepository {
-  NotesRepository({required NotesDatabase database, required PhotoStore photos})
-    : _db = database,
-      _store = photos;
+  NotesRepository({
+    required NotesDatabase database,
+    required PhotoStore photos,
+    @visibleForTesting ReminderQuotaStore? quota,
+  }) : _db = database,
+       _store = photos,
+       _quota = quota ?? ReminderQuotaStore();
 
   /// Okunamayan bir kare kaç kez yeniden denenir.
   ///
@@ -86,6 +97,9 @@ class NotesRepository {
 
   final NotesDatabase _db;
   final PhotoStore _store;
+
+  /// Silinmeyen hak sayacı. Bkz. [loadFreeReminderFloor].
+  final ReminderQuotaStore _quota;
 
   /// Yeniden eskiye sıralı canlı akış. Drift her yazmadan sonra kendiliğinden
   /// yeni değer yayar, ekranlar elle tazeleme yapmaz.
@@ -358,7 +372,26 @@ class NotesRepository {
     final effectiveRetention = isPro
         ? retention
         : freeRetentionFallback(retention);
-    final effectiveReminder = isPro ? reminder : const ReminderChoice.off();
+
+    // Ücretsiz katmanda hatırlatma tümden kapalı değil, **sayılı**. Yeni
+    // kaydın kimliği henüz yok; kapı "hak kaldı mı" diye soruyor ve hak
+    // eklemeden sonra, gerçek kimlikle harcanıyor.
+    final used = isPro ? const <int>{} : await _freeReminderNotes();
+    final grantsFree =
+        !isPro &&
+        reminder.isOn &&
+        ProLimits.allowsReminder(
+          isPro: false,
+          usedNoteIds: used,
+          burnedFloor: _burnedFloor,
+          inFlight: await _inFlightFreeReminders(used, stamp),
+        );
+    final effectiveReminder = isPro || grantsFree
+        ? ReminderChoice(
+            at: reminder.at,
+            cadence: ProLimits.effectiveCadence(reminder.cadence, isPro: isPro),
+          )
+        : const ReminderChoice.off();
     final expiry = effectiveRetention.expiryFrom(stamp);
     _ensureReminderBeforeExpiry(
       remindAt: effectiveReminder.at,
@@ -439,7 +472,32 @@ class NotesRepository {
 
     return _db.transaction(() async {
       final isPro = await _isProUnlocked();
-      final effective = isPro ? reminder : const ReminderChoice.off();
+      // Kayıt hakkını daha önce almışsa yeniden ücretlendirilmiyor: kullanıcı
+      // kendi kurduğu hatırlatmayı kapatıp açabilir, saatini değiştirebilir,
+      // bildirimden erteleyebilir.
+      final used = isPro ? const <int>{} : await _freeReminderNotes();
+      final allowed = ProLimits.allowsReminder(
+        isPro: isPro,
+        usedNoteIds: used,
+        burnedFloor: _burnedFloor,
+        inFlight: isPro
+            ? 0
+            : await _inFlightFreeReminders(
+                used,
+                DateTime.now(),
+                exceptNoteId: note.id,
+              ),
+        noteId: note.id,
+      );
+      final effective = allowed
+          ? ReminderChoice(
+              at: reminder.at,
+              cadence: ProLimits.effectiveCadence(
+                reminder.cadence,
+                isPro: isPro,
+              ),
+            )
+          : const ReminderChoice.off();
       final everyDays = effective.repeats ? effective.everyDays : 0;
       final hasLegacyReminderExpiry = isReminderExpiry(
         remindAt: note.remindAt,
@@ -509,6 +567,15 @@ class NotesRepository {
   /// Söz **hatırlatmaya bağlı**: hatırlatma kalkarsa ya da tekrarlıya
   /// dönerse ondan türeyen silinme anı da kalkar. Aksi hâlde hiç çalmayacak
   /// bir bildirimin ardından not sessizce kaybolurdu.
+  ///
+  /// Söz, notun **kendi saklama süresinin yerine geçer** — kısaltabilir de,
+  /// uzatabilir de. Normalde silinme anından sonraya kurulan bir hatırlatma
+  /// [ReminderAfterExpiryException] atar; burada atmıyor, çünkü kullanıcı o
+  /// çelişkiyi zaten çözmüş oluyor: "hatırlatana kadar dursun, sonra gitsin"
+  /// daha yeni ve daha özel bir talimat. Üç günlük bir notu on gün sonrasına
+  /// kurup sözü açmak notu on gün bir saat yaşatır. Sessiz kalmasın diye
+  /// planlama ekranı hem sonucun tarihini hem de sözün mevcut sürenin yerine
+  /// geçtiğini yazıyor.
   Future<void> setReminder(
     int noteId,
     ReminderChoice reminder, {
@@ -519,7 +586,31 @@ class NotesRepository {
       if (note == null) return;
 
       final isPro = await _isProUnlocked();
-      final effective = isPro ? reminder : const ReminderChoice.off();
+      // Planlama ekranı ve bildirim düğmeleri buradan geçiyor. Erteleme aynı
+      // kaydın hakkını yeniden yemez; kural [ProLimits.allowsReminder] içinde.
+      final used = isPro ? const <int>{} : await _freeReminderNotes();
+      final allowed = ProLimits.allowsReminder(
+        isPro: isPro,
+        usedNoteIds: used,
+        burnedFloor: _burnedFloor,
+        inFlight: isPro
+            ? 0
+            : await _inFlightFreeReminders(
+                used,
+                DateTime.now(),
+                exceptNoteId: noteId,
+              ),
+        noteId: noteId,
+      );
+      final effective = allowed
+          ? ReminderChoice(
+              at: reminder.at,
+              cadence: ProLimits.effectiveCadence(
+                reminder.cadence,
+                isPro: isPro,
+              ),
+            )
+          : const ReminderChoice.off();
       final at = effective.at;
 
       // Tekrarlı bir hatırlatmanın ardından silmek kendi kendini yiyen bir
@@ -709,6 +800,139 @@ class NotesRepository {
     return (await query.getSingleOrNull())?.proUnlocked ?? false;
   }
 
+  /// Yeniden kurulumdan sonra da duran hak tabanı.
+  ///
+  /// Veritabanındaki kimlik listesi kuruluma özel; silinip yeniden kurulunca
+  /// boş başlıyor. Bu sayı Keychain'de duruyor ve o listeye bir **taban**
+  /// koyuyor: harcanan hak, listedeki kayıt sayısı ile bu tabandan hangisi
+  /// büyükse odur.
+  ///
+  /// Sıfır kalması güvenli yön: okunamadığında davranış eski hâline, yani
+  /// yalnız veritabanına dönüyor. Kullanıcıdan fazla hak almaktansa
+  /// kaçırmak yeğdir.
+  int _burnedFloor = 0;
+
+  /// Taban bu oturumda okundu mu.
+  ///
+  /// Senkron her öne dönüşte ve her kayıt değişiminde koşuyor; tabanı orada
+  /// her seferinde okumak, oturum boyunca yüzlerce kez Keychain'e gitmek
+  /// olurdu. Sayı yalnız bizim yazdığımız zaman değiştiği için bir kez okumak
+  /// yetiyor.
+  bool _floorLoaded = false;
+
+  /// Yeniden kurulumdan sonra da duran hak tabanı; arayüz kalan hakkı
+  /// hesaplarken buna da bakıyor.
+  int get freeReminderFloor => _burnedFloor;
+
+  /// Silinmeyen tabanı okur.
+  ///
+  /// Açılışta bir kez çağrılıyor. Pro kullanıcıda hiç çağrılmıyor: hak
+  /// kontrolü ona hiç uğramıyor, dolayısıyla Keychain'e ne bakılıyor ne
+  /// yazılıyor.
+  Future<void> loadFreeReminderFloor() async {
+    if (_floorLoaded) return;
+    // Pro'da bayrak **bırakılmıyor**: iade sonrası ilk senkron tabanı
+    // yükleyebilsin.
+    if (await _isProUnlocked()) return;
+    final stored = await _quota.read();
+    // Okuma başarısız olsa da bir daha denenmiyor. Sayı yalnız büyüyor ve
+    // yazan taraf da biz olduğumuz için kaçırılan bir okumanın bedeli, o
+    // oturumda veritabanına düşmek — yani kullanıcının lehine. Uygulama
+    // yeniden açıldığında tekrar deneniyor.
+    _floorLoaded = true;
+    if (stored != null && stored > _burnedFloor) _burnedFloor = stored;
+  }
+
+  /// Ücretsiz hatırlatma hakkını harcamış kayıtların kimlikleri.
+  Future<Set<int>> _freeReminderNotes() async {
+    final query = _db.select(_db.settingsTable)
+      ..where((row) => row.id.equals(1));
+    final raw = (await query.getSingleOrNull())?.freeReminderNotes ?? '';
+    return {
+      for (final id in raw.split(','))
+        if (int.tryParse(id.trim()) case final parsed?)
+          if (parsed > 0) parsed,
+    };
+  }
+
+  /// Kurulu ama henüz çalmamış hatırlatma sayısı.
+  ///
+  /// [exceptNoteId] kapının değerlendirildiği kaydın kendisi: kendi kurulu
+  /// hatırlatmasını sayarsa kullanıcı onun saatini bile değiştiremezdi.
+  Future<int> _inFlightFreeReminders(
+    Set<int> used,
+    DateTime now, {
+    int? exceptNoteId,
+  }) async {
+    final pending = await (_db.select(
+      _db.notes,
+    )..where((t) => t.remindAt.isBiggerThanValue(now))).get();
+    return pending
+        .where((note) => note.id != exceptNoteId && !used.contains(note.id))
+        .length;
+  }
+
+  /// Çalmış hatırlatmaları ücretsiz haktan düşer.
+  ///
+  /// Hak kurulumda değil **teslimde** yanıyor: kurup vazgeçen kullanıcıdan bir
+  /// şey alınmaz, çünkü ortada teslim edilmiş bir değer yok. Ölçüt de bu
+  /// yüzden zamanın kendisi — geçmişte kalmış bir `remindAt`, işletim
+  /// sisteminin o bildirimi göstermiş olması demek.
+  ///
+  /// [permissionGranted] yanlışsa hiçbir şey düşülmez: bildirim izni kapalıyken
+  /// program kurulmuyor, yani kullanıcının hiç görmediği bir şey için hak
+  /// yakmak haksızlık olurdu.
+  ///
+  /// Pro kullanıcıda hiç çalışmaz; iade sonrası kullanıcı kaldığı yerden
+  /// devam eder. Zaten hak düşüşü sırasında Pro'dan düşen kullanıcının
+  /// notlarındaki hatırlatmalar `SettingsRepository` tarafından temizlendiği
+  /// için geriye dönük bir ceza da oluşmuyor.
+  Future<void> settleFreeReminders({
+    required bool permissionGranted,
+    DateTime? now,
+  }) {
+    if (!permissionGranted) return Future<void>.value();
+    final moment = now ?? DateTime.now();
+    return _settle(moment);
+  }
+
+  Future<void> _settle(DateTime moment) async {
+    // Pro kontrolü transaction'ın **dışında**.
+    //
+    // İçeride olduğunda Pro kullanıcı her senkronda boşuna bir transaction
+    // açıyordu — ve senkron her öne dönüşte, her kayıt değişiminde, her ayar
+    // yayınında koşuyor. Yapılacak işi olmayan bir kilit, en pahalı hiçbir
+    // şeydir.
+    if (await _isProUnlocked()) return;
+    await _db.transaction(() async {
+      final fired = await (_db.select(
+        _db.notes,
+      )..where((t) => t.remindAt.isSmallerOrEqualValue(moment))).get();
+      await _burnFreeReminders(fired.map((note) => note.id));
+    });
+  }
+
+  /// Verilen kayıtları ücretsiz hakkı yakmış sayar.
+  ///
+  /// Çağıran zaten bir transaction içinde olmalı ve Pro kontrolünü yapmış
+  /// olmalı.
+  Future<void> _burnFreeReminders(Iterable<int> noteIds) async {
+    final used = await _freeReminderNotes();
+    final next = {...used, ...noteIds};
+    if (next.length == used.length) return;
+    final ordered = next.toList()..sort();
+    await (_db.update(_db.settingsTable)..where((t) => t.id.equals(1))).write(
+      SettingsTableCompanion(freeReminderNotes: Value(ordered.join(','))),
+    );
+    // Silinmeyen taban da yükseliyor. Yazma beklenmeden gidiyor: bu tur
+    // başarısız olsa bile veritabanı doğruyu taşıyor ve bir sonraki yakma
+    // aynı sayıyı yeniden gönderiyor.
+    if (next.length > _burnedFloor) {
+      _burnedFloor = next.length;
+      unawaited(_quota.write(_burnedFloor));
+    }
+  }
+
   /// Nota ve karesindeki yazıya göre arar.
   ///
   /// Sorgu iki alanda birden geçer: kullanıcının yazdığı not ve **görünmeyen**
@@ -870,7 +1094,7 @@ class NotesRepository {
   /// önplandayken dakikada bir çalışır.
   ///
   /// Silinen not sayısını döner.
-  Future<int> purgeExpired() async {
+  Future<int> purgeExpired({required bool reminderPermissionGranted}) async {
     final now = DateTime.now();
     final query = _db.select(_db.notes)
       ..where((t) => t.expiresAt.isSmallerOrEqualValue(now));
@@ -878,14 +1102,90 @@ class NotesRepository {
     if (expired.isEmpty) return 0;
 
     final ids = expired.map((note) => note.id).toList();
-    await (_db.delete(_db.notes)..where((t) => t.id.isIn(ids))).go();
+    await _db.transaction(() async {
+      // Silmeden **önce** hak hesabı kapanıyor.
+      //
+      // "Hatırlat, sonra sil" seçildiğinde not bildirimden yarım saat sonra
+      // gidiyor; yani ücretsiz hakkın en sık kullanıldığı yol tam da burası.
+      // Süpürme hesaptan önce koşarsa çalmış hatırlatmayı taşıyan kayıt yok
+      // oluyor ve hak sessizce geri geliyordu — kullanıcı aynı üç hakkı
+      // sonsuza kadar yeniden kullanabilirdi.
+      //
+      // İzin kapalıyken yakılmıyor: gösterilmemiş bir bildirim için hak
+      // almak haksızlık olurdu.
+      if (reminderPermissionGranted && !await _isProUnlocked()) {
+        await _burnFreeReminders(
+          expired
+              .where(
+                (note) => note.remindAt != null && !note.remindAt!.isAfter(now),
+              )
+              .map((note) => note.id),
+        );
+      }
+      await (_db.delete(_db.notes)..where((t) => t.id.isIn(ids))).go();
+    });
     await _store.removeAll(expired.expand(filesOf));
     return expired.length;
   }
 
+  /// Diskte bulunmuş kareleri kayıt olarak geri alır ve kaç tanesini aldığını
+  /// döner.
+  ///
+  /// Onarımın son adımı: dosya zaten depoda duruyor, burada yalnızca satırı
+  /// açılıyor. [create]'in yolundan geçmiyor çünkü o dosyayı depoya
+  /// **kopyalar** — burada kopyalanacak bir şey yok, kaybolan taraf kayıttı.
+  ///
+  /// Saklama süresi bilinçli olarak [Retention.off]: kurtarılan kaydın özgün
+  /// süresi veritabanıyla birlikte gitti ve tahmin etmek, kullanıcının hiç
+  /// istemediği bir anda kareyi silmek demek olurdu. Süresiz kalması geri
+  /// alınabilir; silinmesi değil.
+  ///
+  /// Aynı dosya adına kayıt varsa atlanıyor: onarım iki kez koşarsa arşiv
+  /// ikizlenmemeli.
+  Future<int> adoptFrames(Iterable<RecoveredFrame> frames) async {
+    final wanted = frames.toList(growable: false);
+    if (wanted.isEmpty) return 0;
+
+    return _db.transaction(() async {
+      final existing = {
+        for (final note in await _db.select(_db.notes).get())
+          if (note.hasPhoto) note.imageName,
+      };
+
+      var adopted = 0;
+      for (final frame in wanted) {
+        if (existing.contains(frame.imageName)) continue;
+        await _insertNote(
+          imageName: frame.imageName,
+          originalName: null,
+          text: '',
+          stamp: frame.createdAt,
+          retention: const RetentionChoice.off(),
+          reminder: const ReminderChoice.off(),
+          location: null,
+        );
+        adopted++;
+      }
+      return adopted;
+    });
+  }
+
   /// Kaydı olmayan fotoğrafları diskten atar. Yalnızca açılışta çağrılır.
+  ///
+  /// Veritabanı bu açılışta sıfırdan kurulduysa **hiçbir şey silinmiyor.**
+  /// Toplayıcının ölçütü "tabloda karşılığı yok"; taze bir tablonun yanında bu
+  /// ölçüt bütün arşivi yetim ilan eder. Oysa o kareler kullanıcının tek
+  /// kopyası ve kaybolan şey veritabanı — silinmesi gereken kare değil.
+  /// Bu, uygulamanın kendini onarabileceği tek durumun da ön koşulu: taze
+  /// veritabanı kurulup kareler yerinde bırakılırsa geri alınabilirler.
   Future<void> sweepOrphanFiles() async {
     final rows = await _db.select(_db.notes).get();
+    if (_db.createdFresh && rows.isEmpty) {
+      debugPrint(
+        'Veritabanı bu açılışta sıfırdan kuruldu; yetim toplama atlandı.',
+      );
+      return;
+    }
     await _store.pruneOrphans(rows.expand(filesOf).toSet());
   }
 
